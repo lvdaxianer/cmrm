@@ -1,6 +1,6 @@
 {
-  "name": "claude-switch-model",
-  "version": "1.0.0",
+  "name": "cmrm",
+  "version": "0.0.1",
   "description": "CLI tool to switch Claude models",
   "main": "dist/index.js",
   "bin": {
@@ -11,6 +11,17 @@
     "dev": "ts-node src/cli.ts",
     "start": "node dist/cli.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lvdaxianer/cmrm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lvdaxianer/cmrm/issues"
+  },
+  "homepage": "https://github.com/lvdaxianer/cmrm",
+  "files": [
+    "dist"
+  ],
   "keywords": [
     "claude",
     "model",
