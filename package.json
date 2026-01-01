@@ -1,0 +1,32 @@
+{
+  "name": "claude-switch-model",
+  "version": "1.0.0",
+  "description": "CLI tool to switch Claude models",
+  "main": "dist/index.js",
+  "bin": {
+    "cmrm": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli.ts",
+    "start": "node dist/cli.js"
+  },
+  "keywords": [
+    "claude",
+    "model",
+    "switch",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/prompts": "^2.4.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "prompts": "^2.4.2"
+  }
+}
