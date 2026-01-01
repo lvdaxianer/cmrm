@@ -21,33 +21,16 @@ This plugin is designed to **liberate Claude's model registry management**. It p
 ## Installation
 
 ```bash
-npm install -g claude-switch-model
+npm install -g cmrm
 # or
 npm link
 ```
 
-## Configuration
+## Getting Started
 
-Create a settings file at `~/.cmrm/settings.json`:
+The first time you run `cmrm`, it will automatically create a configuration file at `~/.cmrm/settings.json`.
 
-```json
-{
-  "modes": [
-    {
-      "ANTHROPIC_MODEL": "claude-sonnet-4-5-20250514",
-      "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5-20250514",
-      "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-5-20250514",
-      "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-5-20251101",
-      "ANTHROPIC_AUTH_TOKEN": "sk-ant-xxx",
-      "ANTHROPIC_BASE_URL": "https://api.anthropic.com"
-    }
-  ]
-}
-```
-
-**Required fields:** `ANTHROPIC_MODEL`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`
-
-**Note:** The first three model properties (Haiku, Sonnet, Opus) can have the same value if you want to use a unified model configuration.
+To add model configurations, use the `/input` command (see Usage section below).
 
 ## Usage
 
@@ -73,11 +56,15 @@ cmrm
 Use the `/input` command to add a new model configuration. You will be prompted to enter:
 
 1. **ANTHROPIC_MODEL** (required) - Default model name
-2. **ANTHROPIC_DEFAULT_HAIKU_MODEL** (required) - Haiku model name
-3. **ANTHROPIC_DEFAULT_SONNET_MODEL** (required) - Sonnet model name
-4. **ANTHROPIC_DEFAULT_OPUS_MODEL** (required) - Opus model name
+2. **ANTHROPIC_DEFAULT_HAIKU_MODEL** (optional) - Haiku model name
+3. **ANTHROPIC_DEFAULT_SONNET_MODEL** (optional) - Sonnet model name
+4. **ANTHROPIC_DEFAULT_OPUS_MODEL** (optional) - Opus model name
 5. **ANTHROPIC_AUTH_TOKEN** (required) - API authentication token
 6. **ANTHROPIC_BASE_URL** (required) - API base URL
+
+**Required fields:** `ANTHROPIC_MODEL`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`
+
+**Optional fields:** `ANTHROPIC_DEFAULT_HAIKU_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL`, `ANTHROPIC_DEFAULT_OPUS_MODEL`
 
 The tool will validate that:
 - All required fields are filled
@@ -95,20 +82,7 @@ When using `/model` command:
 - Press `Enter` to select a model
 - Press `Esc` to cancel
 
-The selected configuration will be written to `~/.claude/settings.json` in the following format:
-
-```json
-{
-  "env": {
-    "ANTHROPIC_MODEL": "claude-sonnet-4-5-20250514",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5-20250514",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-5-20250514",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-5-20251101",
-    "ANTHROPIC_AUTH_TOKEN": "sk-ant-xxx",
-    "ANTHROPIC_BASE_URL": "https://api.anthropic.com"
-  }
-}
-```
+The selected configuration will be automatically written to your Claude settings file.
 
 ## Development
 
@@ -129,7 +103,7 @@ npm start
 ## Project Structure
 
 ```
-claude-switch-model/
+cmrm/
 ├── src/
 │   ├── cli.ts       # CLI interface and interaction logic
 │   ├── config.ts    # Configuration file reader/writer
@@ -140,6 +114,16 @@ claude-switch-model/
 ├── tsconfig.json
 └── README.md
 ```
+
+## Changelog
+
+### 0.0.1
+- Initial release
+- Support for model switching
+- Interactive model configuration via `/input` command
+- Bilingual command descriptions (中文/English)
+- Auto-display command list after each command execution
+- Intelligent command suggestions for unknown inputs
 
 ## License
 

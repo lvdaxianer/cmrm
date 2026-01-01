@@ -21,33 +21,16 @@
 ## 安装
 
 ```bash
-npm install -g claude-switch-model
+npm install -g cmrm
 # 或者
 npm link
 ```
 
-## 配置
+## 快速开始
 
-在 `~/.cmrm/settings.json` 创建配置文件：
+首次运行 `cmrm` 时，它会自动在 `~/.cmrm/settings.json` 创建配置文件。
 
-```json
-{
-  "modes": [
-    {
-      "ANTHROPIC_MODEL": "claude-sonnet-4-5-20250514",
-      "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5-20250514",
-      "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-5-20250514",
-      "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-5-20251101",
-      "ANTHROPIC_AUTH_TOKEN": "sk-ant-xxx",
-      "ANTHROPIC_BASE_URL": "https://api.anthropic.com"
-    }
-  ]
-}
-```
-
-**必填字段：** `ANTHROPIC_MODEL`、`ANTHROPIC_AUTH_TOKEN`、`ANTHROPIC_BASE_URL`
-
-**注意：** 前三个模型属性（Haiku、Sonnet、Opus）可以保持相同的值，表示使用统一的模型配置。
+要添加模型配置，请使用 `/input` 命令（详见下方使用方法）。
 
 ## 使用方法
 
@@ -73,11 +56,15 @@ cmrm
 使用 `/input` 命令添加新的模型配置，系统会依次提示输入：
 
 1. **ANTHROPIC_MODEL**（必填）- 默认模型名称
-2. **ANTHROPIC_DEFAULT_HAIKU_MODEL**（必填）- Haiku 模型名称
-3. **ANTHROPIC_DEFAULT_SONNET_MODEL**（必填）- Sonnet 模型名称
-4. **ANTHROPIC_DEFAULT_OPUS_MODEL**（必填）- Opus 模型名称
+2. **ANTHROPIC_DEFAULT_HAIKU_MODEL**（可选）- Haiku 模型名称
+3. **ANTHROPIC_DEFAULT_SONNET_MODEL**（可选）- Sonnet 模型名称
+4. **ANTHROPIC_DEFAULT_OPUS_MODEL**（可选）- Opus 模型名称
 5. **ANTHROPIC_AUTH_TOKEN**（必填）- API 认证密钥
 6. **ANTHROPIC_BASE_URL**（必填）- API 基础 URL
+
+**必填字段：** `ANTHROPIC_MODEL`、`ANTHROPIC_AUTH_TOKEN`、`ANTHROPIC_BASE_URL`
+
+**可选字段：** `ANTHROPIC_DEFAULT_HAIKU_MODEL`、`ANTHROPIC_DEFAULT_SONNET_MODEL`、`ANTHROPIC_DEFAULT_OPUS_MODEL`
 
 系统会校验：
 - 所有必填字段都已填写
@@ -95,20 +82,7 @@ cmrm
 - 按 `Enter` 键选择模型
 - 按 `Esc` 键取消
 
-选中的配置将写入 `~/.claude/settings.json`，格式如下：
-
-```json
-{
-  "env": {
-    "ANTHROPIC_MODEL": "claude-sonnet-4-5-20250514",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5-20250514",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-5-20250514",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-5-20251101",
-    "ANTHROPIC_AUTH_TOKEN": "sk-ant-xxx",
-    "ANTHROPIC_BASE_URL": "https://api.anthropic.com"
-  }
-}
-```
+选中的配置将自动写入您的 Claude 设置文件。
 
 ## 开发
 
@@ -129,7 +103,7 @@ npm start
 ## 项目结构
 
 ```
-claude-switch-model/
+cmrm/
 ├── src/
 │   ├── cli.ts       # CLI 交互界面和逻辑
 │   ├── config.ts    # 配置文件读写
@@ -140,6 +114,16 @@ claude-switch-model/
 ├── tsconfig.json
 └── README.md
 ```
+
+## 更新日志
+
+### 0.0.1
+- 初始版本发布
+- 支持模型切换功能
+- 通过 `/input` 命令交互式配置模型
+- 命令描述支持中英文双语
+- 每次命令执行后自动显示命令列表
+- 智能命令提示（未知命令时建议相似命令）
 
 ## 许可证
 
