@@ -124,7 +124,7 @@ export class CLI {
     // 输入 /list 时，显示所有模型配置
     else if (input === '/list') {
       this.showModelList();
-      this.promptWithCommands();
+      this.prompt();
     }
     // 输入 /current 时，显示当前模型
     else if (input === '/current') {
