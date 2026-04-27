@@ -8,27 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- 修复 /remove 命令错误执行 /switch 的问题 (e056ed4)
-
-- 重命名 /switch-model 为 /switch (b167592)
+- 所有选择界面（命令、工具、模型）统一使用索引输入方式，移除方向键导航
 
 ### Changed
-- 添加 /remove 命令，重命名 /add-model 为 /add (e6197f7)
-
-- 修复 add-model 后键盘选择失效问题 (501ffbe)
+- 修复 /remove 命令错误执行 /switch 的问题
 
 ### Changed
-- 移除 TOML 相关代码 (961b4bb)
-
-- 更新 CHANGELOG.md (1d58f09)
-
-### Changed
-- 移除 OpenCode 支持，专注于 Claude CLI (0b883b2)
-
-- 说明 OpenCode 不支持持久化默认模型 (846d268)
-
-### Changed
-- 添加命令选择菜单，支持上下键交互 (32085a5)
-
-- 重构为多工具架构，支持 Claude 和 OpenCode (e4b604a)
-
+- 重命名 /switch-model 为 /switch
+- 添加 /remove 命令，重命名 /add-model 为 /add
+- 移除 TOML 相关代码
+- 移除 OpenCode 支持，专注于 Claude CLI
+- 添加命令选择菜单，支持上下键交互
+- 重构为多工具架构，支持 Claude 和 OpenCode

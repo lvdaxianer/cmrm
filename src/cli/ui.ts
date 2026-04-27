@@ -17,10 +17,12 @@ import { ToolAdapter, registry } from '../adapters';
  * 直接操作终端，比 readline API 更可靠
  */
 const ANSI = {
+  /** 清除整屏 */
+  CLEAR_SCREEN: '\x1b[2J',
   /** 清除整行 */
   CLEAR_LINE: '\x1b[2K',
-  /** 清除从光标到屏幕底部 */
-  CLEAR_DOWN: '\x1b[J',
+  /** 回到左上角 */
+  HOME: '\x1b[H',
   /** 向上移动 N 行 */
   MOVE_UP: (n: number) => `\x1b[${n}A`,
   /** 向下移动 N 行 */
@@ -34,18 +36,22 @@ const ANSI = {
 };
 
 /**
- * 清除指定行数的内容并回到起始位置
- * 使用 ANSI 转义序列直接操作终端
+ * 清除指定行数
+ * 使用 ANSI 转义序列向上移动并清除每一行
  *
- * @param lines - 要清除的行数
+ * @param count - 要清除的行数
  * @author lvdaxianerplus
  * @date 2026-04-27
  */
-function clearLines(lines: number): void {
-  // 向上移动指定行数 + 回到行首
-  process.stdout.write(ANSI.CURSOR_HOME + ANSI.MOVE_UP(lines));
-  // 清除从当前位置到屏幕底部
-  process.stdout.write(ANSI.CLEAR_DOWN);
+function clearLines(count: number): void {
+  for (let i = 0; i < count; i++) {
+    process.stdout.write(ANSI.CURSOR_HOME);
+    process.stdout.write(ANSI.CLEAR_LINE);
+    if (i < count - 1) {
+      process.stdout.write(ANSI.MOVE_UP(1));
+    }
+  }
+  process.stdout.write(ANSI.MOVE_UP(count));
 }
 
 /**
@@ -156,54 +162,42 @@ export class UIRenderer {
   }
 
   /**
-   * 渲染模型选择列表
-   * 显示指定工具的所有保存模型
+   * 渲染模型选择列表（索引方式）
+   * 显示指定工具的所有保存模型，每个选项带索引编号
    *
    * @param adapter - 工具适配器
    * @param models - 模型配置列表
-   * @param currentSelection - 当前选中的索引
+   * @param currentSelection - 当前选中的索引（用于高亮）
    * @param isFirstRender - 是否首次渲染（首次渲染包含提示文字）
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
   renderModelList(adapter: ToolAdapter, models: UnifiedModelConfig[], currentSelection: number, isFirstRender: boolean = false): void {
-    // 总行数：标题(2行) + 模型(models.length行)
-    const totalLines = models.length + 2;
-
-    // 非首次渲染时清除之前的渲染内容
-    if (!isFirstRender) {
-      clearLines(totalLines);
-    }
-
-    // 渲染标题（首次和非首次行数相同）
+    // 渲染标题
     if (isFirstRender) {
-      console.log('');
-      console.log(chalk.cyan(`选择 ${adapter.displayName} 模型 (↑/↓ 选择，Enter 确认，Esc 取消):`));
-    } else {
-      console.log('');
-      console.log(chalk.cyan(`选择 ${adapter.displayName} 模型:`));
+      console.log(chalk.cyan(`\n=== 选择 ${adapter.displayName} 模型 ===`));
+      console.log(chalk.gray('(输入索引号按 Enter 确认，或按 Esc 取消)\n'));
     }
 
     // 渲染每个模型选项
     models.forEach((model, index) => {
-      const isSelected = index === currentSelection;
       const displayName = model.name || model.model;
+      const providerInfo = model.provider ? chalk.gray(`[${model.provider}]`) : '';
 
-      // 选中项显示箭头和绿色高亮
-      if (isSelected) {
-        const prefix = chalk.cyan('❯ ');
-        const modelName = chalk.green(displayName);
-        const providerInfo = model.provider ? chalk.gray(`[${model.provider}]`) : '';
-        console.log(`${prefix}${modelName} ${providerInfo}`);
+      // 选中项高亮显示
+      if (index === currentSelection) {
+        console.log(chalk.green(`[${index}] `) + chalk.bold(displayName) + ` ${providerInfo}`);
       }
-      // 未选中项显示灰色
+      // 未选中项灰色显示
       else {
-        const prefix = '  ';
-        const modelName = chalk.gray(displayName);
-        const providerInfo = model.provider ? chalk.gray(`[${model.provider}]`) : '';
-        console.log(`${prefix}${modelName} ${providerInfo}`);
+        console.log(chalk.gray(`[${index}] `) + displayName + ` ${providerInfo}`);
       }
     });
+
+    // 显示提示
+    if (isFirstRender) {
+      console.log(chalk.gray('\n请输入索引号:'));
+    }
   }
 
   /**

@@ -113,7 +113,7 @@ export class CLI {
     await this.ensureConfigFile();
 
     console.log(chalk.cyan('Model Registry Manager (cmrm) - Multi-tool support'));
-    console.log(chalk.gray('\n提示：输入命令或使用上下键选择命令，Enter 确认，Ctrl+C 退出\n'));
+    console.log(chalk.gray('\n提示：输入命令索引号按 Enter 确认\n'));
 
     // 显示命令选择菜单
     this.showCommandSelection();
@@ -121,19 +121,62 @@ export class CLI {
 
   /**
    * 显示命令选择菜单
-   * 使用上下键选择命令
+   * 使用索引输入方式选择命令
    *
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private showCommandSelection(): void {
-    // 设置当前选项为命令列表
-    this.currentOptions = AVAILABLE_COMMANDS.map(cmd => cmd.name);
-    this.currentSelection = 0;
+  private async showCommandSelection(): Promise<void> {
+    // 移除旧监听器并关闭 readline 接口，释放 stdin 给 inquirer 使用
+    this.rl.removeAllListeners('line');
+    this.rl.close();
 
-    // 渲染命令列表
-    this.uiRenderer.renderCommandList(this.currentSelection, true);
-    this.setupKeyListener('command');
+    // 确保 stdin 不在 raw mode
+    if (process.stdin.isRaw) {
+      process.stdin.setRawMode(false);
+    }
+    process.stdin.resume();
+
+    // 显示命令列表
+    console.log(chalk.cyan('\n=== 选择命令 ==='));
+    console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
+
+    // 显示每个命令的索引
+    AVAILABLE_COMMANDS.forEach((cmd, index) => {
+      console.log(chalk.gray(`[${index}] `) + cmd.name.padEnd(15) + chalk.gray(cmd.description));
+    });
+
+    try {
+      // 使用 inquirer 获取用户输入
+      const response = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'index',
+          message: '请输入命令索引:',
+          validate: (value: string) => {
+            const num = parseInt(value, 10);
+            if (isNaN(num) || num < 0 || num >= AVAILABLE_COMMANDS.length) {
+              return `请输入 0-${AVAILABLE_COMMANDS.length - 1} 之间的数字`;
+            }
+            return true;
+          }
+        }
+      ] as any);
+
+      // 获取选择的命令
+      const selectedIndex = parseInt(response.index, 10);
+      const selectedCommand = AVAILABLE_COMMANDS[selectedIndex].name;
+
+      // 执行命令（等待命令执行完成）
+      await this.handleInput(selectedCommand);
+    }
+    // 发生错误
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.uiRenderer.showError(`选择失败: ${message}`);
+      await this.recreateReadline();
+      await this.showCommandSelection();
+    }
   }
 
   /**
@@ -173,31 +216,31 @@ export class CLI {
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private handleInput(input: string): void {
+  private async handleInput(input: string): Promise<void> {
     // /switch 命令 - 显示工具选择
     if (input === '/switch') {
       this.nextOperation = 'switch';
-      this.showToolSelection();
+      await this.showToolSelection();
     }
     // /add 命令 - 显示工具选择后交互添加
     else if (input === '/add') {
       this.nextOperation = 'add';
-      this.showToolSelection();
+      await this.showToolSelection();
     }
     // /remove 命令 - 显示工具选择后交互删除
     else if (input === '/remove') {
       this.nextOperation = 'remove';
-      this.showToolSelection();
+      await this.showToolSelection();
     }
     // /list 命令 - 显示所有模型配置，然后返回命令选择
     else if (input === '/list') {
       this.uiRenderer.showAllModels();
-      this.showCommandSelection();
+      await this.showCommandSelection();
     }
     // /current 命令 - 显示当前生效模型，然后返回命令选择
     else if (input === '/current') {
       this.uiRenderer.showCurrentModels();
-      this.showCommandSelection();
+      await this.showCommandSelection();
     }
     // 退出命令 - 关闭程序
     else if (this.isExitCommand(input)) {
@@ -207,21 +250,21 @@ export class CLI {
     }
     // 空命令 "/" - 显示命令选择菜单
     else if (input === '/') {
-      this.showCommandSelection();
+      await this.showCommandSelection();
     }
     // 空输入 - 显示命令选择菜单
     else if (input === '') {
-      this.showCommandSelection();
+      await this.showCommandSelection();
     }
     // 部分命令输入 - 显示匹配建议后返回命令选择
     else if (input.startsWith('/') && !AVAILABLE_COMMANDS.some(cmd => cmd.name === input)) {
       this.showCommandSuggestions(input);
-      this.showCommandSelection();
+      await this.showCommandSelection();
     }
     // 未知命令 - 提示错误后返回命令选择
     else {
       this.handleUnknownCommand(input);
-      this.showCommandSelection();
+      await this.showCommandSelection();
     }
   }
 
@@ -371,56 +414,90 @@ export class CLI {
 
   /**
    * 显示工具选择菜单
+   * 使用索引输入方式选择工具
    *
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private showToolSelection(): void {
-    this.currentOptions = registry.getToolNames();
-    this.currentSelection = 0;
+  private async showToolSelection(): Promise<void> {
+    // 移除旧监听器并关闭 readline 接口
+    this.rl.removeAllListeners('line');
+    this.rl.close();
 
-    // 首次渲染（包含完整提示）
-    this.uiRenderer.renderToolList(this.currentSelection, true);
-    this.setupKeyListener('tool');
+    // 确保 stdin 不在 raw mode
+    if (process.stdin.isRaw) {
+      process.stdin.setRawMode(false);
+    }
+    process.stdin.resume();
+
+    const toolNames = registry.getToolNames();
+
+    console.log(chalk.cyan('\n=== 选择工具 ==='));
+    console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
+
+    // 显示每个工具的索引
+    toolNames.forEach((toolName, index) => {
+      const adapter = registry.getAdapter(toolName);
+      console.log(chalk.gray(`[${index}] `) + adapter.displayName);
+    });
+
+    try {
+      // 使用 inquirer 获取用户输入
+      const response = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'index',
+          message: '请输入工具索引:',
+          validate: (value: string) => {
+            const num = parseInt(value, 10);
+            if (isNaN(num) || num < 0 || num >= toolNames.length) {
+              return `请输入 0-${toolNames.length - 1} 之间的数字`;
+            }
+            return true;
+          }
+        }
+      ] as any);
+
+      // 获取选择的工具
+      const selectedIndex = parseInt(response.index, 10);
+      const selectedTool = toolNames[selectedIndex];
+      this.selectedAdapter = registry.getAdapter(selectedTool);
+
+      this.uiRenderer.showSuccess(`\n已选择工具: ${this.selectedAdapter.displayName}`);
+
+      // 根据下一步操作继续流程
+      if (this.nextOperation === 'switch') {
+        await this.showModelSelection();
+      }
+      else if (this.nextOperation === 'add') {
+        await this.handleAddModel();
+      }
+      else if (this.nextOperation === 'remove') {
+        await this.showRemoveModelSelection();
+      }
+      else {
+        // 无后续操作，返回命令选择菜单
+        await this.recreateReadline();
+        await this.showCommandSelection();
+      }
+    }
+    // 发生错误
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.uiRenderer.showError(`选择失败: ${message}`);
+      await this.recreateReadline();
+      await this.showCommandSelection();
+    }
   }
 
   /**
-   * 显示模型选择菜单（用于 /switch-model）
+   * 显示模型选择菜单（用于 /switch）
+   * 使用索引输入方式选择模型
    *
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private showModelSelection(): void {
-    // 未选择工具时不执行
-    if (!this.selectedAdapter) {
-      return;
-    }
-
-    const models = this.selectedAdapter.getSavedModels();
-
-    // 无保存模型时显示提示
-    if (models.length === 0) {
-      this.uiRenderer.showWarning(`\n${this.selectedAdapter.displayName} 没有保存的模型配置`);
-      this.uiRenderer.showInfo('请使用 /add-model 命令添加模型配置');
-      this.showCommandSelection();
-      return;
-    }
-
-    // 有模型时显示选择列表（首次渲染）
-    this.currentOptions = models.map(m => m.name || m.model);
-    this.currentSelection = 0;
-
-    this.uiRenderer.renderModelList(this.selectedAdapter, models, this.currentSelection, true);
-    this.setupKeyListener('model');
-  }
-
-  /**
-   * 显示删除模型选择菜单（用于 /remove）
-   *
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private showRemoveModelSelection(): void {
+  private async showModelSelection(): Promise<void> {
     // 未选择工具时不执行
     if (!this.selectedAdapter) {
       return;
@@ -432,165 +509,159 @@ export class CLI {
     if (models.length === 0) {
       this.uiRenderer.showWarning(`\n${this.selectedAdapter.displayName} 没有保存的模型配置`);
       this.uiRenderer.showInfo('请使用 /add 命令添加模型配置');
-      this.showCommandSelection();
+      await this.showCommandSelection();
       return;
     }
 
-    // 有模型时显示选择列表（首次渲染）
+    // 显示模型列表
     this.currentOptions = models.map(m => m.name || m.model);
-    this.currentSelection = 0;
 
-    this.uiRenderer.renderModelList(this.selectedAdapter, models, this.currentSelection, true);
-    this.setupKeyListener('remove');
-  }
-
-  /**
-   * 设置键盘监听器
-   * 关闭 readline interface 后立即启动 raw mode 监听
-   *
-   * @param mode - 监听模式（command、tool、model 或 remove）
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private setupKeyListener(mode: 'command' | 'tool' | 'model' | 'remove'): void {
-    // 关闭 readline interface，释放 stdin
+    // 移除旧监听器并关闭 readline 接口
+    this.rl.removeAllListeners('line');
     this.rl.close();
 
-    // 关闭后 stdin 会暂停，立即恢复
+    // 确保 stdin 不在 raw mode
+    if (process.stdin.isRaw) {
+      process.stdin.setRawMode(false);
+    }
     process.stdin.resume();
 
-    // 启动键盘监听（进入 raw mode）
-    this.keyListener.startListening((action) => {
-      this.handleKeyAction(action, mode);
+    console.log(chalk.cyan(`\n=== 选择 ${this.selectedAdapter.displayName} 模型 ===`));
+    console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
+
+    // 显示每个模型的索引
+    models.forEach((model, index) => {
+      const displayName = model.name || model.model;
+      const providerInfo = model.provider ? chalk.gray(`[${model.provider}]`) : '';
+      console.log(chalk.gray(`[${index}] `) + displayName + ` ${providerInfo}`);
     });
-  }
 
-  /**
-   * 处理键盘动作
-   * 对于上下键，先停止监听再渲染，渲染后自动重新监听
-   *
-   * @param action - 键盘动作类型
-   * @param mode - 当前选择模式
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private handleKeyAction(action: KeyAction, mode: 'command' | 'tool' | 'model' | 'remove'): void {
-    // 向上选择 - 停止监听、更新索引、渲染（渲染后会重新监听）
-    if (action === 'up') {
-      this.keyListener.stopListening();
-      this.currentSelection = Math.max(0, this.currentSelection - 1);
-      this.renderCurrentList(mode);
+    try {
+      // 使用 inquirer 获取用户输入
+      const response = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'index',
+          message: '请输入索引号:',
+          validate: (value: string) => {
+            const num = parseInt(value, 10);
+            if (isNaN(num) || num < 0 || num >= models.length) {
+              return `请输入 0-${models.length - 1} 之间的数字`;
+            }
+            return true;
+          }
+        }
+      ] as any);
+
+      // 用户取消输入
+      if (Object.keys(response).length === 0) {
+        await this.recreateReadline();
+        this.uiRenderer.showWarning('\n已取消');
+        await this.showCommandSelection();
+        return;
+      }
+
+      // 获取选择的索引
+      const selectedIndex = parseInt(response.index, 10);
+      const selectedModel = models[selectedIndex];
+
+      // 切换模型（switchModel 内部会处理返回命令选择菜单）
+      await this.switchModel(selectedModel);
     }
-    // 向下选择 - 停止监听、更新索引、渲染（渲染后会重新监听）
-    else if (action === 'down') {
-      this.keyListener.stopListening();
-      this.currentSelection = Math.min(this.currentOptions.length - 1, this.currentSelection + 1);
-      this.renderCurrentList(mode);
-    }
-    // 确认选择 - 先停止监听再处理选中项（不再重新监听）
-    else if (action === 'confirm') {
-      this.keyListener.stopListening();
-      this.handleSelection(mode);
-    }
-    // 取消选择 - 先停止监听再返回命令选择菜单
-    else if (action === 'cancel') {
-      this.keyListener.stopListening();
-      this.nextOperation = null;
-      this.uiRenderer.showWarning('\n已取消');
-      this.showCommandSelection();
-    }
-    // 退出程序 - 先停止监听再退出
-    else if (action === 'exit') {
-      this.keyListener.stopListening();
-      console.log(chalk.yellow('\nGoodbye!'));
-      this.rl.close();
-      process.exit(0);
-    }
-    // 其他动作不处理
-    else {
-      // 忽略
+    // 发生错误
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.uiRenderer.showError(`选择失败: ${message}`);
+      await this.recreateReadline();
+      await this.showCommandSelection();
     }
   }
 
   /**
-   * 渲染当前选择列表
-   * 渲染前停止监听，渲染后重新启动监听
-   * 这样可以避免 raw mode 和 readline API 的冲突
-   *
-   * @param mode - 选择模式
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private renderCurrentList(mode: 'tool' | 'model' | 'command' | 'remove'): void {
-    // 命令模式 - 渲染命令列表
-    if (mode === 'command') {
-      this.uiRenderer.renderCommandList(this.currentSelection, false);
-    }
-    // 工具模式 - 渲染工具列表（后续渲染，不显示完整提示）
-    else if (mode === 'tool') {
-      this.uiRenderer.renderToolList(this.currentSelection, false);
-    }
-    // 模型模式 - 渲染模型列表（后续渲染）
-    else if ((mode === 'model' || mode === 'remove') && this.selectedAdapter) {
-      const models = this.selectedAdapter.getSavedModels();
-      this.uiRenderer.renderModelList(this.selectedAdapter, models, this.currentSelection, false);
-    }
-    // 其他模式不渲染
-    else {
-      // 不处理
-    }
-
-    // 渲染完成后重新启动键盘监听
-    this.setupKeyListener(mode);
-  }
-
-  /**
-   * 处理选择确认
-   *
-   * @param mode - 选择模式
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private handleSelection(mode: 'tool' | 'model' | 'command' | 'remove'): void {
-
-    // 命令选择完成
-    if (mode === 'command') {
-      this.handleCommandSelection();
-    }
-    // 工具选择完成
-    else if (mode === 'tool') {
-      this.handleToolSelection();
-    }
-    // 模型选择完成（switch 操作）
-    else if (mode === 'model') {
-      this.handleModelSelection();
-    }
-    // 模型选择完成（remove 操作）
-    else if (mode === 'remove') {
-      this.handleRemoveSelection();
-    }
-    // 其他模式不处理
-    else {
-      // 不处理
-    }
-  }
-
-  /**
-   * 处理删除模型选择完成
+   * 显示删除模型选择菜单（用于 /remove）
+   * 使用索引输入方式选择要删除的模型
    *
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private handleRemoveSelection(): void {
+  private async showRemoveModelSelection(): Promise<void> {
     // 未选择工具时不执行
     if (!this.selectedAdapter) {
       return;
     }
 
     const models = this.selectedAdapter.getSavedModels();
-    const selectedModel = models[this.currentSelection];
 
-    this.removeModel(selectedModel);
+    // 无保存模型时显示提示
+    if (models.length === 0) {
+      this.uiRenderer.showWarning(`\n${this.selectedAdapter.displayName} 没有保存的模型配置`);
+      this.uiRenderer.showInfo('请使用 /add 命令添加模型配置');
+      await this.showCommandSelection();
+      return;
+    }
+
+    // 显示模型列表
+    this.currentOptions = models.map(m => m.name || m.model);
+
+    // 移除旧监听器并关闭 readline 接口
+    this.rl.removeAllListeners('line');
+    this.rl.close();
+
+    // 确保 stdin 不在 raw mode
+    if (process.stdin.isRaw) {
+      process.stdin.setRawMode(false);
+    }
+    process.stdin.resume();
+
+    console.log(chalk.cyan(`\n=== 删除 ${this.selectedAdapter.displayName} 模型 ===`));
+    console.log(chalk.gray('(输入索引号按 Enter 确认删除)\n'));
+
+    // 显示每个模型的索引
+    models.forEach((model, index) => {
+      const displayName = model.name || model.model;
+      const providerInfo = model.provider ? chalk.gray(`[${model.provider}]`) : '';
+      console.log(chalk.gray(`[${index}] `) + displayName + ` ${providerInfo}`);
+    });
+
+    try {
+      // 使用 inquirer 获取用户输入
+      const response = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'index',
+          message: '请输入要删除的索引号:',
+          validate: (value: string) => {
+            const num = parseInt(value, 10);
+            if (isNaN(num) || num < 0 || num >= models.length) {
+              return `请输入 0-${models.length - 1} 之间的数字`;
+            }
+            return true;
+          }
+        }
+      ] as any);
+
+      // 用户取消输入
+      if (Object.keys(response).length === 0) {
+        this.recreateReadline();
+        this.uiRenderer.showWarning('\n已取消');
+        this.showCommandSelection();
+        return;
+      }
+
+      // 获取选择的索引
+      const selectedIndex = parseInt(response.index, 10);
+      const selectedModel = models[selectedIndex];
+
+      // 删除模型（removeModel 内部会处理返回命令选择菜单）
+      await this.removeModel(selectedModel);
+    }
+    // 发生错误
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.uiRenderer.showError(`选择失败: ${message}`);
+      await this.recreateReadline();
+      await this.showCommandSelection();
+    }
   }
 
   /**
@@ -600,7 +671,7 @@ export class CLI {
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private removeModel(selectedModel: UnifiedModelConfig): void {
+  private async removeModel(selectedModel: UnifiedModelConfig): Promise<void> {
     // 未选择工具时不执行
     if (!this.selectedAdapter) {
       return;
@@ -630,71 +701,11 @@ export class CLI {
 
     // 清理状态并返回命令选择菜单
     this.nextOperation = null;
-    this.showCommandSelection();
+    await this.showCommandSelection();
   }
 
   /**
-   * 处理命令选择完成
-   * 执行选中的命令
-   *
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private handleCommandSelection(): void {
-    const selectedCommand = this.currentOptions[this.currentSelection];
-    this.handleInput(selectedCommand);
-  }
-
-  /**
-   * 处理工具选择完成
-   *
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private handleToolSelection(): void {
-    const selectedTool = this.currentOptions[this.currentSelection];
-    this.selectedAdapter = registry.getAdapter(selectedTool);
-
-    this.uiRenderer.showSuccess(`\n已选择工具: ${this.selectedAdapter.displayName}`);
-
-    // 调试日志
-
-    // 根据下一步操作继续流程
-    if (this.nextOperation === 'switch') {
-      this.showModelSelection();
-    }
-    else if (this.nextOperation === 'add') {
-      this.handleAddModel();
-    }
-    else if (this.nextOperation === 'remove') {
-      this.showRemoveModelSelection();
-    }
-    else {
-      // 无后续操作，返回命令选择菜单
-      this.showCommandSelection();
-    }
-  }
-
-  /**
-   * 处理模型选择完成（switch 操作）
-   *
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private handleModelSelection(): void {
-    // 未选择工具时不执行
-    if (!this.selectedAdapter) {
-      return;
-    }
-
-    const models = this.selectedAdapter.getSavedModels();
-    const selectedModel = models[this.currentSelection];
-
-    this.switchModel(selectedModel);
-  }
-
-  /**
-   * 处理 /add-model 命令
+   * 处理 /add 命令
    * 交互式让用户输入模型配置信息
    *
    * @author lvdaxianerplus
@@ -706,18 +717,15 @@ export class CLI {
       return;
     }
 
-    // 关闭 readline
+    // 移除旧监听器并关闭 readline 接口
+    this.rl.removeAllListeners('line');
     this.rl.close();
-
-    // 确保 KeyListener 已停止
-    if (this.keyListener.isListening()) {
-      this.keyListener.stopListening();
-    }
 
     // 确保 stdin 不在 raw mode
     if (process.stdin.isRaw) {
       process.stdin.setRawMode(false);
     }
+    process.stdin.resume();
 
     console.log(chalk.cyan(`\n=== 添加 ${this.selectedAdapter.displayName} 模型配置 ===\n`));
     console.log(chalk.gray('提示：可选字段不填写可直接按 Enter 跳过\n'));
@@ -731,9 +739,9 @@ export class CLI {
 
       // 用户取消输入
       if (Object.keys(response).length === 0) {
-        this.recreateReadline();
+        await this.recreateReadline();
         this.uiRenderer.showWarning('\n已取消');
-        this.showCommandSelection();
+        await this.showCommandSelection();
         return;
       }
 
@@ -742,35 +750,26 @@ export class CLI {
 
       // 验证配置
       if (!this.selectedAdapter.validateConfig(config)) {
-        this.recreateReadline();
+        await this.recreateReadline();
         this.uiRenderer.showError('\n配置验证失败！请检查必填字段。');
-        this.showCommandSelection();
+        await this.showCommandSelection();
         return;
       }
 
       // 保存配置
       this.selectedAdapter.saveModel(config);
       this.showAddModelResult(config);
-
-      // 重新创建 readline
-      this.recreateReadline();
     }
     // 添加失败
     catch (error) {
-      this.recreateReadline();
       const message = error instanceof Error ? error.message : String(error);
       this.uiRenderer.showError(`添加失败: ${message}`);
     }
 
     // 清理状态并返回命令选择菜单
     this.nextOperation = null;
-
-    // 恢复 stdin 状态，确保 keypress 事件正常工作
-    process.stdin.pause();
-    readline.emitKeypressEvents(process.stdin);
-
-    this.recreateReadline();
-    this.showCommandSelection();
+    await this.recreateReadline();
+    await this.showCommandSelection();
   }
 
   /**
@@ -917,7 +916,7 @@ export class CLI {
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private switchModel(config: UnifiedModelConfig): void {
+  private async switchModel(config: UnifiedModelConfig): Promise<void> {
     // 未选择工具时不执行
     if (!this.selectedAdapter) {
       return;
@@ -927,7 +926,7 @@ export class CLI {
       // 验证配置完整性
       if (!this.selectedAdapter.validateConfig(config)) {
         this.uiRenderer.showError('\n配置验证失败！缺少必填字段。');
-        this.showCommandSelection();
+        await this.showCommandSelection();
         return;
       }
 
@@ -945,7 +944,7 @@ export class CLI {
 
     // 清理状态并返回命令选择菜单
     this.nextOperation = null;
-    this.showCommandSelection();
+    await this.showCommandSelection();
   }
 
   /**
