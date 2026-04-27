@@ -664,6 +664,11 @@ export class CLI {
 
     // 清理状态并返回命令选择菜单
     this.nextOperation = null;
+
+    // 恢复 stdin 状态，确保 keypress 事件正常工作
+    process.stdin.pause();
+    readline.emitKeypressEvents(process.stdin);
+
     this.recreateReadline();
     this.showCommandSelection();
   }

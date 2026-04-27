@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- 移除 TOML 相关代码 (961b4bb)
+
+- 更新 CHANGELOG.md (1d58f09)
+
+### Changed
 - 移除 OpenCode 支持，专注于 Claude CLI (0b883b2)
 
 - 说明 OpenCode 不支持持久化默认模型 (846d268)

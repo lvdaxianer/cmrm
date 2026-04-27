@@ -15,8 +15,6 @@ import {
   getNextBackupNumber,
   backupConfig,
   mergeJsonConfig,
-  mergeTomlConfig,
-  createDefaultTomlConfig,
 } from '../src/utils/backup';
 import { UnifiedModelConfig } from '../src/adapters/types';
 
@@ -234,71 +232,3 @@ describe('JSON配置合并', () => {
   });
 });
 
-/**
- * TOML配置合并测试
- */
-describe('TOML配置合并', () => {
-  // 合并保留原有providers
-  it('合并时保留原有其他provider', () => {
-    const original = `
-providers = { openai = { api_key = "old-key" }, anthropic = { api_key = "anthropic-key" } }
-default_model = "gpt-3.5"
-`;
-
-    const newConfig: UnifiedModelConfig = {
-      model: 'gpt-4',
-      apiKey: 'new-openai-key',
-      baseUrl: 'https://api.openai.com/v1',
-      provider: 'openai',
-    };
-
-    const merged = mergeTomlConfig(original, newConfig);
-
-    // anthropic provider 保留
-    expect(merged).toContain('anthropic');
-    expect(merged).toContain('anthropic-key');
-
-    // openai provider 更新
-    expect(merged).toContain('new-openai-key');
-    expect(merged).toContain('gpt-4');
-  });
-
-  // 合并添加新provider
-  it('合并时添加新的provider', () => {
-    const original = `
-default_model = "gpt-3.5"
-`;
-
-    const newConfig: UnifiedModelConfig = {
-      model: 'gpt-4',
-      apiKey: 'new-key',
-      baseUrl: 'https://api.openai.com/v1',
-      provider: 'openai',
-    };
-
-    const merged = mergeTomlConfig(original, newConfig);
-
-    // openai provider 添加
-    expect(merged).toContain('openai');
-    expect(merged).toContain('new-key');
-    expect(merged).toContain('gpt-4');
-  });
-
-  // 创建默认TOML配置
-  it('创建默认TOML配置', () => {
-    const config: UnifiedModelConfig = {
-      model: 'gpt-4',
-      apiKey: 'test-key',
-      baseUrl: 'https://api.openai.com/v1',
-      provider: 'openai',
-    };
-
-    const toml = createDefaultTomlConfig(config);
-
-    // 包含必要字段
-    expect(toml).toContain('default_model');
-    expect(toml).toContain('gpt-4');
-    expect(toml).toContain('openai');
-    expect(toml).toContain('test-key');
-  });
-});
