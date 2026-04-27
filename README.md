@@ -2,20 +2,22 @@
 
 [中文文档](README.zh-CN.md) | English
 
-A CLI tool that liberates AI tool model registry management, allowing you to quickly switch between different models for Claude CLI tool.
+A CLI tool that manages AI tool model configurations, allowing you to quickly switch between different models for Claude CLI tool.
 
 ## Purpose
 
-This plugin is designed to **liberate AI tool model registry management**. It provides a convenient way to manage multiple model configurations for Claude CLI tool and switch between them seamlessly, without manually editing configuration files.
+This tool provides a convenient way to **manage Claude CLI model configurations**. It allows you to save multiple model configurations, switch between them seamlessly, and view detailed model information - all without manually editing configuration files.
 
 ## Features
 
 - 🔄 **Claude support** - Full support for Claude CLI model configuration
 - 📦 **Backup mechanism** - Automatic backup before each config write
 - 🔀 **Merge strategy** - Preserve existing config fields, only update model-related fields
-- ⌨️ **Keyboard navigation** - Arrow keys for selection, Enter to confirm, Esc to cancel
-- 📝 **Add models interactively** - Field-by-field input with validation
-- 📋 **View all configurations** - Grouped display
+- 🔢 **Index-based selection** - Input numbers to select, Enter to confirm
+- ↩️ **Navigation options** - Return to previous level or exit directly
+- ➕ **Add models** - Interactive field-by-field input with validation
+- 📋 **View all configurations** - Grouped display by tool
+- ℹ️ **View model details** - Display full config in JSON format
 - 🔍 **Current model status** - Show active model
 - 💡 **Smart suggestions** - Recommend similar commands for unknown inputs
 
@@ -31,7 +33,7 @@ npm link
 
 The first time you run `cmrm`, it will automatically create a configuration file at `~/.cmrm/settings.json`.
 
-To add model configurations, use the `/add-model` command (see Usage section below).
+To add model configurations, use the `/add` command (see Usage section below).
 
 ## Usage
 
@@ -45,44 +47,76 @@ cmrm
 
 | Command | Description |
 |---------|-------------|
-| `/switch` | Switch model configuration |
+| `/switch` | Switch to a saved model configuration |
 | `/add` | Add a new model configuration interactively |
 | `/remove` | Remove a saved model configuration |
+| `/info` | View detailed model configuration in JSON format |
 | `/list` | Display all saved model configurations |
 | `/current` | Display the currently configured model |
-| `/` | Show available commands |
-| `/exit` or `exit` | Exit the CLI |
+| `/exit` | Exit the CLI |
 
-### Switching Models
+### Interactive Selection
 
-Use `/switch` command:
-- Use `↑`/`↓` arrow keys to navigate
-- Press `Enter` to select
-- Press `Esc` to cancel
+All selections use **index-based input**:
 
-The selected configuration will be:
-- Merged into Claude's config file (preserving existing fields)
-- Backup created in `~/.claude/.cmrm/` directory
+1. Enter the number shown in brackets `[0]`, `[1]`, etc.
+2. Press `Enter` to confirm
+3. Most menus include:
+   - `[n-2]` Return to previous level
+   - `[n-1]` Exit directly
+
+Example:
+```
+=== 选择命令 ===
+(输入索引号按 Enter 确认)
+
+[0] /switch        切换模型配置
+[1] /add           添加新模型配置
+[2] /remove         删除模型配置
+[3] /info           查看模型详细信息
+[4] /list           显示所有模型配置
+[5] /current        显示当前模型
+[6] /exit           退出程序
+请输入命令索引: 0
+```
 
 ### Adding New Models
 
 Use `/add` command to enter configuration fields:
 
-- **Model name** (required) - e.g., `claude-sonnet-4-5-20250514`
+- **Config name** (optional) - Friendly name for this config
+- **Model name** (required) - e.g., `claude-sonnet-4-5`
 - **API Key** (required)
 - **Base URL** (required) - e.g., `https://api.anthropic.com`
 - **Haiku model** (optional)
 - **Sonnet model** (optional)
 - **Opus model** (optional)
-- **Config name** (optional, auto-generated if empty)
 
-### Viewing All Models
+### Switching Models
 
-Use `/list` command to see all saved configurations grouped by tool.
+Use `/switch` command:
+1. Select a tool (e.g., Claude)
+2. Enter the index number of the model to switch to
+3. The configuration will be merged into Claude's config file
 
-### Viewing Current Models
+### Viewing Model Details
 
-Use `/current` command to see the active model for each tool.
+Use `/info` command:
+1. Select a tool
+2. Select a model
+3. View the complete model configuration in JSON format
+
+Example output:
+```json
+{
+  "name": "claude-sonnet",
+  "model": "claude-sonnet-4-5",
+  "apiKey": "sk-xxx...",
+  "baseUrl": "https://api.anthropic.com",
+  "haikuModel": "claude-haiku-4",
+  "sonnetModel": "claude-sonnet-4"
+}
+```
 
 ## Configuration Files
 
@@ -124,18 +158,15 @@ npm start
 
 ## Changelog
 
-### 0.0.3
-- 🗑️ Removed OpenCode support (focus on Claude CLI only)
-- 🔄 Simplified architecture (single-tool focus)
-- ✅ Cleaner command flow (no tool selection step)
-
 ### 0.0.2
-- 🔄 Multi-tool support (Claude, OpenCode)
+- ✨ Add `/info` command to view model details in JSON format
+- ↩️ Add "return to previous level" and "exit" options in selection menus
+- 🔢 Switch to index-based selection (input numbers instead of arrow keys)
+- 🔄 Simplified architecture (single-tool focus - Claude only)
+- ✅ Command rename: `/switch-model` → `/switch`, `/add-model` → `/add`
+- ✅ Add `/remove` command to delete saved configurations
 - 📦 Backup mechanism before config writes
 - 🔀 Merge strategy preserving existing fields
-- 🎯 Two-step selection flow (tool → model)
-- ✅ Command rename: `/model` → `/switch-model`, `/input` → `/add-model`
-- 🧪 Test coverage with Vitest
 
 ### 0.0.1
 - Initial release
