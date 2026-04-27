@@ -2,24 +2,21 @@
 
 [中文文档](README.zh-CN.md) | English
 
-A CLI tool that liberates AI tool model registry management, allowing you to quickly switch between different models for various AI tools like Claude, OpenCode, and more.
+A CLI tool that liberates AI tool model registry management, allowing you to quickly switch between different models for Claude CLI tool.
 
 ## Purpose
 
-This plugin is designed to **liberate AI tool model registry management**. It provides a convenient way to manage multiple model configurations across different AI tools (Claude, OpenCode, etc.) and switch between them seamlessly, without manually editing configuration files.
-
-**Key principle**: Different AI tools have different configuration file locations and formats - this tool handles them all through a unified adapter architecture.
+This plugin is designed to **liberate AI tool model registry management**. It provides a convenient way to manage multiple model configurations for Claude CLI tool and switch between them seamlessly, without manually editing configuration files.
 
 ## Features
 
-- 🔄 **Multi-tool support** - Support Claude and OpenCode, extensible to more AI tools
+- 🔄 **Claude support** - Full support for Claude CLI model configuration
 - 📦 **Backup mechanism** - Automatic backup before each config write
 - 🔀 **Merge strategy** - Preserve existing config fields, only update model-related fields
-- 🎯 **Interactive selection** - Two-step flow: select tool → select model
 - ⌨️ **Keyboard navigation** - Arrow keys for selection, Enter to confirm, Esc to cancel
 - 📝 **Add models interactively** - Field-by-field input with validation
-- 📋 **View all configurations** - Grouped display by tool
-- 🔍 **Current model status** - Show active model for each tool
+- 📋 **View all configurations** - Grouped display
+- 🔍 **Current model status** - Show active model
 - 💡 **Smart suggestions** - Recommend similar commands for unknown inputs
 
 ## Installation
@@ -48,39 +45,28 @@ cmrm
 
 | Command | Description |
 |---------|-------------|
-| `/switch-model` | Switch model (select tool → select model) |
+| `/switch-model` | Switch model configuration |
 | `/add-model` | Add a new model configuration interactively |
 | `/list` | Display all saved model configurations |
-| `/current` | Display the currently configured model for each tool |
+| `/current` | Display the currently configured model |
 | `/` | Show available commands |
 | `/exit` or `exit` | Exit the CLI |
 
 ### Switching Models
 
 Use `/switch-model` command:
-
-1. **Step 1**: Select tool (Claude or OpenCode)
-   - Use `↑`/`↓` arrow keys to navigate
-   - Press `Enter` to select
-   - Press `Esc` to cancel
-
-2. **Step 2**: Select saved model configuration
-   - Navigate with arrow keys
-   - Press `Enter` to switch
-   - Press `Esc` to cancel
+- Use `↑`/`↓` arrow keys to navigate
+- Press `Enter` to select
+- Press `Esc` to cancel
 
 The selected configuration will be:
-- Merged into the tool's config file (preserving existing fields)
-- Backup created in `{config-dir}/.cmrm/` directory
+- Merged into Claude's config file (preserving existing fields)
+- Backup created in `~/.claude/.cmrm/` directory
 
 ### Adding New Models
 
-Use `/add-model` command:
+Use `/add-model` command to enter configuration fields:
 
-1. Select tool (Claude or OpenCode)
-2. Enter configuration fields:
-
-**Claude fields:**
 - **Model name** (required) - e.g., `claude-sonnet-4-5-20250514`
 - **API Key** (required)
 - **Base URL** (required) - e.g., `https://api.anthropic.com`
@@ -88,17 +74,6 @@ Use `/add-model` command:
 - **Sonnet model** (optional)
 - **Opus model** (optional)
 - **Config name** (optional, auto-generated if empty)
-
-**OpenCode fields:**
-- **Model name** (required) - e.g., `MiniMax-M2.7-highspeed`
-- **Provider** (required) - Choose from supported providers:
-  - **International**: openai, anthropic, openrouter, deepseek, google
-  - **Chinese**: zhipu (智谱GLM), minimax, moonshot (月之暗面), alibaba (阿里通义), baidu (百度文心)
-- **API Key** (required)
-- **Base URL** (required, auto-filled based on provider selection)
-- **Config name** (optional, auto-generated if empty)
-
-> ⚠️ **OpenCode Limitation**: After switching, the model is NOT auto-selected. You must manually choose it in OpenCode TUI or use `opencode -m provider/model-name`.
 
 ### Viewing All Models
 
@@ -113,33 +88,19 @@ Use `/current` command to see the active model for each tool.
 | Tool | Config Path | Format | Description |
 |------|-------------|--------|-------------|
 | Claude | `~/.claude/settings.json` | JSON | Settings and model config |
-| OpenCode | `~/.local/share/opencode/auth.json` | JSON | API keys for providers |
 | cmrm storage | `~/.cmrm/settings.json` | JSON | Saved model configurations |
 
-### Tool-specific Notes
+### Claude Configuration
 
-#### Claude
 - ✅ Full support for model switching
 - Configuration is persisted in `settings.json`
 - Switched model becomes the default for new sessions
 
-#### OpenCode
-- ⚠️ **Important**: OpenCode does NOT support persisting a default model
-- `auth.json` stores API keys for different providers
-- Model selection is recorded per-session, not globally
-- **After switching**: You must manually select the model in OpenCode TUI, or use CLI parameter:
-  ```bash
-  opencode -m minimax/MiniMax-M2.7-highspeed
-  ```
-- Adding a model creates a new provider entry in `auth.json`, making it available in OpenCode's model list
-
 ## Backup Files
 
-Backups are stored in `{config-dir}/.cmrm/` directory:
-- Claude backup naming: `{filename}_{YYYYMMDD}{seq}`
+Backups are stored in `~/.claude/.cmrm/` directory:
+- Backup naming: `{filename}_{YYYYMMDD}{seq}`
   - Example: `settings.json_2026042700`, `settings.json_2026042701`
-- OpenCode backup naming: `auth-{YYYYMMDDHHmm}.json`
-  - Example: `auth-202604272030.json` (compact timestamp format)
 
 ## Development
 
@@ -161,6 +122,11 @@ npm start
 ```
 
 ## Changelog
+
+### 0.0.3
+- 🗑️ Removed OpenCode support (focus on Claude CLI only)
+- 🔄 Simplified architecture (single-tool focus)
+- ✅ Cleaner command flow (no tool selection step)
 
 ### 0.0.2
 - 🔄 Multi-tool support (Claude, OpenCode)

@@ -11,8 +11,8 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { ConfigManager } from './config';
 import { UnifiedModelConfig } from './types';
-import { registry, ClaudeAdapter, OpenCodeAdapter, ToolAdapter } from './adapters';
-import { AVAILABLE_COMMANDS, SUPPORTED_PROVIDERS, PROVIDER_DEFAULT_URLS } from './cli/commands';
+import { registry, ClaudeAdapter, ToolAdapter } from './adapters';
+import { AVAILABLE_COMMANDS } from './cli/commands';
 import { KeyListener, KeyAction } from './cli/input';
 import { UIRenderer } from './cli/ui';
 
@@ -94,7 +94,6 @@ export class CLI {
 
     // 注册适配器
     registry.register(new ClaudeAdapter());
-    registry.register(new OpenCodeAdapter());
 
     // 监听 line 事件处理输入
     this.rl.on('line', (input) => {
@@ -607,9 +606,6 @@ export class CLI {
       return;
     }
 
-    const isClaude = this.selectedAdapter.name === 'claude';
-    const isOpencode = this.selectedAdapter.name === 'opencode';
-
     // 关闭 readline
     this.rl.close();
 
@@ -628,7 +624,7 @@ export class CLI {
 
     try {
       // 构建问题列表
-      const questions = this.buildAddModelQuestions(isClaude, isOpencode);
+      const questions = this.buildAddModelQuestions();
 
       // 收集用户输入
       const response = await inquirer.prompt(questions as any);
@@ -642,7 +638,7 @@ export class CLI {
       }
 
       // 构建配置对象
-      const config = this.buildModelConfig(response, isClaude, isOpencode);
+      const config = this.buildModelConfig(response);
 
       // 验证配置
       if (!this.selectedAdapter.validateConfig(config)) {
@@ -699,15 +695,13 @@ export class CLI {
   /**
    * 构建添加模型的问题列表
    *
-   * @param isClaude - 是否为 Claude 工具
-   * @param isOpencode - 是否为 OpenCode 工具
    * @return inquirer 问题数组
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private buildAddModelQuestions(isClaude: boolean, isOpencode: boolean): inquirer.QuestionCollection[] {
-    // 通用问题：配置名称和模型名称
-    const commonQuestions: inquirer.QuestionCollection[] = [
+  private buildAddModelQuestions(): inquirer.QuestionCollection[] {
+    // Claude 配置问题列表
+    return [
       {
         type: 'input',
         name: 'configName',
@@ -719,10 +713,6 @@ export class CLI {
         message: '模型名称（必填）',
         validate: (value: string) => value.trim() !== '' || '模型名称为必填字段',
       },
-    ];
-
-    // Claude 特有问题
-    const claudeQuestions: inquirer.QuestionCollection[] = [
       {
         type: 'input',
         name: 'apiKey',
@@ -752,50 +742,17 @@ export class CLI {
         message: 'Opus 模型（可选）',
       },
     ];
-
-    // OpenCode 特有问题
-    const opencodeQuestions: inquirer.QuestionCollection[] = [
-      {
-        type: 'select',
-        name: 'provider',
-        message: 'Provider（必填）',
-        choices: SUPPORTED_PROVIDERS.map(p => ({ name: p, value: p })),
-      },
-      {
-        type: 'input',
-        name: 'apiKey',
-        message: 'API Key（必填）',
-        validate: (value: string) => value.trim() !== '' || 'API Key 为必填字段',
-      },
-      {
-        type: 'input',
-        name: 'baseUrl',
-        message: 'Base URL（必填）',
-        default: (answers: inquirer.Answers) => PROVIDER_DEFAULT_URLS[answers.provider] || '',
-        validate: (value: string) => value.trim() !== '' || 'Base URL 为必填字段',
-      },
-    ];
-
-    // 组合问题列表
-    if (isOpencode) {
-      return [...commonQuestions, ...opencodeQuestions];
-    }
-    else {
-      return [...commonQuestions, ...claudeQuestions];
-    }
   }
 
   /**
    * 根据用户输入构建模型配置对象
    *
    * @param response - prompts 返回的用户输入
-   * @param isClaude - 是否为 Claude 工具
-   * @param isOpencode - 是否为 OpenCode 工具
    * @return 统一模型配置对象
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private buildModelConfig(response: Record<string, any>, isClaude: boolean, isOpencode: boolean): UnifiedModelConfig {
+  private buildModelConfig(response: Record<string, any>): UnifiedModelConfig {
     // 基础配置字段
     const config: UnifiedModelConfig = {
       name: response.configName?.trim() || response.model.trim(),
@@ -804,33 +761,26 @@ export class CLI {
       baseUrl: response.baseUrl.trim(),
     };
 
-    // Claude 特有字段
-    if (isClaude) {
-      if (response.haikuModel?.trim()) {
-        config.haikuModel = response.haikuModel.trim();
-      }
-      else {
-        // 可选字段不填则不设置
-      }
-
-      if (response.sonnetModel?.trim()) {
-        config.sonnetModel = response.sonnetModel.trim();
-      }
-      else {
-        // 可选字段不填则不设置
-      }
-
-      if (response.opusModel?.trim()) {
-        config.opusModel = response.opusModel.trim();
-      }
-      else {
-        // 可选字段不填则不设置
-      }
+    // Claude 可选字段
+    if (response.haikuModel?.trim()) {
+      config.haikuModel = response.haikuModel.trim();
+    }
+    else {
+      // 可选字段不填则不设置
     }
 
-    // OpenCode 特有字段
-    if (isOpencode) {
-      config.provider = response.provider;
+    if (response.sonnetModel?.trim()) {
+      config.sonnetModel = response.sonnetModel.trim();
+    }
+    else {
+      // 可选字段不填则不设置
+    }
+
+    if (response.opusModel?.trim()) {
+      config.opusModel = response.opusModel.trim();
+    }
+    else {
+      // 可选字段不填则不设置
     }
 
     return config;
@@ -847,10 +797,6 @@ export class CLI {
     this.uiRenderer.showSuccess('\n模型配置已添加:');
     this.uiRenderer.showInfo(`  名称:     ${config.name}`);
     this.uiRenderer.showInfo(`  模型:     ${config.model}`);
-
-    if (config.provider) {
-      this.uiRenderer.showInfo(`  Provider: ${config.provider}`);
-    }
 
     // API Key 截断显示（保护敏感信息）
     const truncatedApiKey = config.apiKey.substring(0, 10) + '...';
@@ -899,7 +845,6 @@ export class CLI {
 
   /**
    * 显示模型切换结果
-   * 对 OpenCode 工具显示特殊提示（不支持持久化默认模型）
    *
    * @param config - 切换后的模型配置
    * @param backupFileName - 备份文件名
@@ -911,24 +856,12 @@ export class CLI {
     this.uiRenderer.showInfo(`  工具:     ${this.selectedAdapter!.displayName}`);
     this.uiRenderer.showInfo(`  模型:     ${config.model}`);
 
-    if (config.provider) {
-      this.uiRenderer.showInfo(`  Provider: ${config.provider}`);
-    }
-
     // 有备份文件时显示
     if (backupFileName) {
       this.uiRenderer.showInfo(`  备份:     ${backupFileName}`);
     }
     else {
       // 无备份（配置文件不存在）
-    }
-
-    // OpenCode 特殊提示：不支持持久化默认模型
-    if (this.selectedAdapter!.name === 'opencode') {
-      console.log('');
-      this.uiRenderer.showWarning('⚠️  OpenCode 不支持持久化默认模型');
-      this.uiRenderer.showInfo('   请在 OpenCode TUI 中手动选择模型');
-      this.uiRenderer.showInfo('   或使用 CLI 参数: opencode -m provider/model');
     }
   }
 }
