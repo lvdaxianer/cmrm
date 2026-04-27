@@ -2,16 +2,24 @@
  * 类型定义文件
  * 定义了项目所需的所有 TypeScript 接口和类型
  *
- * @author lvdaxianer
+ * @author lvdaxianerplus
  * @date 2025-01-01
  */
 
+// 导出适配器相关类型
+export { UnifiedModelConfig, ToolAdapter, AdapterRegistryInterface } from './adapters/types';
+
+// 导入 UnifiedModelConfig 用于本地类型定义
+import { UnifiedModelConfig } from './adapters/types';
+
 /**
- * 模型配置项接口
+ * 模型配置项接口（旧格式，用于迁移兼容）
  * 用于描述一组模型的配置信息
  * 每个配置包含 Haiku、Sonnet、Opus 三个模型，以及认证信息和基础 URL
  * 注意：前三个属性（Haiku、Sonnet、Opus 模型）可以保持相同的值，表示使用统一的模型配置
  * 必填属性：ANTHROPIC_MODEL、ANTHROPIC_AUTH_TOKEN、ANTHROPIC_BASE_URL 必须有值
+ *
+ * @deprecated 请使用 UnifiedModelConfig 代替
  */
 export interface ModelConfig {
   /** 默认模型名称，必填 */
@@ -31,12 +39,34 @@ export interface ModelConfig {
 }
 
 /**
- * 配置文件接口
+ * 配置文件接口（旧格式，用于迁移兼容）
+ * 对应 ~/.cmrm/settings.json 文件结构
+ *
+ * @deprecated 请使用新的 Settings 格式
+ */
+export interface OldSettings {
+  /** 模型配置列表 */
+  modes: ModelConfig[];
+  /** 其他扩展属性 */
+  [key: string]: any;
+}
+
+/**
+ * 工具配置接口
+ * 单个工具的配置存储结构
+ */
+export interface ToolConfig {
+  /** 模型配置列表 */
+  modes: UnifiedModelConfig[];
+}
+
+/**
+ * 配置文件接口（新格式）
  * 对应 ~/.cmrm/settings.json 文件结构
  */
 export interface Settings {
-  /** 模型配置列表 */
-  modes: ModelConfig[];
+  /** 工具配置映射 */
+  tools: Record<string, ToolConfig>;
   /** 其他扩展属性 */
   [key: string]: any;
 }

@@ -1,167 +1,359 @@
 /**
  * 配置管理模块
- * 负责读取和写入 ~/.cmrm/settings.json 和 ~/.claude/settings.json 配置文件
+ * 负责读取和写入 ~/.cmrm/settings.json 配置文件
+ * 支持多工具配置存储和旧格式迁移
  *
- * @author lvdaxianer
- * @date 2025-01-01
+ * @author lvdaxianerplus
+ * @date 2026-04-27
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { Settings, ModelConfig, ClaudeConfig, ClaudeEnvConfig } from './types';
+import { Settings, OldSettings, ToolConfig, UnifiedModelConfig, ModelConfig } from './types';
 
 /**
  * 配置管理类
- * 提供配置文件的读取、写入功能
+ * 提供配置文件的读取、写入和迁移功能
  */
 export class ConfigManager {
   /** settings.json 文件路径 */
   private readonly settingsPath: string;
-  /** Claude 配置文件路径 */
-  private readonly claudeConfigPath: string;
 
   /**
    * 构造函数
    * 初始化配置文件路径
+   *
+   * @author lvdaxianerplus
+   * @date 2026-04-27
    */
   constructor() {
     this.settingsPath = path.join(os.homedir(), '.cmrm', 'settings.json');
-    this.claudeConfigPath = path.join(os.homedir(), '.claude', 'settings.json');
-  }
-
-  /**
-   * 读取 settings.json 配置文件
-   *
-   * @return 配置对象，包含 modes 数组等信息
-   * @throws 当文件不存在或解析失败时抛出错误
-   * @author lvdaxianer
-   */
-  readSettings(): Settings {
-    try {
-      // 检查文件是否存在
-      if (!fs.existsSync(this.settingsPath)) {
-        throw new Error(`Settings file not found: ${this.settingsPath}`);
-      }
-      const content = fs.readFileSync(this.settingsPath, 'utf-8');
-      return JSON.parse(content);
-    } catch (error) {
-      throw new Error(`Failed to read settings: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  /**
-   * 获取可用的模型列表
-   *
-   * @return 模型配置数组，如果 modes 不存在则返回空数组
-   * @author lvdaxianer
-   */
-  getAvailableModels(): ModelConfig[] {
-    const settings = this.readSettings();
-    return settings.modes || [];
-  }
-
-  /**
-   * 读取 Claude 当前配置
-   * Claude 配置文件必须存在，否则抛出错误
-   *
-   * @return Claude 配置对象
-   * @throws 当文件不存在或解析失败时抛出错误
-   * @author lvdaxianer
-   */
-  readClaudeConfig(): ClaudeConfig {
-    try {
-      // 检查文件是否存在，不存在则直接报错
-      if (!fs.existsSync(this.claudeConfigPath)) {
-        throw new Error(`Claude config file not found: ${this.claudeConfigPath}`);
-      }
-      const content = fs.readFileSync(this.claudeConfigPath, 'utf-8');
-      return JSON.parse(content);
-    } catch (error) {
-      throw new Error(`Failed to read Claude config: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  /**
-   * 写入 Claude 配置文件
-   * 使用合并模式，只更新 env 对象中的指定属性，保留其他已有属性
-   *
-   * @param envConfig - 要写入的环境变量配置对象
-   * @throws 当写入失败时抛出错误
-   * @author lvdaxianer
-   */
-  writeClaudeConfig(envConfig: ClaudeEnvConfig): void {
-    try {
-      const currentConfig = this.readClaudeConfig();
-      // 确保 env 对象存在
-      if (!currentConfig.env) {
-        currentConfig.env = {};
-      }
-      // 合并 env 配置，新的配置会覆盖同名属性，其他属性保持不变
-      const newEnv = { ...currentConfig.env, ...envConfig };
-      currentConfig.env = newEnv;
-
-      fs.writeFileSync(this.claudeConfigPath, JSON.stringify(currentConfig, null, 2), 'utf-8');
-    } catch (error) {
-      throw new Error(`Failed to write Claude config: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  /**
-   * 验证模型配置的必填属性
-   *
-   * @param config - 要验证的模型配置
-   * @return 如果验证通过返回 true，否则返回 false
-   * @author lvdaxianer
-   */
-  validateModelConfig(config: ModelConfig): boolean {
-    // 验证必填属性：ANTHROPIC_MODEL、ANTHROPIC_AUTH_TOKEN、ANTHROPIC_BASE_URL
-    if (!config.ANTHROPIC_MODEL || config.ANTHROPIC_MODEL.trim() === '') {
-      return false;
-    }
-    if (!config.ANTHROPIC_AUTH_TOKEN || config.ANTHROPIC_AUTH_TOKEN.trim() === '') {
-      return false;
-    }
-    if (!config.ANTHROPIC_BASE_URL || config.ANTHROPIC_BASE_URL.trim() === '') {
-      return false;
-    }
-    return true;
-  }
-
-  /**
-   * 获取当前配置的模型信息
-   *
-   * @return 当前模型配置的摘要字符串，如果未配置则返回 undefined
-   * @author lvdaxianer
-   */
-  getCurrentModel(): string | undefined {
-    const config = this.readClaudeConfig();
-    const env = config.env || {};
-    const model = env.ANTHROPIC_MODEL;
-    const haiku = env.ANTHROPIC_DEFAULT_HAIKU_MODEL;
-    const sonnet = env.ANTHROPIC_DEFAULT_SONNET_MODEL;
-    const opus = env.ANTHROPIC_DEFAULT_OPUS_MODEL;
-
-    const parts: string[] = [];
-    if (model) parts.push(`Model: ${model}`);
-    if (haiku) parts.push(`Haiku: ${haiku}`);
-    if (sonnet) parts.push(`Sonnet: ${sonnet}`);
-    if (opus) parts.push(`Opus: ${opus}`);
-
-    if (parts.length > 0) {
-      return parts.join(' | ');
-    }
-    return undefined;
   }
 
   /**
    * 检查配置文件是否存在
    *
    * @return 如果配置文件存在返回 true，否则返回 false
-   * @author lvdaxianer
+   * @author lvdaxianerplus
+   * @date 2026-04-27
    */
   hasSettingsFile(): boolean {
     return fs.existsSync(this.settingsPath);
+  }
+
+  /**
+   * 读取并解析配置文件内容
+   * 文件不存在或解析失败时抛出错误
+   *
+   * @return 解析后的原始配置对象
+   * @throws 文件不存在或解析失败
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private readAndParseFile(): any {
+    // 文件不存在 - 抛出错误
+    if (!fs.existsSync(this.settingsPath)) {
+      throw new Error(`Settings file not found: ${this.settingsPath}`);
+    }
+    // 文件存在 - 读取解析
+    else {
+      const content = fs.readFileSync(this.settingsPath, 'utf-8');
+      return JSON.parse(content);
+    }
+  }
+
+  /**
+   * 判断是否为旧格式配置
+   * 旧格式特征：有 modes 字段但无 tools 字段
+   *
+   * @param parsed - 解析后的配置对象
+   * @return 如果是旧格式返回 true
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private isOldFormat(parsed: any): boolean {
+    // 有 modes 但无 tools - 是旧格式
+    if (parsed.modes && !parsed.tools) {
+      return true;
+    }
+    // 有 tools 或无 modes - 是新格式
+    else {
+      return false;
+    }
+  }
+
+  /**
+   * 迁移旧格式配置到新格式
+   * 将 modes 字段转换为 tools.claude.modes 结构
+   *
+   * @param oldSettings - 旧格式配置对象
+   * @return 新格式配置对象
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private migrateOldFormat(oldSettings: OldSettings): Settings {
+    // 构建新格式配置
+    const newSettings: Settings = {
+      tools: {
+        claude: {
+          modes: oldSettings.modes.map((mode: ModelConfig) => ({
+            name: mode.ANTHROPIC_MODEL,
+            model: mode.ANTHROPIC_MODEL,
+            apiKey: mode.ANTHROPIC_AUTH_TOKEN,
+            baseUrl: mode.ANTHROPIC_BASE_URL,
+            haikuModel: mode.ANTHROPIC_DEFAULT_HAIKU_MODEL,
+            sonnetModel: mode.ANTHROPIC_DEFAULT_SONNET_MODEL,
+            opusModel: mode.ANTHROPIC_DEFAULT_OPUS_MODEL,
+          })),
+        },
+        opencode: {
+          modes: [],
+        },
+      },
+    };
+
+    // 写入新格式配置（迁移）
+    fs.writeFileSync(this.settingsPath, JSON.stringify(newSettings, null, 2), 'utf-8');
+
+    return newSettings;
+  }
+
+  /**
+   * 读取 settings.json 配置文件（新格式）
+   * 自动迁移旧格式到新格式
+   *
+   * @return 配置对象
+   * @throws 当文件不存在或解析失败时抛出错误
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  readSettings(): Settings {
+    try {
+      // 读取并解析文件
+      const parsed = this.readAndParseFile();
+
+      // 检查是否是旧格式，需要迁移
+      if (this.isOldFormat(parsed)) {
+        return this.migrateOldFormat(parsed as OldSettings);
+      }
+      // 新格式 - 直接返回
+      else {
+        return parsed as Settings;
+      }
+    }
+    // 处理异常
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to read settings: ${message}`);
+    }
+  }
+
+  /**
+   * 获取指定工具的模型列表
+   *
+   * @param toolName - 工具名称
+   * @return 模型配置数组，不存在则返回空数组
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  getToolModels(toolName: string): UnifiedModelConfig[] {
+    try {
+      const settings = this.readSettings();
+
+      // 新格式结构存在且有 modes - 返回 modes
+      if (settings.tools && settings.tools[toolName] && settings.tools[toolName].modes) {
+        return settings.tools[toolName].modes;
+      }
+      // 无模型配置 - 返回空数组
+      else {
+        return [];
+      }
+    }
+    // 文件不存在返回空数组
+    catch (error) {
+      return [];
+    }
+  }
+
+  /**
+   * 确保 cmrm 配置目录存在
+   * 不存在则创建目录
+   *
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private ensureCmrmDir(): void {
+    const cmrmDir = path.dirname(this.settingsPath);
+
+    // 目录不存在 - 创建目录
+    if (!fs.existsSync(cmrmDir)) {
+      fs.mkdirSync(cmrmDir, { recursive: true });
+    }
+    // 目录已存在 - 无需操作
+    else {
+      // 目录已存在，无需创建
+    }
+  }
+
+  /**
+   * 读取或创建配置对象
+   * 文件存在则读取，不存在则创建默认结构
+   *
+   * @return 配置对象
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private loadOrCreateSettings(): Settings {
+    // 配置文件存在 - 读取内容
+    if (fs.existsSync(this.settingsPath)) {
+      return this.readSettings();
+    }
+    // 配置文件不存在 - 创建默认结构
+    else {
+      const defaultSettings: Settings = {
+        tools: {
+          claude: { modes: [] },
+          opencode: { modes: [] },
+        },
+      };
+
+      return defaultSettings;
+    }
+  }
+
+  /**
+   * 确保 settings 结构完整
+   * 创建缺失的 tools[toolName].modes 结构
+   *
+   * @param settings - 配置对象
+   * @param toolName - 工具名称
+   * @return 具有完整结构的配置对象
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private ensureToolStructure(settings: Settings, toolName: string): Settings {
+    // 确保 tools 对象存在
+    if (!settings.tools) {
+      settings.tools = {};
+    }
+    // tools 已存在 - 保持
+    else {
+      // tools 对象已存在
+    }
+
+    // 确保工具配置存在
+    if (!settings.tools[toolName]) {
+      settings.tools[toolName] = { modes: [] };
+    }
+    // 工具配置已存在 - 保持
+    else {
+      // 工具配置已存在
+    }
+
+    // 确保 modes 数组存在
+    if (!settings.tools[toolName].modes) {
+      settings.tools[toolName].modes = [];
+    }
+    // modes 已存在 - 保持
+    else {
+      // modes 数组已存在
+    }
+
+    return settings;
+  }
+
+  /**
+   * 查找已存在的配置索引
+   * 根据名称查找是否已有相同配置
+   *
+   * @param modes - 模型配置数组
+   * @param config - 新配置
+   * @return 已存在配置的索引，不存在返回 -1
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private findExistingIndex(modes: UnifiedModelConfig[], config: UnifiedModelConfig): number {
+    return modes.findIndex((m: UnifiedModelConfig) => m.name === config.name);
+  }
+
+  /**
+   * 更新工具的模型配置列表
+   * 配置已存在则替换，不存在则添加
+   *
+   * @param settings - 配置对象
+   * @param toolName - 工具名称
+   * @param config - 新配置
+   * @return 更新后的配置对象
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private updateToolModes(settings: Settings, toolName: string, config: UnifiedModelConfig): Settings {
+    // 查找已存在的配置索引
+    const existingIndex = this.findExistingIndex(settings.tools[toolName].modes, config);
+
+    // 配置已存在 - 替换更新
+    if (existingIndex >= 0) {
+      settings.tools[toolName].modes[existingIndex] = config;
+    }
+    // 配置不存在 - 添加新配置
+    else {
+      settings.tools[toolName].modes.push(config);
+    }
+
+    return settings;
+  }
+
+  /**
+   * 保存模型配置到指定工具
+   *
+   * @param toolName - 工具名称
+   * @param config - 模型配置
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  saveToolModel(toolName: string, config: UnifiedModelConfig): void {
+    try {
+      // 确保 cmrm 配置目录存在
+      this.ensureCmrmDir();
+
+      // 读取或创建配置
+      let settings = this.loadOrCreateSettings();
+
+      // 确保工具配置结构存在
+      settings = this.ensureToolStructure(settings, toolName);
+
+      // 更新模型配置列表
+      settings = this.updateToolModes(settings, toolName, config);
+
+      // 写入配置文件
+      fs.writeFileSync(this.settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+    }
+    // 处理异常
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to save tool model: ${message}`);
+    }
+  }
+
+  /**
+   * 创建默认 Claude 模型配置
+   * 用于初始化配置文件时的示例配置
+   *
+   * @return 默认 Claude 模型配置对象
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private createDefaultClaudeMode(): UnifiedModelConfig {
+    return {
+      name: 'claude-sonnet-4-5',
+      model: 'claude-sonnet-4-5-20250514',
+      apiKey: 'sk-ant-xxx',
+      baseUrl: 'https://api.anthropic.com',
+      haikuModel: 'claude-haiku-4-5-20250514',
+      sonnetModel: 'claude-sonnet-4-5-20250514',
+      opusModel: 'claude-opus-4-5-20250514',
+    };
   }
 
   /**
@@ -169,69 +361,52 @@ export class ConfigManager {
    * 创建默认的 settings.json 文件
    *
    * @throws 当创建目录或写入文件失败时抛出错误
-   * @author lvdaxianer
+   * @author lvdaxianerplus
+   * @date 2026-04-27
    */
   initializeSettings(): void {
     try {
       const dir = path.dirname(this.settingsPath);
-      // 如果目录不存在，创建目录
+
+      // 目录不存在 - 创建目录
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
-
-      // 写入默认配置
-      const defaultSettings: Settings = {
-        modes: [
-          {
-            ANTHROPIC_MODEL: 'claude-sonnet-4-5-20250514',
-            ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-haiku-4-5-20250514',
-            ANTHROPIC_DEFAULT_SONNET_MODEL: 'claude-sonnet-4-5-20250514',
-            ANTHROPIC_DEFAULT_OPUS_MODEL: 'claude-opus-4-5-20251101',
-            ANTHROPIC_AUTH_TOKEN: 'sk-ant-xxx',
-            ANTHROPIC_BASE_URL: 'https://api.anthropic.com'
-          }
-        ]
-      };
-      fs.writeFileSync(this.settingsPath, JSON.stringify(defaultSettings, null, 2), 'utf-8');
-    } catch (error) {
-      throw new Error(`Failed to initialize settings: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  /**
-   * 检查模型是否已存在
-   * 通过 ANTHROPIC_MODEL 和 ANTHROPIC_BASE_URL 判断是否重复
-   *
-   * @param model - 要检查的模型配置
-   * @return 如果模型已存在返回 true，否则返回 false
-   * @author lvdaxianer
-   */
-  modelExists(model: ModelConfig): boolean {
-    const models = this.getAvailableModels();
-    return models.some(
-      m =>
-        m.ANTHROPIC_MODEL === model.ANTHROPIC_MODEL &&
-        m.ANTHROPIC_BASE_URL === model.ANTHROPIC_BASE_URL
-    );
-  }
-
-  /**
-   * 添加新的模型配置
-   *
-   * @param model - 要添加的模型配置
-   * @throws 当模型已存在或写入失败时抛出错误
-   * @author lvdaxianer
-   */
-  addModel(model: ModelConfig): void {
-    try {
-      const settings = this.readSettings();
-      if (!settings.modes) {
-        settings.modes = [];
+      // 目录已存在 - 无需操作
+      else {
+        // 目录已存在，无需创建
       }
-      settings.modes.push(model);
-      fs.writeFileSync(this.settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
-    } catch (error) {
-      throw new Error(`Failed to add model: ${error instanceof Error ? error.message : String(error)}`);
+
+      // 构建默认配置结构
+      const defaultSettings: Settings = {
+        tools: {
+          claude: {
+            modes: [this.createDefaultClaudeMode()],
+          },
+          opencode: {
+            modes: [],
+          },
+        },
+      };
+
+      // 写入配置文件
+      fs.writeFileSync(this.settingsPath, JSON.stringify(defaultSettings, null, 2), 'utf-8');
     }
+    // 处理异常
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to initialize settings: ${message}`);
+    }
+  }
+
+  /**
+   * 获取配置文件路径
+   *
+   * @return 配置文件路径
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  getSettingsPath(): string {
+    return this.settingsPath;
   }
 }

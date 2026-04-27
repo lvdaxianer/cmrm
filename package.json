@@ -1,15 +1,19 @@
 {
   "name": "cmrm",
-  "version": "0.0.1",
-  "description": "CLI tool to switch Claude models",
-  "main": "dist/index.js",
+  "version": "0.0.2",
+  "description": "CLI tool to manage and switch AI tool models (Claude, OpenCode, and more)",
+  "main": "dist/cli.js",
   "bin": {
     "cmrm": "./dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "esbuild src/cli.ts --bundle --platform=node --target=es2017 --outfile=dist/cli.js --minify --banner:js=\"#!/usr/bin/env node\" && chmod +x dist/cli.js",
+    "build:dev": "esbuild src/cli.ts --bundle --platform=node --target=es2017 --outfile=dist/cli.js --banner:js=\"#!/usr/bin/env node\" && chmod +x dist/cli.js",
     "dev": "ts-node src/cli.ts",
-    "start": "node dist/cli.js"
+    "start": "node dist/cli.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "repository": {
     "type": "git",
@@ -23,21 +27,31 @@
     "dist"
   ],
   "keywords": [
-    "claude",
+    "ai",
     "model",
     "switch",
-    "cli"
+    "cli",
+    "claude",
+    "opencode",
+    "registry",
+    "config",
+    "multi-tool"
   ],
   "author": "lvdaxianer",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.10.0",
     "@types/prompts": "^2.4.9",
+    "@vitest/coverage-v8": "^4.1.5",
+    "esbuild": "^0.28.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.5"
   },
   "dependencies": {
+    "@iarna/toml": "^2.2.5",
+    "@types/inquirer": "^9.0.9",
     "chalk": "^4.1.2",
-    "prompts": "^2.4.2"
+    "inquirer": "^13.4.2"
   }
 }

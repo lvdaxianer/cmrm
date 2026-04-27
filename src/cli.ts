@@ -1,58 +1,99 @@
-#!/usr/bin/env node
 /**
- * CLI 交互模块
- * 提供命令行交互界面，支持模型切换、查看当前配置等功能
+ * CLI 主模块
+ * 提供命令行交互界面，整合命令、UI、输入处理模块
  *
- * @author lvdaxianer
- * @date 2025-01-01
+ * @author lvdaxianerplus
+ * @date 2026-04-27
  */
 
 import * as readline from 'readline';
 import chalk from 'chalk';
-import prompts from 'prompts';
+import inquirer from 'inquirer';
 import { ConfigManager } from './config';
-import { ModelConfig } from './types';
-
-/**
- * 可用命令列表
- */
-const AVAILABLE_COMMANDS = [
-  { name: '/model', description: '切换模型 / Switch model' },
-  { name: '/input', description: '添加新模型配置 / Add new model config' },
-  { name: '/list', description: '查看所有模型配置 / List all models' },
-  { name: '/current', description: '查看当前模型 / Show current model' },
-  { name: '/exit', description: '退出程序 / Exit program' }
-];
+import { UnifiedModelConfig } from './types';
+import { registry, ClaudeAdapter, OpenCodeAdapter, ToolAdapter } from './adapters';
+import { AVAILABLE_COMMANDS, SUPPORTED_PROVIDERS, PROVIDER_DEFAULT_URLS } from './cli/commands';
+import { KeyListener, KeyAction } from './cli/input';
+import { UIRenderer } from './cli/ui';
 
 /**
  * CLI 类
- * 处理命令行交互逻辑
+ * 处理命令行交互逻辑，协调各模块工作
  */
 export class CLI {
   /** readline 接口实例 */
   private rl: readline.Interface;
+
   /** 配置管理器 */
   private configManager: ConfigManager;
-  /** 当前选中的模型索引 */
+
+  /** UI 渲染器 */
+  private uiRenderer: UIRenderer;
+
+  /** 键盘监听器 */
+  private keyListener: KeyListener;
+
+  /** 当前选中的索引 */
   private currentSelection: number = 0;
-  /** 模型列表 */
-  private models: ModelConfig[] = [];
-  /** 当前输入的命令 */
-  private currentInput: string = '';
+
+  /** 当前选项列表（工具名称或模型名称） */
+  private currentOptions: string[] = [];
+
+  /** 下一步操作类型 */
+  private nextOperation: 'switch' | 'add' | null = null;
+
+  /** 当前选中的工具适配器 */
+  private selectedAdapter: ToolAdapter | null = null;
+
+  /**
+   * 命令自动补全函数
+   * 根据用户输入提供匹配的命令建议
+   *
+   * @param input - 用户当前输入
+   * @returns 补全结果数组
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private completer(input: string): [string[], string] {
+    // 获取所有命令名称
+    const commands = AVAILABLE_COMMANDS.map(cmd => cmd.name);
+
+    // 输入为空或以 / 开头时提供补全
+    if (input.startsWith('/')) {
+      const matches = commands.filter(cmd => cmd.startsWith(input));
+      return [matches, input];
+    }
+
+    // 非命令输入不提供补全
+    return [commands, input];
+  }
 
   /**
    * 构造函数
-   * 初始化 readline 接口和配置管理器
+   * 初始化各模块实例和适配器注册表
+   *
+   * @author lvdaxianerplus
+   * @date 2026-04-27
    */
   constructor() {
+    // 初始化 readline 接口（带自动补全）
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
-      prompt: '> '
+      prompt: '> ',
+      completer: this.completer.bind(this)
     });
-    this.configManager = new ConfigManager();
 
-    // 监听 line 事件，实时处理输入
+    // 初始化各模块
+    this.configManager = new ConfigManager();
+    this.uiRenderer = new UIRenderer();
+    this.keyListener = new KeyListener();
+
+    // 注册适配器
+    registry.register(new ClaudeAdapter());
+    registry.register(new OpenCodeAdapter());
+
+    // 监听 line 事件处理输入
     this.rl.on('line', (input) => {
       this.handleInput(input.trim());
     });
@@ -60,153 +101,200 @@ export class CLI {
 
   /**
    * 启动 CLI
-   * 检查配置文件并显示欢迎信息和命令列表
+   * 检查配置文件并显示欢迎信息
    *
-   * @author lvdaxianer
+   * @author lvdaxianerplus
+   * @date 2026-04-27
    */
   async start(): Promise<void> {
-    // 检查配置文件是否存在
-    if (!this.configManager.hasSettingsFile()) {
-      console.log(chalk.yellow('Configuration file not found. Initializing...'));
-      try {
-        this.configManager.initializeSettings();
-        console.log(chalk.green(`Configuration file created at: ${this.configManager['settingsPath']}`));
-        console.log(chalk.gray('Please edit the file to add your API keys.\n'));
-      } catch (error) {
-        console.log(chalk.red(`Failed to initialize: ${error instanceof Error ? error.message : String(error)}`));
-        process.exit(1);
-      }
+    // 检查并初始化配置文件
+    await this.ensureConfigFile();
+
+    console.log(chalk.cyan('Model Registry Manager (cmrm) - Multi-tool support'));
+    this.uiRenderer.showCommands();
+    this.rl.prompt();
+  }
+
+  /**
+   * 确保配置文件存在
+   * 不存在则创建默认配置
+   *
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private async ensureConfigFile(): Promise<void> {
+    // 配置文件已存在，无需初始化
+    if (this.configManager.hasSettingsFile()) {
+      return;
     }
 
-    console.log(chalk.cyan('Claude Model Registry Manager (cmrm)'));
-    // 启动时显示命令列表
-    this.showCommands();
+    // 配置文件不存在，创建默认配置
+    console.log(chalk.yellow('Configuration file not found. Initializing...'));
 
-    this.promptWithCommands();
+    try {
+      this.configManager.initializeSettings();
+      const path = this.configManager.getSettingsPath();
+      console.log(chalk.green(`Configuration file created at: ${path}`));
+      console.log(chalk.gray('Please edit the file to add your API keys.\n'));
+    }
+    // 初始化失败
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.log(chalk.red(`Failed to initialize: ${message}`));
+      process.exit(1);
+    }
   }
 
   /**
-   * 显示命令提示符并附带命令列表
+   * 处理用户输入命令
    *
-   * @author lvdaxianer
-   */
-  private promptWithCommands(): void {
-    this.showCommands();
-    this.rl.prompt();
-  }
-
-  /**
-   * 显示命令提示符
-   *
-   * @author lvdaxianer
-   */
-  private prompt(): void {
-    this.rl.prompt();
-  }
-
-  /**
-   * 处理用户输入
-   *
-   * @param input - 用户输入的命令
-   * @author lvdaxianer
+   * @param input - 用户输入的命令字符串
+   * @author lvdaxianerplus
+   * @date 2026-04-27
    */
   private handleInput(input: string): void {
-    this.currentInput = input;
-
-    // 输入 /model 时，显示模型选择菜单
-    if (input === '/model') {
-      this.showModelSelection();
+    // /switch-model 命令 - 显示工具选择
+    if (input === '/switch-model') {
+      this.nextOperation = 'switch';
+      this.showToolSelection();
     }
-    // 输入 /input 时，交互式添加新模型
-    else if (input === '/input') {
-      this.handleInputCommand();
+    // /add-model 命令 - 显示工具选择后交互添加
+    else if (input === '/add-model') {
+      this.nextOperation = 'add';
+      this.showToolSelection();
     }
-    // 输入 /list 时，显示所有模型配置
+    // /list 命令 - 显示所有模型配置
     else if (input === '/list') {
-      this.showModelList();
-      this.prompt();
+      this.uiRenderer.showAllModels();
+      this.rl.prompt();
     }
-    // 输入 /current 时，显示当前模型
+    // /current 命令 - 显示当前生效模型
     else if (input === '/current') {
-      this.showCurrentModel();
-      this.promptWithCommands();
+      this.uiRenderer.showCurrentModels();
+      this.uiRenderer.showCommands();
+      this.rl.prompt();
     }
-    // 输入退出命令时，关闭程序
-    else if (input === '/exit' || input === '/quit' || input === 'exit' || input === 'quit') {
+    // 退出命令 - 关闭程序
+    else if (this.isExitCommand(input)) {
       console.log(chalk.yellow('Goodbye!'));
       this.rl.close();
       process.exit(0);
     }
-    // 输入 / 时，显示可用命令
+    // 空命令 "/" - 显示命令列表
     else if (input === '/') {
-      this.showCommands();
-      this.prompt();
+      this.uiRenderer.showCommands();
+      this.rl.prompt();
     }
-    // 输入空内容时，继续提示
+    // 空输入 - 继续等待
     else if (input === '') {
-      this.prompt();
+      this.rl.prompt();
     }
-    // 输入未知命令时，提示错误并建议相似命令
+    // 部分命令输入 - 显示匹配建议
+    else if (input.startsWith('/') && !AVAILABLE_COMMANDS.some(cmd => cmd.name === input)) {
+      this.showCommandSuggestions(input);
+      this.rl.prompt();
+    }
+    // 未知命令 - 提示错误
     else {
       this.handleUnknownCommand(input);
-      this.promptWithCommands();
+      this.uiRenderer.showCommands();
+      this.rl.prompt();
     }
   }
 
   /**
-   * 显示可用命令列表
+   * 显示命令匹配建议
+   * 当用户输入部分命令时提示可能的匹配项
    *
-   * @author lvdaxianer
+   * @param input - 用户输入的部分命令
+   * @author lvdaxianerplus
+   * @date 2026-04-27
    */
-  private showCommands(): void {
-    console.log(chalk.cyan('\nAvailable commands:\n'));
-    AVAILABLE_COMMANDS.forEach(cmd => {
-      console.log(`  ${chalk.green(cmd.name.padEnd(12))} ${chalk.gray(cmd.description)}`);
+  private showCommandSuggestions(input: string): void {
+    // 查找以输入开头的命令
+    const matches = AVAILABLE_COMMANDS
+      .filter(cmd => cmd.name.startsWith(input))
+      .map(cmd => `${cmd.name} - ${cmd.description}`);
+
+    // 无匹配时提示无此命令
+    if (matches.length === 0) {
+      this.uiRenderer.showError(`No command starts with: ${input}`);
+      this.uiRenderer.showCommands();
+      return;
+    }
+
+    // 显示匹配的命令建议
+    console.log(chalk.cyan('\nAvailable commands:'));
+    matches.forEach(cmd => {
+      console.log(chalk.gray(`  ${cmd}`));
     });
-    console.log('');
+    console.log(chalk.gray('\n  (Press Enter to confirm, or continue typing)'));
+  }
+
+  /**
+   * 检查是否为退出命令
+   *
+   * @param input - 用户输入
+   * @return 如果是退出命令返回 true
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private isExitCommand(input: string): boolean {
+    const exitCommands = ['/exit', '/quit', 'exit', 'quit'];
+    return exitCommands.includes(input.toLowerCase());
   }
 
   /**
    * 处理未知命令
-   * 显示错误信息并建议相似的命令
+   * 显示错误并推荐相似命令
    *
    * @param input - 用户输入的未知命令
-   * @author lvdaxianer
+   * @author lvdaxianerplus
+   * @date 2026-04-27
    */
   private handleUnknownCommand(input: string): void {
-    console.log(chalk.red(`Unknown command: ${input}`));
+    this.uiRenderer.showError(`Unknown command: ${input}`);
 
-    // 查找相似的命令
+    // 查找相似命令推荐
     const suggestions = this.findSimilarCommands(input);
 
-    // 如果有相似命令，显示建议
+    // 有相似命令时显示推荐
     if (suggestions.length > 0) {
-      console.log(chalk.yellow('Did you mean:'));
+      this.uiRenderer.showWarning('Did you mean:');
       suggestions.forEach(cmd => {
         console.log(`  ${chalk.green(cmd.name)} - ${chalk.gray(cmd.description)}`);
       });
-    } else {
-      console.log(chalk.gray('Available commands: /model, /current, /exit'));
+    }
+    // 无相似命令时显示可用命令列表
+    else {
+      this.uiRenderer.showInfo('Available commands: /switch-model, /add-model, /list, /current, /exit');
     }
   }
 
   /**
    * 查找与输入相似的命令
-   * 使用简单的编辑距离算法找出相似命令
+   * 使用编辑距离算法匹配相似命令
    *
    * @param input - 用户输入的命令
-   * @return 相似的命令列表
-   * @author lvdaxianer
+   * @return 相似命令列表
+   * @author lvdaxianerplus
+   * @date 2026-04-27
    */
   private findSimilarCommands(input: string): typeof AVAILABLE_COMMANDS {
     const suggestions: typeof AVAILABLE_COMMANDS = [];
-    const threshold = 3; // 编辑距离阈值
+    const threshold = 3;
 
+    // 遍历所有命令计算编辑距离
     for (const cmd of AVAILABLE_COMMANDS) {
       const distance = this.levenshteinDistance(input.toLowerCase(), cmd.name.toLowerCase());
-      // 如果编辑距离小于阈值，或者是输入以 / 开头且命令名称包含输入内容
+
+      // 编辑距离在阈值内或部分匹配则推荐
       if (distance <= threshold || (input.startsWith('/') && cmd.name.includes(input))) {
         suggestions.push(cmd);
+      }
+      // 不匹配则跳过
+      else {
+        continue;
       }
     }
 
@@ -214,35 +302,43 @@ export class CLI {
   }
 
   /**
-   * 计算两个字符串之间的编辑距离（Levenshtein 距离）
+   * 计算编辑距离（Levenshtein Distance）
    *
    * @param a - 第一个字符串
    * @param b - 第二个字符串
-   * @return 编辑距离
-   * @author lvdaxianer
+   * @return 编辑距离数值
+   * @author lvdaxianerplus
+   * @date 2026-04-27
    */
   private levenshteinDistance(a: string, b: string): number {
+    // 初始化矩阵
     const matrix: number[][] = [];
 
-    // 初始化矩阵
+    // 构建矩阵第一列（b 的长度）
     for (let i = 0; i <= b.length; i++) {
       matrix[i] = [i];
     }
+
+    // 构建矩阵第一行（a 的长度）
     for (let j = 0; j <= a.length; j++) {
       matrix[0][j] = j;
     }
 
-    // 填充矩阵
+    // 计算矩阵每个单元格的值
     for (let i = 1; i <= b.length; i++) {
       for (let j = 1; j <= a.length; j++) {
+        // 字符相同则取左上角值
         if (b.charAt(i - 1) === a.charAt(j - 1)) {
           matrix[i][j] = matrix[i - 1][j - 1];
-        } else {
-          matrix[i][j] = Math.min(
+        }
+        // 字符不同则取最小值加1
+        else {
+          const minVal = Math.min(
             matrix[i - 1][j - 1] + 1, // 替换
             matrix[i][j - 1] + 1,     // 插入
             matrix[i - 1][j] + 1      // 删除
           );
+          matrix[i][j] = minVal;
         }
       }
     }
@@ -251,308 +347,540 @@ export class CLI {
   }
 
   /**
-   * 显示当前配置的模型
+   * 显示工具选择菜单
    *
-   * @author lvdaxianer
+   * @author lvdaxianerplus
+   * @date 2026-04-27
    */
-  private showCurrentModel(): void {
-    try {
-      const currentModel = this.configManager.getCurrentModel();
-      // 如果存在当前模型，显示模型名称
-      if (currentModel) {
-        console.log(chalk.green(`Current model: ${currentModel}`));
-      } else {
-        console.log(chalk.yellow('No model is currently configured'));
-      }
-    } catch (error) {
-      console.log(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
-    }
+  private showToolSelection(): void {
+    this.currentOptions = registry.getToolNames();
+    this.currentSelection = 0;
+
+    // 首次渲染（包含完整提示）
+    this.uiRenderer.renderToolList(this.currentSelection, true);
+    this.setupKeyListener('tool');
   }
 
   /**
-   * 处理 /input 命令
-   * 交互式让用户输入模型配置信息
+   * 显示模型选择菜单（用于 /switch-model）
    *
-   * @author lvdaxianer
-   */
-  private async handleInputCommand(): Promise<void> {
-    try {
-      console.log(chalk.cyan('\n=== Add New Model Configuration ===\n'));
-
-      const questions = [
-        {
-          type: 'text' as const,
-          name: 'ANTHROPIC_MODEL',
-          message: 'Default Model (e.g., claude-sonnet-4-5-20250514)',
-          validate: (value: string) => value.trim() !== '' || 'This field is required'
-        },
-        {
-          type: 'text' as const,
-          name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-          message: 'Haiku Model (e.g., claude-haiku-4-5-20250514)',
-          initial: 'claude-haiku-4-5-20250514',
-          validate: (value: string) => value.trim() !== '' || 'This field is required'
-        },
-        {
-          type: 'text' as const,
-          name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
-          message: 'Sonnet Model (e.g., claude-sonnet-4-5-20250514)',
-          initial: 'claude-sonnet-4-5-20250514',
-          validate: (value: string) => value.trim() !== '' || 'This field is required'
-        },
-        {
-          type: 'text' as const,
-          name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
-          message: 'Opus Model (e.g., claude-opus-4-5-20251101)',
-          initial: 'claude-opus-4-5-20251101',
-          validate: (value: string) => value.trim() !== '' || 'This field is required'
-        },
-        {
-          type: 'text' as const,
-          name: 'ANTHROPIC_AUTH_TOKEN',
-          message: 'Auth Token (e.g., sk-ant-xxx)',
-          validate: (value: string) => value.trim() !== '' || 'This field is required'
-        },
-        {
-          type: 'text' as const,
-          name: 'ANTHROPIC_BASE_URL',
-          message: 'Base URL (e.g., https://api.anthropic.com)',
-          initial: 'https://api.anthropic.com',
-          validate: (value: string) => value.trim() !== '' || 'This field is required'
-        }
-      ];
-
-      const response = await prompts(questions);
-
-      // 用户按 Ctrl+C 取消
-      if (Object.keys(response).length === 0) {
-        console.log(chalk.yellow('\nCancelled'));
-        this.promptWithCommands();
-        return;
-      }
-
-      const newModel: ModelConfig = {
-        ANTHROPIC_MODEL: response.ANTHROPIC_MODEL,
-        ANTHROPIC_DEFAULT_HAIKU_MODEL: response.ANTHROPIC_DEFAULT_HAIKU_MODEL,
-        ANTHROPIC_DEFAULT_SONNET_MODEL: response.ANTHROPIC_DEFAULT_SONNET_MODEL,
-        ANTHROPIC_DEFAULT_OPUS_MODEL: response.ANTHROPIC_DEFAULT_OPUS_MODEL,
-        ANTHROPIC_AUTH_TOKEN: response.ANTHROPIC_AUTH_TOKEN,
-        ANTHROPIC_BASE_URL: response.ANTHROPIC_BASE_URL
-      };
-
-      // 验证必填字段
-      if (!this.configManager.validateModelConfig(newModel)) {
-        console.log(chalk.red('\nValidation failed! Required fields are missing.'));
-        this.promptWithCommands();
-        return;
-      }
-
-      // 检查是否已存在
-      if (this.configManager.modelExists(newModel)) {
-        console.log(chalk.yellow('\nThis model configuration already exists!'));
-        this.promptWithCommands();
-        return;
-      }
-
-      // 保存到 settings.json
-      this.configManager.addModel(newModel);
-      console.log(chalk.green('\nModel configuration added successfully!'));
-      console.log(chalk.gray(`Model: ${newModel.ANTHROPIC_MODEL}`));
-      console.log(chalk.gray(`Base URL: ${newModel.ANTHROPIC_BASE_URL}`));
-    } catch (error) {
-      console.log(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
-    }
-    this.promptWithCommands();
-  }
-
-  /**
-   * 显示所有模型配置列表
-   *
-   * @author lvdaxianer
-   */
-  private showModelList(): void {
-    try {
-      const models = this.configManager.getAvailableModels();
-
-      if (models.length === 0) {
-        console.log(chalk.yellow('No models found in settings.json'));
-        return;
-      }
-
-      console.log(chalk.cyan('\n=== All Model Configurations ===\n'));
-      models.forEach((model, index) => {
-        console.log(chalk.green(`[${index + 1}] ${model.ANTHROPIC_MODEL}`));
-        // 使用辅助函数处理空值显示
-        console.log(chalk.gray(`    Haiku:  ${this.formatValue(model.ANTHROPIC_DEFAULT_HAIKU_MODEL)}`));
-        console.log(chalk.gray(`    Sonnet: ${this.formatValue(model.ANTHROPIC_DEFAULT_SONNET_MODEL)}`));
-        console.log(chalk.gray(`    Opus:   ${this.formatValue(model.ANTHROPIC_DEFAULT_OPUS_MODEL)}`));
-        console.log(chalk.gray(`    Token:  ${this.formatValue(model.ANTHROPIC_AUTH_TOKEN)}`));
-        console.log(chalk.gray(`    URL:    ${this.formatValue(model.ANTHROPIC_BASE_URL)}`));
-        console.log('');
-      });
-    } catch (error) {
-      console.log(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
-    }
-  }
-
-  /**
-   * 格式化值显示，空值显示为 -
-   *
-   * @param value - 要格式化的值
-   * @return 格式化后的字符串
-   * @author lvdaxianer
-   */
-  private formatValue(value: string | undefined): string {
-    return value || '-';
-  }
-
-  /**
-   * 显示模型选择菜单
-   *
-   * @author lvdaxianer
+   * @author lvdaxianerplus
+   * @date 2026-04-27
    */
   private showModelSelection(): void {
-    try {
-      this.models = this.configManager.getAvailableModels();
-
-      // 如果没有模型，显示提示
-      if (this.models.length === 0) {
-        console.log(chalk.yellow('No models found in settings.json'));
-        this.promptWithCommands();
-        return;
-      }
-
-      this.currentSelection = 0;
-      this.renderModelList();
-      this.setupKeyListener();
-    } catch (error) {
-      console.log(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
-      this.promptWithCommands();
+    // 未选择工具时不执行
+    if (!this.selectedAdapter) {
+      return;
     }
-  }
 
-  /**
-   * 渲染模型列表
-   *
-   * @author lvdaxianer
-   */
-  private renderModelList(): void {
-    // 清除屏幕并重新渲染
-    readline.moveCursor(process.stdout, 0, -this.models.length - 3);
-    readline.clearScreenDown(process.stdout);
+    const models = this.selectedAdapter.getSavedModels();
 
-    console.log(chalk.cyan('\nSelect a model (use ↑/↓ arrows, Enter to confirm, Esc to cancel):\n'));
+    // 无保存模型时显示提示
+    if (models.length === 0) {
+      this.uiRenderer.showWarning(`\n${this.selectedAdapter.displayName} 没有保存的模型配置`);
+      this.uiRenderer.showInfo('请使用 /add-model 命令添加模型配置');
+      this.uiRenderer.showCommands();
+      this.rl.prompt();
+      return;
+    }
 
-    this.models.forEach((model, index) => {
-      const isSelected = index === this.currentSelection;
-      const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
-      // 显示默认模型名称
-      const defaultModel = model.ANTHROPIC_MODEL || 'Unknown';
-      const displayName = isSelected ? chalk.green(defaultModel) : chalk.gray(defaultModel);
-      // 显示其他模型信息
-      const haiku = model.ANTHROPIC_DEFAULT_HAIKU_MODEL;
-      const sonnet = model.ANTHROPIC_DEFAULT_SONNET_MODEL;
-      const opus = model.ANTHROPIC_DEFAULT_OPUS_MODEL;
-      const modelInfo = chalk.gray(`(H:${haiku}, S:${sonnet}, O:${opus})`);
+    // 有模型时显示选择列表（首次渲染）
+    this.currentOptions = models.map(m => m.name || m.model);
+    this.currentSelection = 0;
 
-      console.log(`${prefix}${displayName} ${modelInfo}`);
-    });
+    this.uiRenderer.renderModelList(this.selectedAdapter, models, this.currentSelection, true);
+    this.setupKeyListener('model');
   }
 
   /**
    * 设置键盘监听器
-   * 监听上下箭头键、回车键、ESC 键
    *
-   * @author lvdaxianer
+   * @param mode - 监听模式（tool 或 model）
+   * @author lvdaxianerplus
+   * @date 2026-04-27
    */
-  private setupKeyListener(): void {
-    const stdin = process.stdin;
-    stdin.setRawMode(true);
-    stdin.resume();
-    stdin.setEncoding('utf8');
-
-    const onKeyPress = (str: string, key: readline.Key) => {
-      // 按上箭头时，选择上一个模型
-      if (key.name === 'up') {
-        this.currentSelection = Math.max(0, this.currentSelection - 1);
-        this.renderModelList();
-      }
-      // 按下箭头时，选择下一个模型
-      else if (key.name === 'down') {
-        this.currentSelection = Math.min(this.models.length - 1, this.currentSelection + 1);
-        this.renderModelList();
-      }
-      // 按回车键时，确认选择
-      else if (key.name === 'return' || key.name === 'enter') {
-        stdin.removeListener('keypress', onKeyPress);
-        stdin.setRawMode(false);
-        stdin.pause();
-        this.selectModel(this.models[this.currentSelection]);
-      }
-      // 按 ESC 键时，取消选择
-      else if (key.name === 'escape') {
-        stdin.removeListener('keypress', onKeyPress);
-        stdin.setRawMode(false);
-        stdin.pause();
-        console.log(chalk.yellow('\nCancelled'));
-        this.promptWithCommands();
-      }
-      // 按 Ctrl+C 时，退出程序
-      else if (key.ctrl && key.name === 'c') {
-        console.log(chalk.yellow('\nGoodbye!'));
-        this.rl.close();
-        process.exit(0);
-      }
-    };
-
-    stdin.on('keypress', onKeyPress);
+  private setupKeyListener(mode: 'tool' | 'model'): void {
+    this.keyListener.startListening((action) => {
+      this.handleKeyAction(action, mode);
+    });
   }
 
   /**
-   * 选择模型并更新配置
-   * 将选中的模型配置写入 Claude 配置文件
-   * 会先验证必填属性，然后使用合并模式更新配置
+   * 处理键盘动作
    *
-   * @param model - 选中的模型配置
-   * @author lvdaxianer
+   * @param action - 键盘动作类型
+   * @param mode - 当前选择模式
+   * @author lvdaxianerplus
+   * @date 2026-04-27
    */
-  private selectModel(model: ModelConfig): void {
+  private handleKeyAction(action: KeyAction, mode: 'tool' | 'model'): void {
+    // 向上选择 - 减少索引
+    if (action === 'up') {
+      this.currentSelection = Math.max(0, this.currentSelection - 1);
+      this.renderCurrentList(mode);
+    }
+    // 向下选择 - 增加索引
+    else if (action === 'down') {
+      this.currentSelection = Math.min(this.currentOptions.length - 1, this.currentSelection + 1);
+      this.renderCurrentList(mode);
+    }
+    // 确认选择 - 先停止监听再处理选中项
+    else if (action === 'confirm') {
+      this.keyListener.stopListening();
+      this.handleSelection(mode);
+    }
+    // 取消选择 - 先停止监听再返回命令列表
+    else if (action === 'cancel') {
+      this.keyListener.stopListening();
+      this.nextOperation = null;
+      this.uiRenderer.showWarning('\n已取消');
+      this.uiRenderer.showCommands();
+      this.rl.prompt();
+    }
+    // 退出程序 - 先停止监听再退出
+    else if (action === 'exit') {
+      this.keyListener.stopListening();
+      console.log(chalk.yellow('\nGoodbye!'));
+      this.rl.close();
+      process.exit(0);
+    }
+    // 其他动作不处理
+    else {
+      // 忽略
+    }
+  }
+
+  /**
+   * 渲染当前选择列表
+   *
+   * @param mode - 选择模式
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private renderCurrentList(mode: 'tool' | 'model'): void {
+    // 工具模式 - 渲染工具列表（后续渲染，不显示完整提示）
+    if (mode === 'tool') {
+      this.uiRenderer.renderToolList(this.currentSelection, false);
+    }
+    // 模型模式 - 渲染模型列表（后续渲染）
+    else if (mode === 'model' && this.selectedAdapter) {
+      const models = this.selectedAdapter.getSavedModels();
+      this.uiRenderer.renderModelList(this.selectedAdapter, models, this.currentSelection, false);
+    }
+    // 其他模式不渲染
+    else {
+      // 不处理
+    }
+  }
+
+  /**
+   * 处理选择确认
+   *
+   * @param mode - 选择模式
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private handleSelection(mode: 'tool' | 'model'): void {
+    // 工具选择完成
+    if (mode === 'tool') {
+      this.handleToolSelection();
+    }
+    // 模型选择完成
+    else if (mode === 'model') {
+      this.handleModelSelection();
+    }
+    // 其他模式不处理
+    else {
+      // 不处理
+    }
+  }
+
+  /**
+   * 处理工具选择完成
+   *
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private handleToolSelection(): void {
+    const selectedTool = this.currentOptions[this.currentSelection];
+    this.selectedAdapter = registry.getAdapter(selectedTool);
+
+    this.uiRenderer.showSuccess(`\n已选择工具: ${this.selectedAdapter.displayName}`);
+
+    // 根据下一步操作继续流程
+    if (this.nextOperation === 'switch') {
+      this.showModelSelection();
+    }
+    else if (this.nextOperation === 'add') {
+      this.handleAddModel();
+    }
+    else {
+      // 无后续操作，返回命令列表
+      this.uiRenderer.showCommands();
+      this.rl.prompt();
+    }
+  }
+
+  /**
+   * 处理模型选择完成（switch 操作）
+   *
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private handleModelSelection(): void {
+    // 未选择工具时不执行
+    if (!this.selectedAdapter) {
+      return;
+    }
+
+    const models = this.selectedAdapter.getSavedModels();
+    const selectedModel = models[this.currentSelection];
+
+    this.switchModel(selectedModel);
+  }
+
+  /**
+   * 处理 /add-model 命令
+   * 交互式让用户输入模型配置信息
+   *
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private async handleAddModel(): Promise<void> {
+    // 未选择工具时不执行
+    if (!this.selectedAdapter) {
+      return;
+    }
+
+    const isClaude = this.selectedAdapter.name === 'claude';
+    const isOpencode = this.selectedAdapter.name === 'opencode';
+
+    // 关闭 readline
+    this.rl.close();
+
+    // 确保 KeyListener 已停止
+    if (this.keyListener.isListening()) {
+      this.keyListener.stopListening();
+    }
+
+    // 确保 stdin 不在 raw mode
+    if (process.stdin.isRaw) {
+      process.stdin.setRawMode(false);
+    }
+
+    console.log(chalk.cyan(`\n=== 添加 ${this.selectedAdapter.displayName} 模型配置 ===\n`));
+    console.log(chalk.gray('提示：可选字段不填写可直接按 Enter 跳过\n'));
+
     try {
-      // 验证必填属性
-      if (!this.configManager.validateModelConfig(model)) {
-        console.log(chalk.red('\nInvalid model configuration!'));
-        console.log(chalk.yellow('Required fields: ANTHROPIC_MODEL, ANTHROPIC_AUTH_TOKEN, ANTHROPIC_BASE_URL'));
-        this.promptWithCommands();
+      // 构建问题列表
+      const questions = this.buildAddModelQuestions(isClaude, isOpencode);
+
+      // 收集用户输入
+      const response = await inquirer.prompt(questions as any);
+
+      // 用户取消输入
+      if (Object.keys(response).length === 0) {
+        this.recreateReadline();
+        this.uiRenderer.showWarning('\n已取消');
+        this.uiRenderer.showCommands();
+        this.rl.prompt();
         return;
       }
 
-      // 写入完整的模型配置（使用合并模式，只更新指定属性）
-      this.configManager.writeClaudeConfig({
-        ANTHROPIC_MODEL: model.ANTHROPIC_MODEL,
-        ANTHROPIC_DEFAULT_HAIKU_MODEL: model.ANTHROPIC_DEFAULT_HAIKU_MODEL,
-        ANTHROPIC_DEFAULT_SONNET_MODEL: model.ANTHROPIC_DEFAULT_SONNET_MODEL,
-        ANTHROPIC_DEFAULT_OPUS_MODEL: model.ANTHROPIC_DEFAULT_OPUS_MODEL,
-        ANTHROPIC_AUTH_TOKEN: model.ANTHROPIC_AUTH_TOKEN,
-        ANTHROPIC_BASE_URL: model.ANTHROPIC_BASE_URL
-      });
-      console.log(chalk.green('\nModel configuration updated:'));
-      console.log(chalk.gray(`  Model:     ${model.ANTHROPIC_MODEL}`));
-      console.log(chalk.gray(`  Haiku:     ${model.ANTHROPIC_DEFAULT_HAIKU_MODEL}`));
-      console.log(chalk.gray(`  Sonnet:    ${model.ANTHROPIC_DEFAULT_SONNET_MODEL}`));
-      console.log(chalk.gray(`  Opus:      ${model.ANTHROPIC_DEFAULT_OPUS_MODEL}`));
-      console.log(chalk.gray(`  Auth Token: ${model.ANTHROPIC_AUTH_TOKEN}`));
-      console.log(chalk.gray(`  Base URL:  ${model.ANTHROPIC_BASE_URL}`));
-    } catch (error) {
-      console.log(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
+      // 构建配置对象
+      const config = this.buildModelConfig(response, isClaude, isOpencode);
+
+      // 验证配置
+      if (!this.selectedAdapter.validateConfig(config)) {
+        this.recreateReadline();
+        this.uiRenderer.showError('\n配置验证失败！请检查必填字段。');
+        this.uiRenderer.showCommands();
+        this.rl.prompt();
+        return;
+      }
+
+      // 保存配置
+      this.selectedAdapter.saveModel(config);
+      this.showAddModelResult(config);
+
+      // 重新创建 readline
+      this.recreateReadline();
     }
-    this.promptWithCommands();
+    // 添加失败
+    catch (error) {
+      this.recreateReadline();
+      const message = error instanceof Error ? error.message : String(error);
+      this.uiRenderer.showError(`添加失败: ${message}`);
+    }
+
+    // 清理状态并返回命令列表
+    this.nextOperation = null;
+    this.uiRenderer.showCommands();
+    this.rl.prompt();
+  }
+
+  /**
+   * 重新创建 readline 接口
+   * 在使用 prompts 库后需要重新创建
+   *
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private recreateReadline(): void {
+    // 恢复 stdin
+    process.stdin.resume();
+
+    this.rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      prompt: '> ',
+      completer: this.completer.bind(this)
+    });
+
+    // 重新绑定 line 事件
+    this.rl.on('line', (input) => {
+      this.handleInput(input.trim());
+    });
+  }
+
+  /**
+   * 构建添加模型的问题列表
+   *
+   * @param isClaude - 是否为 Claude 工具
+   * @param isOpencode - 是否为 OpenCode 工具
+   * @return inquirer 问题数组
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private buildAddModelQuestions(isClaude: boolean, isOpencode: boolean): inquirer.QuestionCollection[] {
+    // 通用问题：配置名称和模型名称
+    const commonQuestions: inquirer.QuestionCollection[] = [
+      {
+        type: 'input',
+        name: 'configName',
+        message: '配置名称（可选，不填则使用模型名称）',
+      },
+      {
+        type: 'input',
+        name: 'model',
+        message: '模型名称（必填）',
+        validate: (value: string) => value.trim() !== '' || '模型名称为必填字段',
+      },
+    ];
+
+    // Claude 特有问题
+    const claudeQuestions: inquirer.QuestionCollection[] = [
+      {
+        type: 'input',
+        name: 'apiKey',
+        message: 'API Key（必填）',
+        validate: (value: string) => value.trim() !== '' || 'API Key 为必填字段',
+      },
+      {
+        type: 'input',
+        name: 'baseUrl',
+        message: 'Base URL（必填）',
+        default: 'https://api.anthropic.com',
+        validate: (value: string) => value.trim() !== '' || 'Base URL 为必填字段',
+      },
+      {
+        type: 'input',
+        name: 'haikuModel',
+        message: 'Haiku 模型（可选）',
+      },
+      {
+        type: 'input',
+        name: 'sonnetModel',
+        message: 'Sonnet 模型（可选）',
+      },
+      {
+        type: 'input',
+        name: 'opusModel',
+        message: 'Opus 模型（可选）',
+      },
+    ];
+
+    // OpenCode 特有问题
+    const opencodeQuestions: inquirer.QuestionCollection[] = [
+      {
+        type: 'select',
+        name: 'provider',
+        message: 'Provider（必填）',
+        choices: SUPPORTED_PROVIDERS.map(p => ({ name: p, value: p })),
+      },
+      {
+        type: 'input',
+        name: 'apiKey',
+        message: 'API Key（必填）',
+        validate: (value: string) => value.trim() !== '' || 'API Key 为必填字段',
+      },
+      {
+        type: 'input',
+        name: 'baseUrl',
+        message: 'Base URL（必填）',
+        default: (answers: inquirer.Answers) => PROVIDER_DEFAULT_URLS[answers.provider] || '',
+        validate: (value: string) => value.trim() !== '' || 'Base URL 为必填字段',
+      },
+    ];
+
+    // 组合问题列表
+    if (isOpencode) {
+      return [...commonQuestions, ...opencodeQuestions];
+    }
+    else {
+      return [...commonQuestions, ...claudeQuestions];
+    }
+  }
+
+  /**
+   * 根据用户输入构建模型配置对象
+   *
+   * @param response - prompts 返回的用户输入
+   * @param isClaude - 是否为 Claude 工具
+   * @param isOpencode - 是否为 OpenCode 工具
+   * @return 统一模型配置对象
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private buildModelConfig(response: Record<string, any>, isClaude: boolean, isOpencode: boolean): UnifiedModelConfig {
+    // 基础配置字段
+    const config: UnifiedModelConfig = {
+      name: response.configName?.trim() || response.model.trim(),
+      model: response.model.trim(),
+      apiKey: response.apiKey.trim(),
+      baseUrl: response.baseUrl.trim(),
+    };
+
+    // Claude 特有字段
+    if (isClaude) {
+      if (response.haikuModel?.trim()) {
+        config.haikuModel = response.haikuModel.trim();
+      }
+      else {
+        // 可选字段不填则不设置
+      }
+
+      if (response.sonnetModel?.trim()) {
+        config.sonnetModel = response.sonnetModel.trim();
+      }
+      else {
+        // 可选字段不填则不设置
+      }
+
+      if (response.opusModel?.trim()) {
+        config.opusModel = response.opusModel.trim();
+      }
+      else {
+        // 可选字段不填则不设置
+      }
+    }
+
+    // OpenCode 特有字段
+    if (isOpencode) {
+      config.provider = response.provider;
+    }
+
+    return config;
+  }
+
+  /**
+   * 显示添加模型的结果
+   *
+   * @param config - 添加的模型配置
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private showAddModelResult(config: UnifiedModelConfig): void {
+    this.uiRenderer.showSuccess('\n模型配置已添加:');
+    this.uiRenderer.showInfo(`  名称:     ${config.name}`);
+    this.uiRenderer.showInfo(`  模型:     ${config.model}`);
+
+    if (config.provider) {
+      this.uiRenderer.showInfo(`  Provider: ${config.provider}`);
+    }
+
+    // API Key 截断显示（保护敏感信息）
+    const truncatedApiKey = config.apiKey.substring(0, 10) + '...';
+    this.uiRenderer.showInfo(`  API Key:  ${truncatedApiKey}`);
+    this.uiRenderer.showInfo(`  Base URL: ${config.baseUrl}`);
+  }
+
+  /**
+   * 切换模型
+   * 写入模型配置到工具配置文件
+   *
+   * @param config - 要切换的模型配置
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private switchModel(config: UnifiedModelConfig): void {
+    // 未选择工具时不执行
+    if (!this.selectedAdapter) {
+      return;
+    }
+
+    try {
+      // 验证配置完整性
+      if (!this.selectedAdapter.validateConfig(config)) {
+        this.uiRenderer.showError('\n配置验证失败！缺少必填字段。');
+        this.uiRenderer.showCommands();
+        this.rl.prompt();
+        return;
+      }
+
+      // 写入配置（自动备份）
+      const backupFileName = this.selectedAdapter.writeModelConfig(config);
+
+      // 显示切换结果
+      this.showSwitchResult(config, backupFileName);
+    }
+    // 切换失败
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.uiRenderer.showError(`切换失败: ${message}`);
+    }
+
+    // 清理状态并返回命令列表
+    this.nextOperation = null;
+    this.uiRenderer.showCommands();
+    this.rl.prompt();
+  }
+
+  /**
+   * 显示模型切换结果
+   *
+   * @param config - 切换后的模型配置
+   * @param backupFileName - 备份文件名
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private showSwitchResult(config: UnifiedModelConfig, backupFileName: string): void {
+    this.uiRenderer.showSuccess('\n模型已切换:');
+    this.uiRenderer.showInfo(`  工具:     ${this.selectedAdapter!.displayName}`);
+    this.uiRenderer.showInfo(`  模型:     ${config.model}`);
+
+    if (config.provider) {
+      this.uiRenderer.showInfo(`  Provider: ${config.provider}`);
+    }
+
+    // 有备份文件时显示
+    if (backupFileName) {
+      this.uiRenderer.showInfo(`  备份:     ${backupFileName}`);
+    }
+    else {
+      // 无备份（配置文件不存在）
+    }
   }
 }
 
-// 仅在直接运行时启动 CLI
+/**
+ * CLI 启动入口
+ * 仅在直接运行此文件时启动 CLI
+ */
 if (require.main === module) {
   const cli = new CLI();
-  cli.start().catch((error) => {
+
+  cli.start().catch((error: Error) => {
     console.error(chalk.red(`Fatal error: ${error.message}`));
     process.exit(1);
   });

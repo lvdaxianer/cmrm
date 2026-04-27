@@ -3,3 +3,8 @@ dist/
 *.log
 .DS_Store
 .ai
+.openspec
+openspec
+.claude
+logs
+stories
