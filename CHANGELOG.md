@@ -6,7 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
 ### Changed
+- 修复 /remove 命令错误执行 /switch 的问题 (e056ed4)
+
 - 重命名 /switch-model 为 /switch (b167592)
 
 ### Changed
