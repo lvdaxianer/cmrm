@@ -441,7 +441,7 @@ export class CLI {
     this.currentSelection = 0;
 
     this.uiRenderer.renderModelList(this.selectedAdapter, models, this.currentSelection, true);
-    this.setupKeyListener('model');
+    this.setupKeyListener('remove');
   }
 
   /**
