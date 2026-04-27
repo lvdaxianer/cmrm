@@ -6,7 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
 ### Changed
+- 移除 OpenCode 支持，专注于 Claude CLI (0b883b2)
+
 - 说明 OpenCode 不支持持久化默认模型 (846d268)
 
 ### Changed
