@@ -23,7 +23,8 @@ export interface CommandDefinition {
  */
 export const AVAILABLE_COMMANDS: CommandDefinition[] = [
   { name: '/switch-model', description: '切换模型配置' },
-  { name: '/add-model', description: '添加新模型配置' },
+  { name: '/add', description: '添加新模型配置' },
+  { name: '/remove', description: '删除模型配置' },
   { name: '/list', description: '显示所有模型配置' },
   { name: '/current', description: '显示当前模型' },
   { name: '/exit', description: '退出程序' }

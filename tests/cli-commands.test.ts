@@ -22,12 +22,20 @@ describe('命令定义', () => {
     expect(cmd?.description).toContain('切换模型');
   });
 
-  // /add-model 命令存在
-  it('/add-model 命令定义正确', () => {
-    const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/add-model');
+  // /add 命令存在
+  it('/add 命令定义正确', () => {
+    const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/add');
 
     expect(cmd).toBeDefined();
     expect(cmd?.description).toContain('添加新模型');
+  });
+
+  // /remove 命令存在
+  it('/remove 命令定义正确', () => {
+    const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/remove');
+
+    expect(cmd).toBeDefined();
+    expect(cmd?.description).toContain('删除');
   });
 
   // /list 命令存在
@@ -55,8 +63,8 @@ describe('命令定义', () => {
   });
 
   // 命令数量验证
-  it('可用命令数量为5个', () => {
-    expect(AVAILABLE_COMMANDS.length).toBe(5);
+  it('可用命令数量为6个', () => {
+    expect(AVAILABLE_COMMANDS.length).toBe(6);
   });
 
   // 所有命令以/开头

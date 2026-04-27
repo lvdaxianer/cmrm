@@ -81,6 +81,13 @@ export interface ToolAdapter {
   saveModel(config: UnifiedModelConfig): void;
 
   /**
+   * 删除保存的模型配置
+   * @param configName - 要删除的配置名称
+   * @return 删除成功返回 true，配置不存在返回 false
+   */
+  removeModel(configName: string): boolean;
+
+  /**
    * 验证配置是否有效
    * @param config - 要验证的配置
    * @return 验证通过返回 true，否则返回 false

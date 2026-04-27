@@ -40,7 +40,7 @@ export class CLI {
   private currentOptions: string[] = [];
 
   /** 下一步操作类型 */
-  private nextOperation: 'switch' | 'add' | null = null;
+  private nextOperation: 'switch' | 'add' | 'remove' | null = null;
 
   /** 当前选中的工具适配器 */
   private selectedAdapter: ToolAdapter | null = null;
@@ -179,9 +179,14 @@ export class CLI {
       this.nextOperation = 'switch';
       this.showToolSelection();
     }
-    // /add-model 命令 - 显示工具选择后交互添加
-    else if (input === '/add-model') {
+    // /add 命令 - 显示工具选择后交互添加
+    else if (input === '/add') {
       this.nextOperation = 'add';
+      this.showToolSelection();
+    }
+    // /remove 命令 - 显示工具选择后交互删除
+    else if (input === '/remove') {
+      this.nextOperation = 'remove';
       this.showToolSelection();
     }
     // /list 命令 - 显示所有模型配置，然后返回命令选择
@@ -410,14 +415,44 @@ export class CLI {
   }
 
   /**
-   * 设置键盘监听器
-   * 关闭 readline interface 后立即启动 raw mode 监听
+   * 显示删除模型选择菜单（用于 /remove）
    *
-   * @param mode - 监听模式（command、tool 或 model）
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private setupKeyListener(mode: 'command' | 'tool' | 'model'): void {
+  private showRemoveModelSelection(): void {
+    // 未选择工具时不执行
+    if (!this.selectedAdapter) {
+      return;
+    }
+
+    const models = this.selectedAdapter.getSavedModels();
+
+    // 无保存模型时显示提示
+    if (models.length === 0) {
+      this.uiRenderer.showWarning(`\n${this.selectedAdapter.displayName} 没有保存的模型配置`);
+      this.uiRenderer.showInfo('请使用 /add 命令添加模型配置');
+      this.showCommandSelection();
+      return;
+    }
+
+    // 有模型时显示选择列表（首次渲染）
+    this.currentOptions = models.map(m => m.name || m.model);
+    this.currentSelection = 0;
+
+    this.uiRenderer.renderModelList(this.selectedAdapter, models, this.currentSelection, true);
+    this.setupKeyListener('model');
+  }
+
+  /**
+   * 设置键盘监听器
+   * 关闭 readline interface 后立即启动 raw mode 监听
+   *
+   * @param mode - 监听模式（command、tool、model 或 remove）
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private setupKeyListener(mode: 'command' | 'tool' | 'model' | 'remove'): void {
     // 关闭 readline interface，释放 stdin
     this.rl.close();
 
@@ -439,7 +474,7 @@ export class CLI {
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private handleKeyAction(action: KeyAction, mode: 'command' | 'tool' | 'model'): void {
+  private handleKeyAction(action: KeyAction, mode: 'command' | 'tool' | 'model' | 'remove'): void {
     // 向上选择 - 停止监听、更新索引、渲染（渲染后会重新监听）
     if (action === 'up') {
       this.keyListener.stopListening();
@@ -486,7 +521,7 @@ export class CLI {
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private renderCurrentList(mode: 'tool' | 'model' | 'command'): void {
+  private renderCurrentList(mode: 'tool' | 'model' | 'command' | 'remove'): void {
     // 命令模式 - 渲染命令列表
     if (mode === 'command') {
       this.uiRenderer.renderCommandList(this.currentSelection, false);
@@ -496,7 +531,7 @@ export class CLI {
       this.uiRenderer.renderToolList(this.currentSelection, false);
     }
     // 模型模式 - 渲染模型列表（后续渲染）
-    else if (mode === 'model' && this.selectedAdapter) {
+    else if ((mode === 'model' || mode === 'remove') && this.selectedAdapter) {
       const models = this.selectedAdapter.getSavedModels();
       this.uiRenderer.renderModelList(this.selectedAdapter, models, this.currentSelection, false);
     }
@@ -516,7 +551,7 @@ export class CLI {
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private handleSelection(mode: 'tool' | 'model' | 'command'): void {
+  private handleSelection(mode: 'tool' | 'model' | 'command' | 'remove'): void {
 
     // 命令选择完成
     if (mode === 'command') {
@@ -526,14 +561,76 @@ export class CLI {
     else if (mode === 'tool') {
       this.handleToolSelection();
     }
-    // 模型选择完成
+    // 模型选择完成（switch 操作）
     else if (mode === 'model') {
       this.handleModelSelection();
+    }
+    // 模型选择完成（remove 操作）
+    else if (mode === 'remove') {
+      this.handleRemoveSelection();
     }
     // 其他模式不处理
     else {
       // 不处理
     }
+  }
+
+  /**
+   * 处理删除模型选择完成
+   *
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private handleRemoveSelection(): void {
+    // 未选择工具时不执行
+    if (!this.selectedAdapter) {
+      return;
+    }
+
+    const models = this.selectedAdapter.getSavedModels();
+    const selectedModel = models[this.currentSelection];
+
+    this.removeModel(selectedModel);
+  }
+
+  /**
+   * 删除模型配置
+   *
+   * @param selectedModel - 要删除的模型配置
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private removeModel(selectedModel: UnifiedModelConfig): void {
+    // 未选择工具时不执行
+    if (!this.selectedAdapter) {
+      return;
+    }
+
+    // 获取配置名称
+    const configName = selectedModel.name || selectedModel.model;
+
+    try {
+      // 删除配置
+      const success = this.selectedAdapter.removeModel(configName);
+
+      // 删除成功
+      if (success) {
+        this.uiRenderer.showSuccess(`\n模型配置已删除: ${configName}`);
+      }
+      // 删除失败（配置不存在）
+      else {
+        this.uiRenderer.showError(`\n删除失败: 配置不存在`);
+      }
+    }
+    // 删除失败
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.uiRenderer.showError(`\n删除失败: ${message}`);
+    }
+
+    // 清理状态并返回命令选择菜单
+    this.nextOperation = null;
+    this.showCommandSelection();
   }
 
   /**
@@ -568,6 +665,9 @@ export class CLI {
     }
     else if (this.nextOperation === 'add') {
       this.handleAddModel();
+    }
+    else if (this.nextOperation === 'remove') {
+      this.showRemoveModelSelection();
     }
     else {
       // 无后续操作，返回命令选择菜单

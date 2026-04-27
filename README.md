@@ -46,7 +46,8 @@ cmrm
 | Command | Description |
 |---------|-------------|
 | `/switch-model` | Switch model configuration |
-| `/add-model` | Add a new model configuration interactively |
+| `/add` | Add a new model configuration interactively |
+| `/remove` | Remove a saved model configuration |
 | `/list` | Display all saved model configurations |
 | `/current` | Display the currently configured model |
 | `/` | Show available commands |
@@ -65,7 +66,7 @@ The selected configuration will be:
 
 ### Adding New Models
 
-Use `/add-model` command to enter configuration fields:
+Use `/add` command to enter configuration fields:
 
 - **Model name** (required) - e.g., `claude-sonnet-4-5-20250514`
 - **API Key** (required)

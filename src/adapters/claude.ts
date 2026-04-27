@@ -414,6 +414,48 @@ export class ClaudeAdapter implements ToolAdapter {
   }
 
   /**
+   * 删除保存的模型配置
+   * 从 ~/.cmrm/settings.json 的 tools.claude.modes 中删除指定配置
+   *
+   * @param configName - 要删除的配置名称
+   * @return 删除成功返回 true，配置不存在返回 false
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  removeModel(configName: string): boolean {
+    // 配置文件不存在 - 无法删除
+    if (!fs.existsSync(this.cmrmSettingsPath)) {
+      return false;
+    }
+
+    // 读取配置
+    const settings = this.loadOrCreateSettings();
+
+    // 确保结构完整
+    if (!settings.tools || !settings.tools.claude || !settings.tools.claude.modes) {
+      return false;
+    }
+
+    // 查找要删除的配置索引
+    const index = settings.tools.claude.modes.findIndex(
+      (m: UnifiedModelConfig) => m.name === configName
+    );
+
+    // 配置不存在 - 返回 false
+    if (index < 0) {
+      return false;
+    }
+
+    // 删除配置
+    settings.tools.claude.modes.splice(index, 1);
+
+    // 写入配置文件
+    fs.writeFileSync(this.cmrmSettingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+
+    return true;
+  }
+
+  /**
    * 验证配置是否有效
    * 检查必填字段是否完整
    *
