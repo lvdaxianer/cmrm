@@ -63,8 +63,8 @@ describe('命令定义', () => {
   });
 
   // 命令数量验证
-  it('可用命令数量为6个', () => {
-    expect(AVAILABLE_COMMANDS.length).toBe(6);
+  it('可用命令数量为7个', () => {
+    expect(AVAILABLE_COMMANDS.length).toBe(7);
   });
 
   // 所有命令以/开头

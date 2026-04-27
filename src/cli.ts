@@ -232,6 +232,11 @@ export class CLI {
       this.nextOperation = 'remove';
       await this.showToolSelection();
     }
+    // /info 命令 - 显示工具选择后查看模型信息
+    else if (input === '/info') {
+      this.nextOperation = 'info';
+      await this.showToolSelection();
+    }
     // /list 命令 - 显示所有模型配置，然后返回命令选择
     else if (input === '/list') {
       this.uiRenderer.showAllModels();
@@ -502,6 +507,9 @@ export class CLI {
       else if (this.nextOperation === 'remove') {
         await this.showRemoveModelSelection();
       }
+      else if (this.nextOperation === 'info') {
+        await this.showInfoModelSelection();
+      }
       else {
         // 无后续操作，返回命令选择菜单
         await this.recreateReadline();
@@ -721,6 +729,122 @@ export class CLI {
       await this.recreateReadline();
       await this.showCommandSelection();
     }
+  }
+
+  /**
+   * 显示查看模型信息选择菜单（用于 /info）
+   * 使用索引输入方式选择要查看的模型
+   *
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private async showInfoModelSelection(): Promise<void> {
+    // 未选择工具时不执行
+    if (!this.selectedAdapter) {
+      return;
+    }
+
+    const models = this.selectedAdapter.getSavedModels();
+
+    // 无保存模型时显示提示
+    if (models.length === 0) {
+      this.uiRenderer.showWarning(`\n${this.selectedAdapter.displayName} 没有保存的模型配置`);
+      this.uiRenderer.showInfo('请使用 /add 命令添加模型配置');
+      await this.showCommandSelection();
+      return;
+    }
+
+    // 移除旧监听器并关闭 readline 接口
+    this.rl.removeAllListeners('line');
+    this.rl.close();
+
+    // 确保 stdin 不在 raw mode
+    if (process.stdin.isRaw) {
+      process.stdin.setRawMode(false);
+    }
+    process.stdin.resume();
+
+    // 选项总数：模型数量 + 2（返回、退出）
+    const totalOptions = models.length + 2;
+    // 返回选项的索引
+    const backIndex = models.length;
+    // 退出选项的索引
+    const exitIndex = models.length + 1;
+
+    console.log(chalk.cyan(`\n=== 查看 ${this.selectedAdapter.displayName} 模型信息 ===`));
+    console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
+
+    // 显示每个模型的索引
+    models.forEach((model, index) => {
+      const displayName = model.name || model.model;
+      const providerInfo = model.provider ? chalk.gray(`[${model.provider}]`) : '';
+      console.log(chalk.gray(`[${index}] `) + displayName + ` ${providerInfo}`);
+    });
+
+    // 显示返回和退出选项
+    console.log(chalk.gray(`[${backIndex}] 返回上一级`));
+    console.log(chalk.gray(`[${exitIndex}] 直接退出`));
+
+    try {
+      // 使用 inquirer 获取用户输入
+      const response = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'index',
+          message: '请输入索引号:',
+          validate: (value: string) => {
+            const num = parseInt(value, 10);
+            if (isNaN(num) || num < 0 || num >= totalOptions) {
+              return `请输入 0-${totalOptions - 1} 之间的数字`;
+            }
+            return true;
+          }
+        }
+      ] as any);
+
+      // 获取选择的索引
+      const selectedIndex = parseInt(response.index, 10);
+
+      // 返回上一级（回到工具选择）
+      if (selectedIndex === backIndex) {
+        await this.recreateReadline();
+        await this.showToolSelection();
+        return;
+      }
+
+      // 直接退出
+      if (selectedIndex === exitIndex) {
+        console.log(chalk.yellow('\nGoodbye!'));
+        this.rl.close();
+        process.exit(0);
+        return;
+      }
+
+      const selectedModel = models[selectedIndex];
+
+      // 显示模型信息（JSON 格式）
+      this.showModelInfo(selectedModel);
+    }
+    // 发生错误
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.uiRenderer.showError(`选择失败: ${message}`);
+      await this.recreateReadline();
+      await this.showCommandSelection();
+    }
+  }
+
+  /**
+   * 显示模型详细信息（JSON 格式）
+   *
+   * @param model - 模型配置
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private showModelInfo(model: UnifiedModelConfig): void {
+    console.log(chalk.cyan('\n=== 模型详细信息 ===\n'));
+    console.log(JSON.stringify(model, null, 2));
+    console.log('');
   }
 
   /**
