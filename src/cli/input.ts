@@ -49,23 +49,23 @@ export class KeyListener {
   /**
    * 开始监听键盘输入
    * 进入 raw mode 并设置事件监听
+   * 每次启动前都会重新启用 keypress 事件
    *
    * @param callback - 键盘动作回调函数
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
   startListening(callback: KeyPressCallback): void {
-    // 先停止之前的监听，防止多个监听器累积
-    if (this.isRawMode) {
-      this.stopListening();
-    }
-
     const stdin = process.stdin;
+
+    // 重新启用 keypress 事件（重要！每次都需要）
+    readline.emitKeypressEvents(stdin);
 
     // 进入 raw mode
     stdin.setRawMode(true);
-    stdin.resume();
     stdin.setEncoding('utf8');
+    stdin.resume();
+
     this.isRawMode = true;
     this.currentCallback = callback;
 
@@ -75,7 +75,7 @@ export class KeyListener {
 
   /**
    * 停止监听键盘输入
-   * 退出 raw mode 并清理事件监听
+   * 退出 raw mode 并清理事件监听，恢复 stdin 流
    *
    * @author lvdaxianerplus
    * @date 2026-04-27
@@ -87,15 +87,20 @@ export class KeyListener {
     stdin.removeListener('keypress', this.boundHandleKeyPress);
 
     // 退出 raw mode
-    stdin.setRawMode(false);
-    stdin.pause();
+    if (stdin.isRaw) {
+      stdin.setRawMode(false);
+    }
     this.isRawMode = false;
     this.currentCallback = null;
+
+    // 恢复 stdin 流（确保后续可以继续读取）
+    stdin.resume();
   }
 
   /**
    * 处理 keypress 事件
    * 将键盘输入转换为动作类型
+   * 注意：raw mode 下不要使用 console.log，否则会干扰渲染
    *
    * @param str - 输入的字符
    * @param key - 键盘信息对象

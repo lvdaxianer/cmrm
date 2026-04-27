@@ -1,16 +1,52 @@
 /**
  * CLI UI 渲染模块
  * 负责命令列表、工具列表、模型列表等界面渲染
+ * 使用 ANSI 转义序列直接操作终端，避免 readline API 在 raw mode 下的不稳定性
  *
  * @author lvdaxianerplus
  * @date 2026-04-27
  */
 
-import * as readline from 'readline';
 import chalk from 'chalk';
 import { AVAILABLE_COMMANDS } from './commands';
 import { UnifiedModelConfig } from '../types';
 import { ToolAdapter, registry } from '../adapters';
+
+/**
+ * ANSI 转义序列常量
+ * 直接操作终端，比 readline API 更可靠
+ */
+const ANSI = {
+  /** 清除整行 */
+  CLEAR_LINE: '\x1b[2K',
+  /** 清除从光标到屏幕底部 */
+  CLEAR_DOWN: '\x1b[J',
+  /** 向上移动 N 行 */
+  MOVE_UP: (n: number) => `\x1b[${n}A`,
+  /** 向下移动 N 行 */
+  MOVE_DOWN: (n: number) => `\x1b[${n}B`,
+  /** 回到行首 */
+  CURSOR_HOME: '\r',
+  /** 隐藏光标 */
+  HIDE_CURSOR: '\x1b[?25l',
+  /** 显示光标 */
+  SHOW_CURSOR: '\x1b[?25h',
+};
+
+/**
+ * 清除指定行数的内容并回到起始位置
+ * 使用 ANSI 转义序列直接操作终端
+ *
+ * @param lines - 要清除的行数
+ * @author lvdaxianerplus
+ * @date 2026-04-27
+ */
+function clearLines(lines: number): void {
+  // 向上移动指定行数 + 回到行首
+  process.stdout.write(ANSI.CURSOR_HOME + ANSI.MOVE_UP(lines));
+  // 清除从当前位置到屏幕底部
+  process.stdout.write(ANSI.CLEAR_DOWN);
+}
 
 /**
  * UI 渲染器类
@@ -18,21 +54,56 @@ import { ToolAdapter, registry } from '../adapters';
  */
 export class UIRenderer {
   /**
-   * 显示可用命令列表
+   * 渲染命令选择列表
+   * 使用 ANSI 转义序列清除并重新渲染
+   * 注意：首次渲染和非首次渲染的行数计算要精确匹配
    *
+   * @param currentSelection - 当前选中的索引
+   * @param isFirstRender - 是否首次渲染
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  showCommands(): void {
-    console.log(chalk.cyan('\n可用命令:\n'));
+  renderCommandList(currentSelection: number, isFirstRender: boolean = false): void {
+    // 首次渲染的行数：标题(2行) + 选项(5行) = 7行
+    // 后续渲染的行数：标题(1行) + 空行(1行) + 选项(5行) = 7行
+    // 两者相同，所以清除行数固定为 7
+    const totalLines = AVAILABLE_COMMANDS.length + 2;
 
-    // 遍历所有命令并渲染
-    AVAILABLE_COMMANDS.forEach(cmd => {
-      const paddedName = cmd.name.padEnd(15);
-      console.log(`  ${chalk.green(paddedName)} ${chalk.gray(cmd.description)}`);
+    // 非首次渲染时清除之前的渲染内容
+    if (!isFirstRender) {
+      clearLines(totalLines);
+    }
+
+    // 渲染标题（首次和非首次标题不同，但行数相同）
+    if (isFirstRender) {
+      // 首次渲染：显示完整提示（2行：空行 + 标题）
+      console.log('');
+      console.log(chalk.cyan('选择命令 (↑/↓ 选择，Enter 确认，Ctrl+C 退出):'));
+    } else {
+      // 后续渲染：简化标题（2行：空行 + 标题）
+      console.log('');
+      console.log(chalk.cyan('选择命令:'));
+    }
+
+    // 渲染每个命令选项（每个选项占 1 行）
+    AVAILABLE_COMMANDS.forEach((cmd, index) => {
+      const isSelected = index === currentSelection;
+
+      // 选中项显示箭头和绿色高亮
+      if (isSelected) {
+        const prefix = chalk.cyan('❯ ');
+        const paddedName = chalk.green(cmd.name.padEnd(15));
+        const description = chalk.gray(cmd.description);
+        console.log(`${prefix}${paddedName} ${description}`);
+      }
+      // 未选中项显示灰色
+      else {
+        const prefix = '  ';
+        const paddedName = chalk.gray(cmd.name.padEnd(15));
+        const description = chalk.gray(cmd.description);
+        console.log(`${prefix}${paddedName} ${description}`);
+      }
     });
-
-    console.log('');
   }
 
   /**
@@ -47,22 +118,21 @@ export class UIRenderer {
   renderToolList(currentSelection: number, isFirstRender: boolean = false): void {
     const toolNames = registry.getToolNames();
 
-    // 计算需要清除的行数
-    // 首次渲染：标题(2行) + 提示(1行) + 选项(toolNames.length行)
-    // 后续渲染：标题(1行) + 选项(toolNames.length行)
-    const linesToClear = isFirstRender ? 0 : toolNames.length + 3;
+    // 总行数：标题(2行) + 选项(toolNames.length行)
+    const totalLines = toolNames.length + 2;
 
     // 非首次渲染时清除之前的渲染内容
-    if (!isFirstRender && linesToClear > 0) {
-      readline.moveCursor(process.stdout, 0, -linesToClear);
-      readline.clearScreenDown(process.stdout);
+    if (!isFirstRender) {
+      clearLines(totalLines);
     }
 
-    // 首次渲染显示完整提示
+    // 渲染标题（首次和非首次行数相同）
     if (isFirstRender) {
-      console.log(chalk.cyan('\n选择工具 (↑/↓ 选择，Enter 确认，Esc 取消):\n'));
+      console.log('');
+      console.log(chalk.cyan('选择工具 (↑/↓ 选择，Enter 确认，Esc 取消):'));
     } else {
-      console.log(chalk.cyan('\n选择工具:\n'));
+      console.log('');
+      console.log(chalk.cyan('选择工具:'));
     }
 
     // 渲染每个工具选项
@@ -97,20 +167,21 @@ export class UIRenderer {
    * @date 2026-04-27
    */
   renderModelList(adapter: ToolAdapter, models: UnifiedModelConfig[], currentSelection: number, isFirstRender: boolean = false): void {
-    // 计算需要清除的行数
-    const linesToClear = isFirstRender ? 0 : models.length + 3;
+    // 总行数：标题(2行) + 模型(models.length行)
+    const totalLines = models.length + 2;
 
     // 非首次渲染时清除之前的渲染内容
-    if (!isFirstRender && linesToClear > 0) {
-      readline.moveCursor(process.stdout, 0, -linesToClear);
-      readline.clearScreenDown(process.stdout);
+    if (!isFirstRender) {
+      clearLines(totalLines);
     }
 
-    // 首次渲染显示完整提示
+    // 渲染标题（首次和非首次行数相同）
     if (isFirstRender) {
-      console.log(chalk.cyan(`\n选择 ${adapter.displayName} 模型 (↑/↓ 选择，Enter 确认，Esc 取消):\n`));
+      console.log('');
+      console.log(chalk.cyan(`选择 ${adapter.displayName} 模型 (↑/↓ 选择，Enter 确认，Esc 取消):`));
     } else {
-      console.log(chalk.cyan(`\n选择 ${adapter.displayName} 模型:\n`));
+      console.log('');
+      console.log(chalk.cyan(`选择 ${adapter.displayName} 模型:`));
     }
 
     // 渲染每个模型选项

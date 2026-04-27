@@ -76,6 +76,9 @@ export class CLI {
    * @date 2026-04-27
    */
   constructor() {
+    // 全局启用 keypress 事件（必须在任何 keypress 监听之前调用）
+    readline.emitKeypressEvents(process.stdin);
+
     // 初始化 readline 接口（带自动补全）
     this.rl = readline.createInterface({
       input: process.stdin,
@@ -111,8 +114,27 @@ export class CLI {
     await this.ensureConfigFile();
 
     console.log(chalk.cyan('Model Registry Manager (cmrm) - Multi-tool support'));
-    this.uiRenderer.showCommands();
-    this.rl.prompt();
+    console.log(chalk.gray('\n提示：输入命令或使用上下键选择命令，Enter 确认，Ctrl+C 退出\n'));
+
+    // 显示命令选择菜单
+    this.showCommandSelection();
+  }
+
+  /**
+   * 显示命令选择菜单
+   * 使用上下键选择命令
+   *
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private showCommandSelection(): void {
+    // 设置当前选项为命令列表
+    this.currentOptions = AVAILABLE_COMMANDS.map(cmd => cmd.name);
+    this.currentSelection = 0;
+
+    // 渲染命令列表
+    this.uiRenderer.renderCommandList(this.currentSelection, true);
+    this.setupKeyListener('command');
   }
 
   /**
@@ -163,42 +185,39 @@ export class CLI {
       this.nextOperation = 'add';
       this.showToolSelection();
     }
-    // /list 命令 - 显示所有模型配置
+    // /list 命令 - 显示所有模型配置，然后返回命令选择
     else if (input === '/list') {
       this.uiRenderer.showAllModels();
-      this.rl.prompt();
+      this.showCommandSelection();
     }
-    // /current 命令 - 显示当前生效模型
+    // /current 命令 - 显示当前生效模型，然后返回命令选择
     else if (input === '/current') {
       this.uiRenderer.showCurrentModels();
-      this.uiRenderer.showCommands();
-      this.rl.prompt();
+      this.showCommandSelection();
     }
     // 退出命令 - 关闭程序
     else if (this.isExitCommand(input)) {
-      console.log(chalk.yellow('Goodbye!'));
+      console.log(chalk.yellow('\nGoodbye!'));
       this.rl.close();
       process.exit(0);
     }
-    // 空命令 "/" - 显示命令列表
+    // 空命令 "/" - 显示命令选择菜单
     else if (input === '/') {
-      this.uiRenderer.showCommands();
-      this.rl.prompt();
+      this.showCommandSelection();
     }
-    // 空输入 - 继续等待
+    // 空输入 - 显示命令选择菜单
     else if (input === '') {
-      this.rl.prompt();
+      this.showCommandSelection();
     }
-    // 部分命令输入 - 显示匹配建议
+    // 部分命令输入 - 显示匹配建议后返回命令选择
     else if (input.startsWith('/') && !AVAILABLE_COMMANDS.some(cmd => cmd.name === input)) {
       this.showCommandSuggestions(input);
-      this.rl.prompt();
+      this.showCommandSelection();
     }
-    // 未知命令 - 提示错误
+    // 未知命令 - 提示错误后返回命令选择
     else {
       this.handleUnknownCommand(input);
-      this.uiRenderer.showCommands();
-      this.rl.prompt();
+      this.showCommandSelection();
     }
   }
 
@@ -379,8 +398,7 @@ export class CLI {
     if (models.length === 0) {
       this.uiRenderer.showWarning(`\n${this.selectedAdapter.displayName} 没有保存的模型配置`);
       this.uiRenderer.showInfo('请使用 /add-model 命令添加模型配置');
-      this.uiRenderer.showCommands();
-      this.rl.prompt();
+      this.showCommandSelection();
       return;
     }
 
@@ -394,12 +412,20 @@ export class CLI {
 
   /**
    * 设置键盘监听器
+   * 关闭 readline interface 后立即启动 raw mode 监听
    *
-   * @param mode - 监听模式（tool 或 model）
+   * @param mode - 监听模式（command、tool 或 model）
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private setupKeyListener(mode: 'tool' | 'model'): void {
+  private setupKeyListener(mode: 'command' | 'tool' | 'model'): void {
+    // 关闭 readline interface，释放 stdin
+    this.rl.close();
+
+    // 关闭后 stdin 会暂停，立即恢复
+    process.stdin.resume();
+
+    // 启动键盘监听（进入 raw mode）
     this.keyListener.startListening((action) => {
       this.handleKeyAction(action, mode);
     });
@@ -407,35 +433,37 @@ export class CLI {
 
   /**
    * 处理键盘动作
+   * 对于上下键，先停止监听再渲染，渲染后自动重新监听
    *
    * @param action - 键盘动作类型
    * @param mode - 当前选择模式
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private handleKeyAction(action: KeyAction, mode: 'tool' | 'model'): void {
-    // 向上选择 - 减少索引
+  private handleKeyAction(action: KeyAction, mode: 'command' | 'tool' | 'model'): void {
+    // 向上选择 - 停止监听、更新索引、渲染（渲染后会重新监听）
     if (action === 'up') {
+      this.keyListener.stopListening();
       this.currentSelection = Math.max(0, this.currentSelection - 1);
       this.renderCurrentList(mode);
     }
-    // 向下选择 - 增加索引
+    // 向下选择 - 停止监听、更新索引、渲染（渲染后会重新监听）
     else if (action === 'down') {
+      this.keyListener.stopListening();
       this.currentSelection = Math.min(this.currentOptions.length - 1, this.currentSelection + 1);
       this.renderCurrentList(mode);
     }
-    // 确认选择 - 先停止监听再处理选中项
+    // 确认选择 - 先停止监听再处理选中项（不再重新监听）
     else if (action === 'confirm') {
       this.keyListener.stopListening();
       this.handleSelection(mode);
     }
-    // 取消选择 - 先停止监听再返回命令列表
+    // 取消选择 - 先停止监听再返回命令选择菜单
     else if (action === 'cancel') {
       this.keyListener.stopListening();
       this.nextOperation = null;
       this.uiRenderer.showWarning('\n已取消');
-      this.uiRenderer.showCommands();
-      this.rl.prompt();
+      this.showCommandSelection();
     }
     // 退出程序 - 先停止监听再退出
     else if (action === 'exit') {
@@ -452,14 +480,20 @@ export class CLI {
 
   /**
    * 渲染当前选择列表
+   * 渲染前停止监听，渲染后重新启动监听
+   * 这样可以避免 raw mode 和 readline API 的冲突
    *
    * @param mode - 选择模式
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private renderCurrentList(mode: 'tool' | 'model'): void {
+  private renderCurrentList(mode: 'tool' | 'model' | 'command'): void {
+    // 命令模式 - 渲染命令列表
+    if (mode === 'command') {
+      this.uiRenderer.renderCommandList(this.currentSelection, false);
+    }
     // 工具模式 - 渲染工具列表（后续渲染，不显示完整提示）
-    if (mode === 'tool') {
+    else if (mode === 'tool') {
       this.uiRenderer.renderToolList(this.currentSelection, false);
     }
     // 模型模式 - 渲染模型列表（后续渲染）
@@ -471,6 +505,9 @@ export class CLI {
     else {
       // 不处理
     }
+
+    // 渲染完成后重新启动键盘监听
+    this.setupKeyListener(mode);
   }
 
   /**
@@ -480,9 +517,14 @@ export class CLI {
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private handleSelection(mode: 'tool' | 'model'): void {
+  private handleSelection(mode: 'tool' | 'model' | 'command'): void {
+
+    // 命令选择完成
+    if (mode === 'command') {
+      this.handleCommandSelection();
+    }
     // 工具选择完成
-    if (mode === 'tool') {
+    else if (mode === 'tool') {
       this.handleToolSelection();
     }
     // 模型选择完成
@@ -493,6 +535,18 @@ export class CLI {
     else {
       // 不处理
     }
+  }
+
+  /**
+   * 处理命令选择完成
+   * 执行选中的命令
+   *
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private handleCommandSelection(): void {
+    const selectedCommand = this.currentOptions[this.currentSelection];
+    this.handleInput(selectedCommand);
   }
 
   /**
@@ -507,6 +561,8 @@ export class CLI {
 
     this.uiRenderer.showSuccess(`\n已选择工具: ${this.selectedAdapter.displayName}`);
 
+    // 调试日志
+
     // 根据下一步操作继续流程
     if (this.nextOperation === 'switch') {
       this.showModelSelection();
@@ -515,9 +571,8 @@ export class CLI {
       this.handleAddModel();
     }
     else {
-      // 无后续操作，返回命令列表
-      this.uiRenderer.showCommands();
-      this.rl.prompt();
+      // 无后续操作，返回命令选择菜单
+      this.showCommandSelection();
     }
   }
 
@@ -582,8 +637,7 @@ export class CLI {
       if (Object.keys(response).length === 0) {
         this.recreateReadline();
         this.uiRenderer.showWarning('\n已取消');
-        this.uiRenderer.showCommands();
-        this.rl.prompt();
+        this.showCommandSelection();
         return;
       }
 
@@ -594,8 +648,7 @@ export class CLI {
       if (!this.selectedAdapter.validateConfig(config)) {
         this.recreateReadline();
         this.uiRenderer.showError('\n配置验证失败！请检查必填字段。');
-        this.uiRenderer.showCommands();
-        this.rl.prompt();
+        this.showCommandSelection();
         return;
       }
 
@@ -613,10 +666,10 @@ export class CLI {
       this.uiRenderer.showError(`添加失败: ${message}`);
     }
 
-    // 清理状态并返回命令列表
+    // 清理状态并返回命令选择菜单
     this.nextOperation = null;
-    this.uiRenderer.showCommands();
-    this.rl.prompt();
+    this.recreateReadline();
+    this.showCommandSelection();
   }
 
   /**
@@ -823,8 +876,7 @@ export class CLI {
       // 验证配置完整性
       if (!this.selectedAdapter.validateConfig(config)) {
         this.uiRenderer.showError('\n配置验证失败！缺少必填字段。');
-        this.uiRenderer.showCommands();
-        this.rl.prompt();
+        this.showCommandSelection();
         return;
       }
 
@@ -840,10 +892,9 @@ export class CLI {
       this.uiRenderer.showError(`切换失败: ${message}`);
     }
 
-    // 清理状态并返回命令列表
+    // 清理状态并返回命令选择菜单
     this.nextOperation = null;
-    this.uiRenderer.showCommands();
-    this.rl.prompt();
+    this.showCommandSelection();
   }
 
   /**
