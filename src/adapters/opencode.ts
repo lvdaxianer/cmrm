@@ -1,6 +1,18 @@
 /**
  * OpenCode 工具适配器
- * 实现 OpenCode CLI 工具的配置管理
+ * 实现 OpenCode CLI 工具的 API key 管理
+ *
+ * **重要说明：OpenCode 不支持持久化默认模型**
+ *
+ * OpenCode 的架构设计：
+ * - `~/.local/share/opencode/auth.json`: 存储官方 provider 的 API key
+ * - `~/.config/opencode/opencode.json`: MCP 配置 + 自定义 provider
+ * - 模型选择在 TUI session 中临时记录，不持久化全局默认模型
+ *
+ * 因此 cmrm 对 OpenCode 的功能：
+ * - ✅ 添加模型：写入 auth.json 添加 API key（新 provider 可在 OpenCode TUI 中选择）
+ * - ⚠️ 切换模型：仅更新 auth.json，但用户需要在 OpenCode TUI 中手动选择模型
+ *   或使用 CLI 参数：`opencode -m provider/model-name`
  *
  * @author lvdaxianerplus
  * @date 2026-04-27
@@ -9,26 +21,44 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import * as TOML from '@iarna/toml';
 import { ToolAdapter, UnifiedModelConfig } from './types';
-import { backupConfig, mergeTomlConfig, createDefaultTomlConfig } from '../utils/backup';
 
 /**
- * Provider 信息结构
- * 存储从 TOML 配置中提取的 provider 数据
+ * OpenCode auth.json 配置结构
+ * 存储官方 provider 的 API key
  */
-interface ProviderInfo {
-  /** Provider 名称 */
-  name: string;
-  /** API Key */
-  apiKey: string;
-  /** Base URL */
-  baseUrl: string;
+interface OpenCodeAuthConfig {
+  /** provider 配置映射 */
+  [providerKey: string]: {
+    /** 类型（api） */
+    type: 'api';
+    /** API Key */
+    key: string;
+  };
 }
 
 /**
+ * Provider 映射表
+ * 将 cmrm 的 provider 名称映射到 OpenCode 的 provider 键名
+ */
+const PROVIDER_MAPPING: Record<string, string> = {
+  // 国外提供商
+  'openai': 'openai',
+  'anthropic': 'anthropic',
+  'openrouter': 'openrouter',
+  'deepseek': 'deepseek',
+  'google': 'google',
+  // 国内提供商 - OpenCode 官方支持的名称
+  'zhipu': 'zhipuai-coding-plan',
+  'minimax': 'minimax-cn-coding-plan',
+  'moonshot': 'kimi25',
+  'alibaba': 'qwen',
+  'baidu': 'baidu',
+};
+
+/**
  * OpenCode 工具适配器类
- * 管理 ~/.config/opencode/config.toml 配置文件
+ * 管理 ~/.local/share/opencode/auth.json 配置文件
  */
 export class OpenCodeAdapter implements ToolAdapter {
   /** 工具名称 */
@@ -41,10 +71,13 @@ export class OpenCodeAdapter implements ToolAdapter {
   configPath: string;
 
   /** 配置文件格式 */
-  configFormat = 'toml' as const;
+  configFormat = 'json' as const;
 
   /** cmrm 配置文件路径 */
   private cmrmSettingsPath: string;
+
+  /** cmrm 备份目录 */
+  private cmrmBackupDir: string;
 
   /**
    * 构造函数
@@ -54,19 +87,21 @@ export class OpenCodeAdapter implements ToolAdapter {
    * @date 2026-04-27
    */
   constructor() {
-    this.configPath = path.join(os.homedir(), '.config', 'opencode', 'config.toml');
+    // OpenCode 官方 provider 的 auth.json 路径
+    this.configPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'auth.json');
     this.cmrmSettingsPath = path.join(os.homedir(), '.cmrm', 'settings.json');
+    this.cmrmBackupDir = path.join(os.homedir(), '.local', 'share', 'opencode', '.cmrm');
   }
 
   /**
-   * 解析 TOML 配置文件
-   * 读取并解析 config.toml 内容
+   * 解析 JSON 配置文件
+   * 读取并解析 auth.json 内容
    *
    * @return 解析后的配置对象，文件不存在或解析失败返回 null
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private parseTomlConfig(): any | null {
+  private parseJsonConfig(): OpenCodeAuthConfig | null {
     // 配置文件不存在 - 返回 null
     if (!fs.existsSync(this.configPath)) {
       return null;
@@ -75,7 +110,7 @@ export class OpenCodeAdapter implements ToolAdapter {
     else {
       try {
         const content = fs.readFileSync(this.configPath, 'utf-8');
-        return TOML.parse(content);
+        return JSON.parse(content);
       }
       // 解析失败 - 返回 null
       catch (error) {
@@ -85,104 +120,77 @@ export class OpenCodeAdapter implements ToolAdapter {
   }
 
   /**
-   * 查找第一个有效的 Provider
-   * 遍历 providers 对象找到有 api_key 的 provider
+   * 从 auth.json 配置构建模型配置列表
+   * 提取所有有效 provider 的配置
    *
-   * @param providers - providers 配置对象
-   * @return Provider 信息，无有效 provider 返回 null
+   * @param config - 解析后的 JSON 配置对象
+   * @return 模型配置数组
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  private findFirstProvider(providers: Record<string, any>): ProviderInfo | null {
-    // 无 providers 配置 - 返回 null
-    if (!providers) {
-      return null;
+  private buildModelConfigsFromAuth(config: OpenCodeAuthConfig): UnifiedModelConfig[] {
+    const configs: UnifiedModelConfig[] = [];
+
+    // 无配置 - 返回空数组
+    if (!config) {
+      return configs;
     }
-    // 有 providers - 遍历查找
+    // 有配置 - 遍历提取
     else {
-      // 遍历所有 provider 查找有效配置
-      for (const [providerName, providerConfig] of Object.entries(providers)) {
-        // provider 配置有效且有 api_key - 提取信息
-        if (providerConfig && providerConfig.api_key) {
-          const info: ProviderInfo = {
-            name: providerName,
-            apiKey: providerConfig.api_key as string,
-            baseUrl: providerConfig.base_url as string || '',
+      // 遍历所有 provider
+      for (const [providerKey, providerConfig] of Object.entries(config)) {
+        // provider 配置有效且有 key - 提取信息
+        if (providerConfig && providerConfig.type === 'api' && providerConfig.key) {
+          // 构建模型配置
+          // OpenCode auth.json 只存储 API key，模型名称需要从 cmrm settings 中获取
+          const modelConfig: UnifiedModelConfig = {
+            name: providerKey,
+            model: providerKey, // 使用 provider key 作为模型名称
+            apiKey: providerConfig.key,
+            baseUrl: '', // auth.json 不存储 baseUrl
+            provider: providerKey,
           };
 
-          return info;
+          configs.push(modelConfig);
         }
-        // provider 配置无效 - 继续查找下一个
+        // provider 配置无效 - 继续下一个
         else {
           continue;
         }
       }
 
-      // 未找到有效 provider - 返回 null
-      return null;
-    }
-  }
-
-  /**
-   * 从 TOML 配置构建模型配置对象
-   * 提取 default_model 和 provider 信息
-   *
-   * @param config - 解析后的 TOML 配置对象
-   * @return 模型配置对象，无配置返回 null
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private buildModelConfigFromToml(config: any): UnifiedModelConfig | null {
-    // 获取 default_model
-    const defaultModel = config.default_model as string;
-
-    // 无 default_model - 返回 null
-    if (!defaultModel) {
-      return null;
-    }
-    // 有 default_model - 提取 provider 信息
-    else {
-      // 从 providers 中查找配置
-      const providers = config.providers as Record<string, any> || {};
-      const providerInfo = this.findFirstProvider(providers);
-
-      // 未找到 provider - 返回 null
-      if (!providerInfo) {
-        return null;
-      }
-      // 找到 provider - 构建配置对象
-      else {
-        const modelConfig: UnifiedModelConfig = {
-          model: defaultModel,
-          apiKey: providerInfo.apiKey,
-          baseUrl: providerInfo.baseUrl,
-          provider: providerInfo.name,
-        };
-
-        return modelConfig;
-      }
+      return configs;
     }
   }
 
   /**
    * 读取当前生效的模型配置
-   * 从 ~/.config/opencode/config.toml 读取
+   * 从 ~/.local/share/opencode/auth.json 读取第一个有效配置
    *
    * @return 当前模型配置，未配置则返回 null
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
   readCurrentModel(): UnifiedModelConfig | null {
-    // 解析 TOML 配置
-    const config = this.parseTomlConfig();
+    // 解析 JSON 配置
+    const config = this.parseJsonConfig();
 
     // 配置文件不存在或解析失败 - 返回 null
     if (!config) {
       return null;
     }
-    // 配置文件有效 - 构建模型配置
+    // 配置文件有效 - 提取第一个配置
     else {
-      return this.buildModelConfigFromToml(config);
+      const configs = this.buildModelConfigsFromAuth(config);
+
+      // 有配置 - 返回第一个
+      if (configs.length > 0) {
+        return configs[0];
+      }
+      // 无配置 - 返回 null
+      else {
+        return null;
+      }
     }
   }
 
@@ -207,8 +215,84 @@ export class OpenCodeAdapter implements ToolAdapter {
   }
 
   /**
+   * 确保 cmrm 备份目录存在
+   *
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private ensureBackupDir(): void {
+    // 目录不存在 - 创建目录
+    if (!fs.existsSync(this.cmrmBackupDir)) {
+      fs.mkdirSync(this.cmrmBackupDir, { recursive: true });
+    }
+    // 目录已存在 - 无需操作
+    else {
+      // 目录已存在，无需创建
+    }
+  }
+
+  /**
+   * 备份 OpenCode 配置文件
+   * 使用简洁的时间戳格式：yyyyMMddHHmm
+   *
+   * @return 备份文件名（无备份返回空字符串）
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private backupAuthConfig(): string {
+    // 配置文件不存在 - 无需备份
+    if (!fs.existsSync(this.configPath)) {
+      return '';
+    }
+    // 配置文件存在 - 创建备份
+    else {
+      // 确保备份目录存在
+      this.ensureBackupDir();
+
+      // 生成备份文件名（简洁时间戳格式：yyyyMMddHHmm）
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hour = String(now.getHours()).padStart(2, '0');
+      const minute = String(now.getMinutes()).padStart(2, '0');
+
+      const timestamp = `${year}${month}${day}${hour}${minute}`;
+      const backupFileName = `auth-${timestamp}.json`;
+      const backupFilePath = path.join(this.cmrmBackupDir, backupFileName);
+
+      // 复制配置文件到备份目录
+      fs.copyFileSync(this.configPath, backupFilePath);
+
+      return backupFileName;
+    }
+  }
+
+  /**
+   * 将 cmrm provider 名称映射到 OpenCode provider 键名
+   *
+   * @param providerName - cmrm 的 provider 名称
+   * @return OpenCode 的 provider 键名
+   * @author lvdaxianerplus
+   * @date 2026-04-27
+   */
+  private mapProviderKey(providerName: string): string {
+    // 查找映射表
+    const mappedKey = PROVIDER_MAPPING[providerName.toLowerCase()];
+
+    // 找到映射 - 返回映射后的键名
+    if (mappedKey) {
+      return mappedKey;
+    }
+    // 未找到映射 - 返回原始名称
+    else {
+      return providerName;
+    }
+  }
+
+  /**
    * 写入模型配置
-   * 流程：备份 → Merge → 写入
+   * 流程：备份 → 写入 auth.json
    *
    * @param config - 要写入的模型配置
    * @return 备份文件名
@@ -220,27 +304,34 @@ export class OpenCodeAdapter implements ToolAdapter {
     this.ensureConfigDir();
 
     // 备份当前配置（如果存在）
-    const backupFileName = backupConfig(this.configPath);
+    const backupFileName = this.backupAuthConfig();
 
-    // 配置文件不存在 - 创建默认配置
-    if (!fs.existsSync(this.configPath)) {
-      const defaultContent = createDefaultTomlConfig(config);
-      fs.writeFileSync(this.configPath, defaultContent, 'utf-8');
-      return backupFileName;
+    // 读取现有配置或创建新配置
+    let authConfig: OpenCodeAuthConfig;
+
+    // 配置文件存在 - 读取并合并
+    if (fs.existsSync(this.configPath)) {
+      const content = fs.readFileSync(this.configPath, 'utf-8');
+      authConfig = JSON.parse(content);
     }
-    // 配置文件存在 - 合并配置
+    // 配置文件不存在 - 创建空配置
     else {
-      // 读取当前配置
-      const originalContent = fs.readFileSync(this.configPath, 'utf-8');
-
-      // 合并配置
-      const mergedContent = mergeTomlConfig(originalContent, config);
-
-      // 写入合并后的配置
-      fs.writeFileSync(this.configPath, mergedContent, 'utf-8');
-
-      return backupFileName;
+      authConfig = {};
     }
+
+    // 获取 provider 键名（映射到 OpenCode 官方名称）
+    const providerKey = this.mapProviderKey(config.provider || config.name || config.model);
+
+    // 写入/更新 provider 配置
+    authConfig[providerKey] = {
+      type: 'api',
+      key: config.apiKey,
+    };
+
+    // 写入配置文件
+    fs.writeFileSync(this.configPath, JSON.stringify(authConfig, null, 2), 'utf-8');
+
+    return backupFileName;
   }
 
   /**

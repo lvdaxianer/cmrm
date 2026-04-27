@@ -90,11 +90,15 @@ Use `/add-model` command:
 - **Config name** (optional, auto-generated if empty)
 
 **OpenCode fields:**
-- **Model name** (required)
-- **Provider** (required) - Choose from: openai, anthropic, openrouter, deepseek, google
+- **Model name** (required) - e.g., `MiniMax-M2.7-highspeed`
+- **Provider** (required) - Choose from supported providers:
+  - **International**: openai, anthropic, openrouter, deepseek, google
+  - **Chinese**: zhipu (智谱GLM), minimax, moonshot (月之暗面), alibaba (阿里通义), baidu (百度文心)
 - **API Key** (required)
-- **Base URL** (required, auto-filled based on provider)
+- **Base URL** (required, auto-filled based on provider selection)
 - **Config name** (optional, auto-generated if empty)
+
+> ⚠️ **OpenCode Limitation**: After switching, the model is NOT auto-selected. You must manually choose it in OpenCode TUI or use `opencode -m provider/model-name`.
 
 ### Viewing All Models
 
@@ -106,17 +110,36 @@ Use `/current` command to see the active model for each tool.
 
 ## Configuration Files
 
-| Tool | Config Path | Format |
-|------|-------------|--------|
-| Claude | `~/.claude/settings.json` | JSON |
-| OpenCode | `~/.config/opencode/config.toml` | TOML |
-| cmrm storage | `~/.cmrm/settings.json` | JSON |
+| Tool | Config Path | Format | Description |
+|------|-------------|--------|-------------|
+| Claude | `~/.claude/settings.json` | JSON | Settings and model config |
+| OpenCode | `~/.local/share/opencode/auth.json` | JSON | API keys for providers |
+| cmrm storage | `~/.cmrm/settings.json` | JSON | Saved model configurations |
+
+### Tool-specific Notes
+
+#### Claude
+- ✅ Full support for model switching
+- Configuration is persisted in `settings.json`
+- Switched model becomes the default for new sessions
+
+#### OpenCode
+- ⚠️ **Important**: OpenCode does NOT support persisting a default model
+- `auth.json` stores API keys for different providers
+- Model selection is recorded per-session, not globally
+- **After switching**: You must manually select the model in OpenCode TUI, or use CLI parameter:
+  ```bash
+  opencode -m minimax/MiniMax-M2.7-highspeed
+  ```
+- Adding a model creates a new provider entry in `auth.json`, making it available in OpenCode's model list
 
 ## Backup Files
 
 Backups are stored in `{config-dir}/.cmrm/` directory:
-- Naming format: `{filename}_{YYYYMMDD}{seq}`
-- Example: `settings.json_2026042700`, `settings.json_2026042701`
+- Claude backup naming: `{filename}_{YYYYMMDD}{seq}`
+  - Example: `settings.json_2026042700`, `settings.json_2026042701`
+- OpenCode backup naming: `auth-{YYYYMMDDHHmm}.json`
+  - Example: `auth-202604272030.json` (compact timestamp format)
 
 ## Development
 

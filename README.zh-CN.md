@@ -90,11 +90,15 @@ cmrm
 - **配置名称**（可选，不填则使用模型名称自动生成）
 
 **OpenCode 字段：**
-- **模型名称**（必填）
-- **Provider**（必填）- 可选：openai, anthropic, openrouter, deepseek, google
+- **模型名称**（必填）- 如 `MiniMax-M2.7-highspeed`
+- **Provider**（必填）- 选择支持的提供商：
+  - **国外**：openai, anthropic, openrouter, deepseek, google
+  - **国内**：zhipu（智谱GLM）、minimax、moonshot（月之暗面）、alibaba（阿里通义）、baidu（百度文心）
 - **API Key**（必填）
-- **Base URL**（必填，根据 Provider 自动填充）
+- **Base URL**（必填，根据 Provider 选择自动填充）
 - **配置名称**（可选，不填则使用模型名称自动生成）
+
+> ⚠️ **OpenCode 限制**：切换后模型不会自动生效。需要在 OpenCode TUI 中手动选择，或使用 `opencode -m provider/model-name` 参数。
 
 ### 查看所有模型
 
@@ -106,17 +110,36 @@ cmrm
 
 ## 配置文件位置
 
-| 工具 | 配置路径 | 格式 |
-|------|----------|------|
-| Claude | `~/.claude/settings.json` | JSON |
-| OpenCode | `~/.config/opencode/config.toml` | TOML |
-| cmrm 存储 | `~/.cmrm/settings.json` | JSON |
+| 工具 | 配置路径 | 格式 | 说明 |
+|------|----------|------|------|
+| Claude | `~/.claude/settings.json` | JSON | 设置和模型配置 |
+| OpenCode | `~/.local/share/opencode/auth.json` | JSON | Provider API keys |
+| cmrm 存储 | `~/.cmrm/settings.json` | JSON | 保存的模型配置 |
+
+### 工具特殊说明
+
+#### Claude
+- ✅ 完全支持模型切换
+- 配置持久化保存在 `settings.json`
+- 切换后的模型将成为新会话的默认模型
+
+#### OpenCode
+- ⚠️ **重要**：OpenCode **不支持持久化默认模型**
+- `auth.json` 存储不同 provider 的 API keys
+- 模型选择记录在每个 session 中，而非全局
+- **切换后**：需要在 OpenCode TUI 中手动选择模型，或使用 CLI 参数：
+  ```bash
+  opencode -m minimax/MiniMax-M2.7-highspeed
+  ```
+- 添加模型会在 `auth.json` 创建新的 provider 条目，使其出现在 OpenCode 的模型列表中
 
 ## 备份文件
 
 备份文件存储在 `{配置目录}/.cmrm/` 目录：
-- 命名格式：`{文件名}_{YYYYMMDD}{序号}`
-- 示例：`settings.json_2026042700`、`settings.json_2026042701`
+- Claude 备份命名：`{文件名}_{YYYYMMDD}{序号}`
+  - 示例：`settings.json_2026042700`、`settings.json_2026042701`
+- OpenCode 备份命名：`auth-{YYYYMMDDHHmm}.json`
+  - 示例：`auth-202604272030.json`（简洁时间戳格式）
 
 ## 开发
 

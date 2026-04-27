@@ -899,6 +899,7 @@ export class CLI {
 
   /**
    * 显示模型切换结果
+   * 对 OpenCode 工具显示特殊提示（不支持持久化默认模型）
    *
    * @param config - 切换后的模型配置
    * @param backupFileName - 备份文件名
@@ -920,6 +921,14 @@ export class CLI {
     }
     else {
       // 无备份（配置文件不存在）
+    }
+
+    // OpenCode 特殊提示：不支持持久化默认模型
+    if (this.selectedAdapter!.name === 'opencode') {
+      console.log('');
+      this.uiRenderer.showWarning('⚠️  OpenCode 不支持持久化默认模型');
+      this.uiRenderer.showInfo('   请在 OpenCode TUI 中手动选择模型');
+      this.uiRenderer.showInfo('   或使用 CLI 参数: opencode -m provider/model');
     }
   }
 }
