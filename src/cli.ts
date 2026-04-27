@@ -431,6 +431,12 @@ export class CLI {
     process.stdin.resume();
 
     const toolNames = registry.getToolNames();
+    // 选项总数：工具数量 + 2（返回、退出）
+    const totalOptions = toolNames.length + 2;
+    // 返回选项的索引
+    const backIndex = toolNames.length;
+    // 退出选项的索引
+    const exitIndex = toolNames.length + 1;
 
     console.log(chalk.cyan('\n=== 选择工具 ==='));
     console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
@@ -441,6 +447,10 @@ export class CLI {
       console.log(chalk.gray(`[${index}] `) + adapter.displayName);
     });
 
+    // 显示返回和退出选项
+    console.log(chalk.gray(`[${backIndex}] 返回上一级`));
+    console.log(chalk.gray(`[${exitIndex}] 直接退出`));
+
     try {
       // 使用 inquirer 获取用户输入
       const response = await inquirer.prompt([
@@ -450,16 +460,33 @@ export class CLI {
           message: '请输入工具索引:',
           validate: (value: string) => {
             const num = parseInt(value, 10);
-            if (isNaN(num) || num < 0 || num >= toolNames.length) {
-              return `请输入 0-${toolNames.length - 1} 之间的数字`;
+            if (isNaN(num) || num < 0 || num >= totalOptions) {
+              return `请输入 0-${totalOptions - 1} 之间的数字`;
             }
             return true;
           }
         }
       ] as any);
 
-      // 获取选择的工具
+      // 获取选择的索引
       const selectedIndex = parseInt(response.index, 10);
+
+      // 返回上一级
+      if (selectedIndex === backIndex) {
+        await this.recreateReadline();
+        await this.showCommandSelection();
+        return;
+      }
+
+      // 直接退出
+      if (selectedIndex === exitIndex) {
+        console.log(chalk.yellow('\nGoodbye!'));
+        this.rl.close();
+        process.exit(0);
+        return;
+      }
+
+      // 获取选择的工具
       const selectedTool = toolNames[selectedIndex];
       this.selectedAdapter = registry.getAdapter(selectedTool);
 
@@ -513,9 +540,6 @@ export class CLI {
       return;
     }
 
-    // 显示模型列表
-    this.currentOptions = models.map(m => m.name || m.model);
-
     // 移除旧监听器并关闭 readline 接口
     this.rl.removeAllListeners('line');
     this.rl.close();
@@ -525,6 +549,13 @@ export class CLI {
       process.stdin.setRawMode(false);
     }
     process.stdin.resume();
+
+    // 选项总数：模型数量 + 2（返回、退出）
+    const totalOptions = models.length + 2;
+    // 返回选项的索引
+    const backIndex = models.length;
+    // 退出选项的索引
+    const exitIndex = models.length + 1;
 
     console.log(chalk.cyan(`\n=== 选择 ${this.selectedAdapter.displayName} 模型 ===`));
     console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
@@ -536,6 +567,10 @@ export class CLI {
       console.log(chalk.gray(`[${index}] `) + displayName + ` ${providerInfo}`);
     });
 
+    // 显示返回和退出选项
+    console.log(chalk.gray(`[${backIndex}] 返回上一级`));
+    console.log(chalk.gray(`[${exitIndex}] 直接退出`));
+
     try {
       // 使用 inquirer 获取用户输入
       const response = await inquirer.prompt([
@@ -545,24 +580,32 @@ export class CLI {
           message: '请输入索引号:',
           validate: (value: string) => {
             const num = parseInt(value, 10);
-            if (isNaN(num) || num < 0 || num >= models.length) {
-              return `请输入 0-${models.length - 1} 之间的数字`;
+            if (isNaN(num) || num < 0 || num >= totalOptions) {
+              return `请输入 0-${totalOptions - 1} 之间的数字`;
             }
             return true;
           }
         }
       ] as any);
 
-      // 用户取消输入
-      if (Object.keys(response).length === 0) {
+      // 获取选择的索引
+      const selectedIndex = parseInt(response.index, 10);
+
+      // 返回上一级（回到工具选择）
+      if (selectedIndex === backIndex) {
         await this.recreateReadline();
-        this.uiRenderer.showWarning('\n已取消');
-        await this.showCommandSelection();
+        await this.showToolSelection();
         return;
       }
 
-      // 获取选择的索引
-      const selectedIndex = parseInt(response.index, 10);
+      // 直接退出
+      if (selectedIndex === exitIndex) {
+        console.log(chalk.yellow('\nGoodbye!'));
+        this.rl.close();
+        process.exit(0);
+        return;
+      }
+
       const selectedModel = models[selectedIndex];
 
       // 切换模型（switchModel 内部会处理返回命令选择菜单）
@@ -600,9 +643,6 @@ export class CLI {
       return;
     }
 
-    // 显示模型列表
-    this.currentOptions = models.map(m => m.name || m.model);
-
     // 移除旧监听器并关闭 readline 接口
     this.rl.removeAllListeners('line');
     this.rl.close();
@@ -612,6 +652,13 @@ export class CLI {
       process.stdin.setRawMode(false);
     }
     process.stdin.resume();
+
+    // 选项总数：模型数量 + 2（返回、退出）
+    const totalOptions = models.length + 2;
+    // 返回选项的索引
+    const backIndex = models.length;
+    // 退出选项的索引
+    const exitIndex = models.length + 1;
 
     console.log(chalk.cyan(`\n=== 删除 ${this.selectedAdapter.displayName} 模型 ===`));
     console.log(chalk.gray('(输入索引号按 Enter 确认删除)\n'));
@@ -623,6 +670,10 @@ export class CLI {
       console.log(chalk.gray(`[${index}] `) + displayName + ` ${providerInfo}`);
     });
 
+    // 显示返回和退出选项
+    console.log(chalk.gray(`[${backIndex}] 返回上一级`));
+    console.log(chalk.gray(`[${exitIndex}] 直接退出`));
+
     try {
       // 使用 inquirer 获取用户输入
       const response = await inquirer.prompt([
@@ -632,24 +683,32 @@ export class CLI {
           message: '请输入要删除的索引号:',
           validate: (value: string) => {
             const num = parseInt(value, 10);
-            if (isNaN(num) || num < 0 || num >= models.length) {
-              return `请输入 0-${models.length - 1} 之间的数字`;
+            if (isNaN(num) || num < 0 || num >= totalOptions) {
+              return `请输入 0-${totalOptions - 1} 之间的数字`;
             }
             return true;
           }
         }
       ] as any);
 
-      // 用户取消输入
-      if (Object.keys(response).length === 0) {
-        this.recreateReadline();
-        this.uiRenderer.showWarning('\n已取消');
-        this.showCommandSelection();
+      // 获取选择的索引
+      const selectedIndex = parseInt(response.index, 10);
+
+      // 返回上一级（回到工具选择）
+      if (selectedIndex === backIndex) {
+        await this.recreateReadline();
+        await this.showToolSelection();
         return;
       }
 
-      // 获取选择的索引
-      const selectedIndex = parseInt(response.index, 10);
+      // 直接退出
+      if (selectedIndex === exitIndex) {
+        console.log(chalk.yellow('\nGoodbye!'));
+        this.rl.close();
+        process.exit(0);
+        return;
+      }
+
       const selectedModel = models[selectedIndex];
 
       // 删除模型（removeModel 内部会处理返回命令选择菜单）

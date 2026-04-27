@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- 统一使用索引输入方式选择命令、工具和模型 (f883d5c)
 
 ### Changed
 - 所有选择界面（命令、工具、模型）统一使用索引输入方式，移除方向键导航
