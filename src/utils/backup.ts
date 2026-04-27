@@ -8,7 +8,6 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as TOML from '@iarna/toml';
 import { UnifiedModelConfig } from '../adapters/types';
 
 /**
@@ -270,101 +269,4 @@ export function mergeJsonConfig(original: any, newConfig: UnifiedModelConfig): a
   updateClaudeEnvFields(merged.env, newConfig);
 
   return merged;
-}
-
-/**
- * 更新 TOML Provider 配置
- * 将新配置值写入指定 provider 对象
- *
- * @param provider - Provider 配置对象
- * @param config - 新模型配置
- * @author lvdaxianerplus
- * @date 2026-04-27
- */
-function updateTomlProvider(provider: any, config: UnifiedModelConfig): void {
-  // 更新 API Key
-  provider.api_key = config.apiKey;
-
-  // 更新 Base URL（有值时）
-  if (config.baseUrl) {
-    provider.base_url = config.baseUrl;
-  }
-  // 无 Base URL - 不更新该字段
-  else {
-    // 保持原有值
-  }
-}
-
-/**
- * 合并 TOML 配置（OpenCode）
- * 保留原有配置中其他 provider，只更新选中 provider 和 default_model
- *
- * @param original - 原配置字符串（TOML 格式）
- * @param newConfig - 新模型配置
- * @return 合并后的配置字符串（TOML 格式）
- * @author lvdaxianerplus
- * @date 2026-04-27
- */
-export function mergeTomlConfig(original: string, newConfig: UnifiedModelConfig): string {
-  // 解析原 TOML 配置
-  const parsed = TOML.parse(original) as any;
-
-  // 确保 providers 对象存在
-  if (!parsed.providers) {
-    parsed.providers = {};
-  }
-  // providers 对象已存在 - 使用原有 providers
-  else {
-    // 保持 providers 对象
-  }
-
-  // 获取 provider 名称（默认使用 newConfig.provider 或 openai）
-  const providerName = newConfig.provider || 'openai';
-
-  // 确保 provider 对象存在
-  if (!parsed.providers[providerName]) {
-    parsed.providers[providerName] = {};
-  }
-  // provider 对象已存在 - 使用原有 provider
-  else {
-    // 保持 provider 对象
-  }
-
-  // 更新 provider 配置
-  const provider = parsed.providers[providerName];
-  updateTomlProvider(provider, newConfig);
-
-  // 更新 default_model
-  parsed.default_model = newConfig.model;
-
-  // 转换回 TOML 字符串
-  return TOML.stringify(parsed);
-}
-
-/**
- * 创建默认 OpenCode TOML 配置
- * 当配置文件不存在时使用此方法创建初始配置
- *
- * @param config - 模型配置
- * @return TOML 配置字符串
- * @author lvdaxianerplus
- * @date 2026-04-27
- */
-export function createDefaultTomlConfig(config: UnifiedModelConfig): string {
-  // 获取 provider 名称
-  const providerName = config.provider || 'openai';
-
-  // 构建默认配置结构
-  const defaultConfig = {
-    providers: {
-      [providerName]: {
-        api_key: config.apiKey,
-        base_url: config.baseUrl,
-      },
-    },
-    default_model: config.model,
-  };
-
-  // 转换为 TOML 字符串
-  return TOML.stringify(defaultConfig as any);
 }
