@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- 添加发布检查清单文档 (d7d1ab4)
+
+### Changed
+- 更新中英文 README 保持一致 (b00888c)
+
+- 添加 /info 命令查看模型详细信息 (8029ee3)
 
 ### Changed
 - 工具和模型选择添加返回/退出选项 (02b8c84)
