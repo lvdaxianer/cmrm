@@ -6,7 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
 ### Changed
+- 添加 /remove 命令，重命名 /add-model 为 /add (e6197f7)
+
 - 修复 add-model 后键盘选择失效问题 (501ffbe)
 
 ### Changed

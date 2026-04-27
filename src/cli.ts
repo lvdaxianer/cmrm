@@ -174,8 +174,8 @@ export class CLI {
    * @date 2026-04-27
    */
   private handleInput(input: string): void {
-    // /switch-model 命令 - 显示工具选择
-    if (input === '/switch-model') {
+    // /switch 命令 - 显示工具选择
+    if (input === '/switch') {
       this.nextOperation = 'switch';
       this.showToolSelection();
     }

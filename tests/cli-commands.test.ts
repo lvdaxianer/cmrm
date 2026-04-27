@@ -14,9 +14,9 @@ import { KeyListener } from '../src/cli/input';
  * 命令定义测试
  */
 describe('命令定义', () => {
-  // /switch-model 命令存在
-  it('/switch-model 命令定义正确', () => {
-    const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/switch-model');
+  // /switch 命令存在
+  it('/switch 命令定义正确', () => {
+    const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/switch');
 
     expect(cmd).toBeDefined();
     expect(cmd?.description).toContain('切换模型');

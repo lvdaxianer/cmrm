@@ -45,7 +45,7 @@ cmrm
 
 | Command | Description |
 |---------|-------------|
-| `/switch-model` | Switch model configuration |
+| `/switch` | Switch model configuration |
 | `/add` | Add a new model configuration interactively |
 | `/remove` | Remove a saved model configuration |
 | `/list` | Display all saved model configurations |
@@ -55,7 +55,7 @@ cmrm
 
 ### Switching Models
 
-Use `/switch-model` command:
+Use `/switch` command:
 - Use `↑`/`↓` arrow keys to navigate
 - Press `Enter` to select
 - Press `Esc` to cancel
