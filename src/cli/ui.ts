@@ -11,6 +11,7 @@ import chalk from 'chalk';
 import { AVAILABLE_COMMANDS } from './commands';
 import { UnifiedModelConfig } from '../types';
 import { ToolAdapter, registry } from '../adapters';
+import { TestResult } from '../utils/tester';
 
 /**
  * ANSI 转义序列常量
@@ -299,5 +300,52 @@ export class UIRenderer {
    */
   showInfo(message: string): void {
     console.log(chalk.gray(message));
+  }
+
+  /**
+   * 显示模型测试结果
+   * 成功时绿色显示通过，失败时红色显示错误类型
+   *
+   * @param result - 测试结果对象
+   * @author lvdaxianerplus
+   * @date 2026-05-03
+   */
+  showTestResult(result: TestResult): void {
+    const detail = this.buildTestDetail(result);
+    const symbol = result.success ? chalk.green('✓ ') : chalk.red('✗ ');
+    const colored = result.success ? chalk.green(result.message) : chalk.red(result.message);
+    console.log(symbol + colored + ' ' + chalk.gray(detail));
+
+    // 失败且包含详情时附加输出，否则不输出额外行
+    if (!result.success && result.errorDetail) {
+      console.log(chalk.gray(`  详情: ${result.errorDetail}`));
+    }
+    // 无详情或测试通过：保持 UI 简洁
+    else {
+      // 不输出额外行
+    }
+  }
+
+  /**
+   * 构建测试结果详情字符串（耗时 + 状态码）
+   *
+   * @param result - 测试结果
+   * @return 灰色详情文本
+   * @author lvdaxianerplus
+   * @date 2026-05-03
+   */
+  private buildTestDetail(result: TestResult): string {
+    const parts: string[] = [`${result.durationMs}ms`];
+
+    // 有 HTTP 状态码时附加（网络异常没有状态码）
+    if (result.statusCode !== undefined) {
+      parts.push(`HTTP ${result.statusCode}`);
+    }
+    // 无状态码：仅展示耗时
+    else {
+      // 不附加 HTTP 段
+    }
+
+    return `(${parts.join(', ')})`;
   }
 }
