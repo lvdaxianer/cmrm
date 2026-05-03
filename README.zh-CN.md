@@ -19,6 +19,8 @@
 - 📋 **查看所有配置** - 按工具分组显示
 - ℹ️ **查看模型详情** - 以 JSON 格式显示完整配置
 - 🔍 **当前模型状态** - 显示当前生效的模型
+- 🧪 **连接测试** - 通过实际 HTTP 请求验证模型配置可用性
+- 🌐 **多协议兼容** - 同时支持 Anthropic Messages 与 OpenAI Chat Completions API
 - 💡 **智能提示** - 未知命令时推荐相似命令
 
 ## 安装
@@ -48,12 +50,27 @@ cmrm
 | 命令 | 功能 |
 |------|------|
 | `/switch` | 切换到已保存的模型配置 |
-| `/add` | 交互式添加新模型配置 |
+| `/add` | 交互式添加新模型配置（保存前自动测试） |
 | `/remove` | 删除已保存的模型配置 |
 | `/info` | 以 JSON 格式查看模型详细信息 |
+| `/test` | 测试模型配置是否可用（已保存或自定义） |
+| `/alias` | 管理模型别名（添加 / 删除 / 列出） |
 | `/list` | 显示所有已保存的模型配置 |
 | `/current` | 显示当前生效的模型 |
 | `/exit` | 退出程序 |
+
+### CLI 快捷方式
+
+不进入交互菜单,可直接使用以下一行式命令完成常用操作:
+
+| 快捷方式 | 功能 |
+|---------|------|
+| `cmrm switch <name>` | 快速切换到已保存的模型 |
+| `cmrm test <name>` | 快速测试已保存模型的连通性 |
+| `cmrm alias <model> <new-alias>` | 为模型添加全局唯一的别名 |
+| `cmrm --help` / `-h` | 查看帮助 |
+
+`<name>` 按三级优先级匹配: `name` → `aliases` → `model`(首项命中即返回)。别名跨模型 / 跨工具全局唯一,冲突时直接拒绝并提示原因。
 
 ### 交互式选择
 
@@ -74,9 +91,10 @@ cmrm
 [1] /add           添加新模型配置
 [2] /remove         删除模型配置
 [3] /info           查看模型详细信息
-[4] /list           显示所有模型配置
-[5] /current        显示当前模型
-[6] /exit           退出程序
+[4] /test           测试模型配置是否可用
+[5] /list           显示所有模型配置
+[6] /current        显示当前模型
+[7] /exit           退出程序
 请输入命令索引: 0
 ```
 
@@ -85,12 +103,50 @@ cmrm
 使用 `/add` 命令输入配置字段：
 
 - **配置名称**（可选）- 配置的友好名称
+- **API 类型**（必选）- `anthropic`（Claude Messages）或 `openai`（Chat Completions），默认 `anthropic`
 - **模型名称**（必填）- 如 `claude-sonnet-4-5`
 - **API Key**（必填）
 - **Base URL**（必填）- 如 `https://api.anthropic.com`
 - **Haiku 模型**（可选）
 - **Sonnet 模型**（可选）
 - **Opus 模型**（可选）
+
+> 💡 配置完成后，cmrm 会自动发起 ping 请求验证配置可用性。如果测试失败，会询问是否仍然保存。
+
+### 测试模型配置
+
+使用 `/test` 命令验证配置是否可用：
+
+1. 选择工具（如 Claude）
+2. 选择测试场景：
+   - **测试已保存的模型** - 选择已存在的配置进行测试
+   - **自定义参数测试** - 临时输入参数测试，无需保存
+
+测试结果分类：
+
+| 错误类型 | 说明 |
+|---------|------|
+| `auth` | 认证失败（401/403），通常 API Key 错误 |
+| `not_found` | 模型不存在（404） |
+| `rate_limit` | 限流（429） |
+| `server` | 服务器错误（5xx） |
+| `network` | 网络错误（ECONNREFUSED/ENOTFOUND，通常 baseUrl 错误） |
+| `timeout` | 请求超时（默认 10 秒） |
+| `invalid_response` | 响应格式异常 |
+
+### API 类型
+
+cmrm 支持两种 API 协议格式：
+
+- **anthropic**（默认）- Claude Messages API 格式
+  - 路径：`/v1/messages`
+  - 认证：`x-api-key: <key>`
+  - 适用于官方 Claude API 及 Anthropic 兼容代理
+
+- **openai** - OpenAI Chat Completions 格式
+  - 路径：`/v1/chat/completions`
+  - 认证：`Authorization: Bearer <key>`
+  - 适用于 OpenRouter、DeepSeek、Together 等 OpenAI 兼容代理
 
 ### 切换模型
 
@@ -113,6 +169,7 @@ cmrm
   "model": "claude-sonnet-4-5",
   "apiKey": "sk-xxx...",
   "baseUrl": "https://api.anthropic.com",
+  "apiType": "anthropic",
   "haikuModel": "claude-haiku-4",
   "sonnetModel": "claude-sonnet-4"
 }
@@ -157,6 +214,16 @@ npm start
 ```
 
 ## 更新日志
+
+### 0.1.0
+- ✨ 新增模型多别名管理:`UnifiedModelConfig.aliases?: string[]`,跨工具/跨模型全局唯一
+- ✨ 新增 `/alias` 交互命令(添加/删除/列出别名)
+- ✨ 新增 `cmrm alias <model> <new-alias>` CLI 快捷方式
+- 🔍 `findModelByName` 由两级查找扩展为三级:`name` → `aliases` → `model`,支持 `cmrm switch <alias>` 直达
+- 🧪 新增 `/test` 命令,支持测试已保存或自定义模型配置
+- 🌐 新增 OpenAI Chat Completions API 协议兼容(除 Anthropic 外)
+- ✨ `/add` 添加 API 类型选择,并在保存前自动测试配置
+- 🔐 测试时错误信息脱敏,避免 API Key 泄漏
 
 ### 0.0.2
 - ✨ 新增 `/info` 命令，以 JSON 格式查看模型详细信息

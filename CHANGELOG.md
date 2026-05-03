@@ -6,29 +6,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Changed
-- 添加发布检查清单文档 (d7d1ab4)
+
+## [0.1.0] - 2026-05-03
+
+### Added
+- 模型多别名管理 `UnifiedModelConfig.aliases?: string[]`,跨工具/跨模型全局唯一
+- `/alias` 交互命令(添加/删除/列出别名)
+- `cmrm alias <model> <new-alias>` CLI 快捷方式
+- `findModelByName` 由两级查找扩展为三级:`name` → `aliases` → `model`,支持 `cmrm switch <alias>` 直达
+- `/test` 命令,支持测试已保存或自定义模型配置
+- OpenAI Chat Completions API 协议兼容(除 Anthropic 外)
+- `/add` 添加 API 类型选择,并在保存前自动测试配置
+- 发布检查清单文档
 
 ### Changed
-- 更新中英文 README 保持一致 (b00888c)
+- CLI 模块化拆分,主程序 `src/cli.ts` 由 1182 行瘦身至 ~250 行
+- 抽出 `add-handler`/`add-questions`/`argv-parser`/`shortcut-runner`/`shortcut-banner`/`bootstrap`/`operation-orchestrator`/`model-picker`/`model-actions`/`tool-selector`/`fuzzy-match`/`help-printer`/`readline-helper` 等模块
+- 中英文 README 保持一致,补全所有命令文档
 
-- 添加 /info 命令查看模型详细信息 (8029ee3)
+### Security
+- 测试时错误信息脱敏,避免 API Key 泄漏
+
+## [0.0.2]
+
+### Added
+- `/info` 命令查看模型详细信息(JSON 格式)
+- 选择菜单"返回上一级"和"直接退出"选项
+- `/remove` 命令删除已保存的配置
+- 配置写入前备份机制
+- 合并策略保留现有字段
 
 ### Changed
-- 工具和模型选择添加返回/退出选项 (02b8c84)
+- 选择界面改为索引输入方式(数字代替方向键)
+- 命令重命名:`/switch-model` → `/switch`,`/add-model` → `/add`
+- 简化架构(单一工具专注 - 仅 Claude)
 
-- 统一使用索引输入方式选择命令、工具和模型 (f883d5c)
+### Fixed
+- `/remove` 命令错误执行 `/switch` 的问题
 
-### Changed
-- 所有选择界面（命令、工具、模型）统一使用索引输入方式，移除方向键导航
+## [0.0.1]
 
-### Changed
-- 修复 /remove 命令错误执行 /switch 的问题
-
-### Changed
-- 重命名 /switch-model 为 /switch
-- 添加 /remove 命令，重命名 /add-model 为 /add
-- 移除 TOML 相关代码
-- 移除 OpenCode 支持，专注于 Claude CLI
-- 添加命令选择菜单，支持上下键交互
-- 重构为多工具架构，支持 Claude 和 OpenCode
+### Added
+- 初始版本发布
+- 支持 Claude 模型切换
+- 交互式模型配置
+- 中英文双语命令描述

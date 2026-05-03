@@ -19,6 +19,8 @@ This tool provides a convenient way to **manage Claude CLI model configurations*
 - 📋 **View all configurations** - Grouped display by tool
 - ℹ️ **View model details** - Display full config in JSON format
 - 🔍 **Current model status** - Show active model
+- 🧪 **Connection testing** - Verify model configuration via real HTTP request
+- 🌐 **Multi-protocol support** - Compatible with both Anthropic Messages and OpenAI Chat Completions
 - 💡 **Smart suggestions** - Recommend similar commands for unknown inputs
 
 ## Installation
@@ -48,12 +50,27 @@ cmrm
 | Command | Description |
 |---------|-------------|
 | `/switch` | Switch to a saved model configuration |
-| `/add` | Add a new model configuration interactively |
+| `/add` | Add a new model configuration interactively (auto-tests before saving) |
 | `/remove` | Remove a saved model configuration |
 | `/info` | View detailed model configuration in JSON format |
+| `/test` | Test if a model configuration works (saved or custom) |
+| `/alias` | Manage model aliases (add/remove/list) |
 | `/list` | Display all saved model configurations |
 | `/current` | Display the currently configured model |
 | `/exit` | Exit the CLI |
+
+### CLI Shortcuts
+
+For one-line workflows, the following arguments are accepted directly without entering the interactive menu:
+
+| Shortcut | Description |
+|----------|-------------|
+| `cmrm switch <name>` | Quickly switch to a saved model |
+| `cmrm test <name>` | Quickly test a saved model's connectivity |
+| `cmrm alias <model> <new-alias>` | Add a globally-unique alias to a model |
+| `cmrm --help` / `-h` | Show help |
+
+`<name>` is matched in three tiers: `name` → `aliases` → `model` (first hit wins). Aliases are globally unique across all models and tools — conflicts are rejected with a clear error.
 
 ### Interactive Selection
 
@@ -74,9 +91,10 @@ Example:
 [1] /add           添加新模型配置
 [2] /remove         删除模型配置
 [3] /info           查看模型详细信息
-[4] /list           显示所有模型配置
-[5] /current        显示当前模型
-[6] /exit           退出程序
+[4] /test           测试模型配置是否可用
+[5] /list           显示所有模型配置
+[6] /current        显示当前模型
+[7] /exit           退出程序
 请输入命令索引: 0
 ```
 
@@ -85,12 +103,50 @@ Example:
 Use `/add` command to enter configuration fields:
 
 - **Config name** (optional) - Friendly name for this config
+- **API type** (required) - `anthropic` (Claude Messages) or `openai` (Chat Completions), defaults to `anthropic`
 - **Model name** (required) - e.g., `claude-sonnet-4-5`
 - **API Key** (required)
 - **Base URL** (required) - e.g., `https://api.anthropic.com`
 - **Haiku model** (optional)
 - **Sonnet model** (optional)
 - **Opus model** (optional)
+
+> 💡 After entering the configuration, cmrm will send a ping request to verify the configuration. If the test fails, you'll be asked whether to save it anyway.
+
+### Testing Model Configurations
+
+Use `/test` command to verify a configuration:
+
+1. Select a tool (e.g., Claude)
+2. Choose a test scenario:
+   - **Test saved model** - Pick from existing configurations
+   - **Custom parameters** - Enter parameters ad-hoc without saving
+
+Error classifications:
+
+| Error kind | Description |
+|------------|-------------|
+| `auth` | Authentication failure (401/403), usually wrong API key |
+| `not_found` | Model not found (404) |
+| `rate_limit` | Rate limit exceeded (429) |
+| `server` | Server error (5xx) |
+| `network` | Network error (ECONNREFUSED/ENOTFOUND, usually wrong baseUrl) |
+| `timeout` | Request timeout (10s by default) |
+| `invalid_response` | Response format invalid |
+
+### API Types
+
+cmrm supports two API protocol formats:
+
+- **anthropic** (default) - Claude Messages API format
+  - Path: `/v1/messages`
+  - Auth header: `x-api-key: <key>`
+  - For official Claude API and Anthropic-compatible proxies
+
+- **openai** - OpenAI Chat Completions format
+  - Path: `/v1/chat/completions`
+  - Auth header: `Authorization: Bearer <key>`
+  - For OpenRouter, DeepSeek, Together, and other OpenAI-compatible proxies
 
 ### Switching Models
 
@@ -113,6 +169,7 @@ Example output:
   "model": "claude-sonnet-4-5",
   "apiKey": "sk-xxx...",
   "baseUrl": "https://api.anthropic.com",
+  "apiType": "anthropic",
   "haikuModel": "claude-haiku-4",
   "sonnetModel": "claude-sonnet-4"
 }
@@ -157,6 +214,16 @@ npm start
 ```
 
 ## Changelog
+
+### 0.1.0
+- ✨ Add model multi-aliases management: `UnifiedModelConfig.aliases?: string[]`, globally unique across tools/models
+- ✨ Add `/alias` interactive command (add / remove / list aliases)
+- ✨ Add `cmrm alias <model> <new-alias>` CLI shortcut
+- 🔍 `findModelByName` extends two-tier lookup to three: `name` → `aliases` → `model`, enabling `cmrm switch <alias>`
+- 🧪 Add `/test` command to test saved or custom model configurations
+- 🌐 Add OpenAI Chat Completions API support (in addition to Anthropic)
+- ✨ `/add` now asks for API type and auto-tests the configuration before saving
+- 🔐 Sanitize error output to prevent API key leakage during testing
 
 ### 0.0.2
 - ✨ Add `/info` command to view model details in JSON format

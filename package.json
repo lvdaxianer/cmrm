@@ -1,6 +1,6 @@
 {
   "name": "cmrm",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "CLI tool to manage and switch Claude CLI model configurations",
   "main": "dist/cli.js",
   "bin": {
