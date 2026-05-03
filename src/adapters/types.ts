@@ -7,6 +7,13 @@
  */
 
 /**
+ * API 协议类型
+ * 'anthropic' - Claude Messages API 格式（默认）
+ * 'openai'    - OpenAI Chat Completions 格式（兼容代理）
+ */
+export type ApiType = 'anthropic' | 'openai';
+
+/**
  * 统一配置模型接口
  * 用于标准化不同工具的模型配置
  */
@@ -24,6 +31,10 @@ export interface UnifiedModelConfig {
   name?: string;
   /** 提供商（openai, anthropic, openrouter 等） */
   provider?: string;
+  /** API 协议类型，未设置时默认 'anthropic' */
+  apiType?: ApiType;
+  /** 别名列表（全局唯一，跨模型不可重复），用于 `cmrm switch <alias>` 快速切换 */
+  aliases?: string[];
 
   // === Claude 特有字段 ===
   /** Haiku 模型名称 */

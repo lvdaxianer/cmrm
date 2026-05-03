@@ -7,7 +7,7 @@
  */
 
 // 导出适配器相关类型
-export { UnifiedModelConfig, ToolAdapter, AdapterRegistryInterface } from './adapters/types';
+export { UnifiedModelConfig, ToolAdapter, AdapterRegistryInterface, ApiType } from './adapters/types';
 
 // 导入 UnifiedModelConfig 用于本地类型定义
 import { UnifiedModelConfig } from './adapters/types';
