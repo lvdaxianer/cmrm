@@ -26,6 +26,8 @@ export const AVAILABLE_COMMANDS: CommandDefinition[] = [
   { name: '/add', description: '添加新模型配置' },
   { name: '/remove', description: '删除模型配置' },
   { name: '/info', description: '查看模型详细信息' },
+  { name: '/test', description: '测试模型配置是否可用' },
+  { name: '/alias', description: '管理模型别名(添加/删除/列出)' },
   { name: '/list', description: '显示所有模型配置' },
   { name: '/current', description: '显示当前模型' },
   { name: '/exit', description: '退出程序' }

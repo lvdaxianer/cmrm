@@ -38,6 +38,22 @@ describe('命令定义', () => {
     expect(cmd?.description).toContain('删除');
   });
 
+  // /info 命令存在
+  it('/info 命令定义正确', () => {
+    const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/info');
+
+    expect(cmd).toBeDefined();
+    expect(cmd?.description).toContain('详细信息');
+  });
+
+  // /test 命令存在
+  it('/test 命令定义正确', () => {
+    const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/test');
+
+    expect(cmd).toBeDefined();
+    expect(cmd?.description).toContain('测试');
+  });
+
   // /list 命令存在
   it('/list 命令定义正确', () => {
     const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/list');
@@ -62,9 +78,17 @@ describe('命令定义', () => {
     expect(cmd?.description).toContain('退出');
   });
 
+  // /alias 命令存在
+  it('/alias 命令定义正确', () => {
+    const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/alias');
+
+    expect(cmd).toBeDefined();
+    expect(cmd?.description).toContain('别名');
+  });
+
   // 命令数量验证
-  it('可用命令数量为7个', () => {
-    expect(AVAILABLE_COMMANDS.length).toBe(7);
+  it('可用命令数量为9个', () => {
+    expect(AVAILABLE_COMMANDS.length).toBe(9);
   });
 
   // 所有命令以/开头

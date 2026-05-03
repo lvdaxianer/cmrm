@@ -1,198 +1,135 @@
 /**
- * CLI 主模块
- * 提供命令行交互界面，整合命令、UI、输入处理模块
+ * CLI 主编排层
+ * 负责启动、命令路由与与编排层的衔接
+ *
+ * 拆分历史：
+ * - 2026-04-27 初版聚合实现（>1300 行）
+ * - 2026-05-03 第一阶段：拆分为多个子模块（≤350 行）
+ * - 2026-05-03 第二阶段：进一步抽离工具/模型操作编排到 operation-orchestrator
  *
  * @author lvdaxianerplus
- * @date 2026-04-27
+ * @date 2026-05-03
  */
 
 import * as readline from 'readline';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { ConfigManager } from './config';
-import { UnifiedModelConfig } from './types';
-import { registry, ClaudeAdapter, ToolAdapter } from './adapters';
+import { registry, ClaudeAdapter } from './adapters';
 import { AVAILABLE_COMMANDS } from './cli/commands';
-import { KeyListener, KeyAction } from './cli/input';
 import { UIRenderer } from './cli/ui';
+import { createReadlineInterface, prepareForInquirer } from './cli/readline-helper';
+import {
+  isExitCommand,
+  showCommandSuggestions,
+  handleUnknownCommand,
+} from './cli/fuzzy-match';
+import {
+  NextOperation,
+  OrchestratorContext,
+  showToolSelection,
+} from './cli/operation-orchestrator';
+import { bootstrap } from './cli/bootstrap';
+import { printShortcutBanner } from './cli/shortcut-banner';
 
 /**
  * CLI 类
- * 处理命令行交互逻辑，协调各模块工作
+ * 协调命令路由、子菜单切换以及 readline / inquirer 状态切换
+ *
+ * @author lvdaxianerplus
+ * @date 2026-05-03
  */
 export class CLI {
-  /** readline 接口实例 */
+  /** readline 接口实例（启用命令补全） */
   private rl: readline.Interface;
 
-  /** 配置管理器 */
+  /** 配置管理器（settings.json 读写） */
   private configManager: ConfigManager;
 
-  /** UI 渲染器 */
+  /** UI 渲染器（统一颜色样式） */
   private uiRenderer: UIRenderer;
-
-  /** 键盘监听器 */
-  private keyListener: KeyListener;
-
-  /** 当前选中的索引 */
-  private currentSelection: number = 0;
-
-  /** 当前选项列表（工具名称或模型名称） */
-  private currentOptions: string[] = [];
-
-  /** 下一步操作类型 */
-  private nextOperation: 'switch' | 'add' | 'remove' | null = null;
-
-  /** 当前选中的工具适配器 */
-  private selectedAdapter: ToolAdapter | null = null;
-
-  /**
-   * 命令自动补全函数
-   * 根据用户输入提供匹配的命令建议
-   *
-   * @param input - 用户当前输入
-   * @returns 补全结果数组
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private completer(input: string): [string[], string] {
-    // 获取所有命令名称
-    const commands = AVAILABLE_COMMANDS.map(cmd => cmd.name);
-
-    // 输入为空或以 / 开头时提供补全
-    if (input.startsWith('/')) {
-      const matches = commands.filter(cmd => cmd.startsWith(input));
-      return [matches, input];
-    }
-
-    // 非命令输入不提供补全
-    return [commands, input];
-  }
 
   /**
    * 构造函数
-   * 初始化各模块实例和适配器注册表
+   * 注册适配器并创建初始 readline 接口
    *
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-03
    */
   constructor() {
-    // 全局启用 keypress 事件（必须在任何 keypress 监听之前调用）
-    readline.emitKeypressEvents(process.stdin);
-
-    // 初始化 readline 接口（带自动补全）
-    this.rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-      prompt: '> ',
-      completer: this.completer.bind(this)
-    });
-
-    // 初始化各模块
     this.configManager = new ConfigManager();
     this.uiRenderer = new UIRenderer();
-    this.keyListener = new KeyListener();
 
-    // 注册适配器
     registry.register(new ClaudeAdapter());
 
-    // 监听 line 事件处理输入
-    this.rl.on('line', (input) => {
-      this.handleInput(input.trim());
-    });
+    this.rl = createReadlineInterface(
+      this.completer.bind(this),
+      (input) => this.handleInput(input),
+    );
+  }
+
+  /**
+   * 命令补全函数
+   * 输入以 '/' 开头时返回所有匹配命令
+   *
+   * @param input - 用户当前输入
+   * @return [matches, original]
+   * @author lvdaxianerplus
+   * @date 2026-05-03
+   */
+  private completer(input: string): [string[], string] {
+    const commands = AVAILABLE_COMMANDS.map(cmd => cmd.name);
+
+    // 命令前缀：返回前缀匹配
+    if (input.startsWith('/')) {
+      return [commands.filter(cmd => cmd.startsWith(input)), input];
+    }
+    // 非命令：返回全量
+    else {
+      return [commands, input];
+    }
   }
 
   /**
    * 启动 CLI
-   * 检查配置文件并显示欢迎信息
+   * 初始化配置文件并显示欢迎信息
    *
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-03
    */
   async start(): Promise<void> {
-    // 检查并初始化配置文件
     await this.ensureConfigFile();
 
     console.log(chalk.cyan('Model Registry Manager (cmrm) - Multi-tool support'));
     console.log(chalk.gray('\n提示：输入命令索引号按 Enter 确认\n'));
 
-    // 显示命令选择菜单
-    this.showCommandSelection();
+    await this.showCommandSelection();
   }
 
   /**
-   * 显示命令选择菜单
-   * 使用索引输入方式选择命令
+   * 确保配置文件存在，不存在则初始化
    *
    * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private async showCommandSelection(): Promise<void> {
-    // 移除旧监听器并关闭 readline 接口，释放 stdin 给 inquirer 使用
-    this.rl.removeAllListeners('line');
-    this.rl.close();
-
-    // 确保 stdin 不在 raw mode
-    if (process.stdin.isRaw) {
-      process.stdin.setRawMode(false);
-    }
-    process.stdin.resume();
-
-    // 显示命令列表
-    console.log(chalk.cyan('\n=== 选择命令 ==='));
-    console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
-
-    // 显示每个命令的索引
-    AVAILABLE_COMMANDS.forEach((cmd, index) => {
-      console.log(chalk.gray(`[${index}] `) + cmd.name.padEnd(15) + chalk.gray(cmd.description));
-    });
-
-    try {
-      // 使用 inquirer 获取用户输入
-      const response = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'index',
-          message: '请输入命令索引:',
-          validate: (value: string) => {
-            const num = parseInt(value, 10);
-            if (isNaN(num) || num < 0 || num >= AVAILABLE_COMMANDS.length) {
-              return `请输入 0-${AVAILABLE_COMMANDS.length - 1} 之间的数字`;
-            }
-            return true;
-          }
-        }
-      ] as any);
-
-      // 获取选择的命令
-      const selectedIndex = parseInt(response.index, 10);
-      const selectedCommand = AVAILABLE_COMMANDS[selectedIndex].name;
-
-      // 执行命令（等待命令执行完成）
-      await this.handleInput(selectedCommand);
-    }
-    // 发生错误
-    catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.uiRenderer.showError(`选择失败: ${message}`);
-      await this.recreateReadline();
-      await this.showCommandSelection();
-    }
-  }
-
-  /**
-   * 确保配置文件存在
-   * 不存在则创建默认配置
-   *
-   * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-03
    */
   private async ensureConfigFile(): Promise<void> {
-    // 配置文件已存在，无需初始化
+    // 已存在：直接返回
     if (this.configManager.hasSettingsFile()) {
       return;
     }
+    // 不存在：尝试初始化
+    else {
+      this.initializeConfigFile();
+    }
+  }
 
-    // 配置文件不存在，创建默认配置
+  /**
+   * 初始化配置文件并提示用户编辑
+   *
+   * @author lvdaxianerplus
+   * @date 2026-05-03
+   */
+  private initializeConfigFile(): void {
     console.log(chalk.yellow('Configuration file not found. Initializing...'));
 
     try {
@@ -201,7 +138,7 @@ export class CLI {
       console.log(chalk.green(`Configuration file created at: ${path}`));
       console.log(chalk.gray('Please edit the file to add your API keys.\n'));
     }
-    // 初始化失败
+    // 初始化失败：直接退出（无法继续运行）
     catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.log(chalk.red(`Failed to initialize: ${message}`));
@@ -210,958 +147,199 @@ export class CLI {
   }
 
   /**
-   * 处理用户输入命令
+   * 显示命令选择菜单
    *
-   * @param input - 用户输入的命令字符串
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-03
+   */
+  private async showCommandSelection(): Promise<void> {
+    prepareForInquirer(this.rl);
+
+    // 顶部展示快捷方式横幅,引导一行式快捷命令
+    printShortcutBanner();
+
+    console.log(chalk.cyan('\n=== 选择命令 ==='));
+    console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
+
+    AVAILABLE_COMMANDS.forEach((cmd, index) => {
+      console.log(chalk.gray(`[${index}] `) + cmd.name.padEnd(15) + chalk.gray(cmd.description));
+    });
+
+    try {
+      const selectedIndex = await this.promptCommandIndex();
+      const selectedCommand = AVAILABLE_COMMANDS[selectedIndex].name;
+      await this.handleInput(selectedCommand);
+    }
+    // 选择异常：返回菜单重新选择
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.uiRenderer.showError(`选择失败: ${message}`);
+      this.rl = this.recreateReadline();
+      await this.showCommandSelection();
+    }
+  }
+
+  /**
+   * 提示用户输入命令索引并校验范围
+   *
+   * @return 已校验的整数索引
+   * @author lvdaxianerplus
+   * @date 2026-05-03
+   */
+  private async promptCommandIndex(): Promise<number> {
+    const response = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'index',
+        message: '请输入命令索引:',
+        validate: (value: string) => {
+          const num = parseInt(value, 10);
+          if (isNaN(num) || num < 0 || num >= AVAILABLE_COMMANDS.length) {
+            return `请输入 0-${AVAILABLE_COMMANDS.length - 1} 之间的数字`;
+          }
+          else {
+            return true;
+          }
+        },
+      },
+    ] as any);
+
+    return parseInt(response.index, 10);
+  }
+
+  /**
+   * 路由用户输入到对应的子流程
+   *
+   * @param input - 用户输入
+   * @author lvdaxianerplus
+   * @date 2026-05-03
    */
   private async handleInput(input: string): Promise<void> {
-    // /switch 命令 - 显示工具选择
-    if (input === '/switch') {
-      this.nextOperation = 'switch';
-      await this.showToolSelection();
+    // 工具选择类命令：交由编排层处理
+    if (this.isToolSelectionCommand(input)) {
+      const op = input.slice(1) as NextOperation;
+      await showToolSelection(this.buildContext(), op);
     }
-    // /add 命令 - 显示工具选择后交互添加
-    else if (input === '/add') {
-      this.nextOperation = 'add';
-      await this.showToolSelection();
-    }
-    // /remove 命令 - 显示工具选择后交互删除
-    else if (input === '/remove') {
-      this.nextOperation = 'remove';
-      await this.showToolSelection();
-    }
-    // /info 命令 - 显示工具选择后查看模型信息
-    else if (input === '/info') {
-      this.nextOperation = 'info';
-      await this.showToolSelection();
-    }
-    // /list 命令 - 显示所有模型配置，然后返回命令选择
+    // /list 直接展示所有模型
     else if (input === '/list') {
       this.uiRenderer.showAllModels();
       await this.showCommandSelection();
     }
-    // /current 命令 - 显示当前生效模型，然后返回命令选择
+    // /current 直接展示当前模型
     else if (input === '/current') {
       this.uiRenderer.showCurrentModels();
       await this.showCommandSelection();
     }
-    // 退出命令 - 关闭程序
-    else if (this.isExitCommand(input)) {
-      console.log(chalk.yellow('\nGoodbye!'));
-      this.rl.close();
-      process.exit(0);
+    // 退出命令
+    else if (isExitCommand(input)) {
+      this.exitProgram();
     }
-    // 空命令 "/" - 显示命令选择菜单
-    else if (input === '/') {
+    // 空输入：返回菜单
+    else if (input === '/' || input === '') {
       await this.showCommandSelection();
     }
-    // 空输入 - 显示命令选择菜单
-    else if (input === '') {
+    // 部分命令前缀：展示补全建议
+    else if (input.startsWith('/') && !this.isKnownCommand(input)) {
+      showCommandSuggestions(input, (msg) => this.uiRenderer.showError(msg));
       await this.showCommandSelection();
     }
-    // 部分命令输入 - 显示匹配建议后返回命令选择
-    else if (input.startsWith('/') && !AVAILABLE_COMMANDS.some(cmd => cmd.name === input)) {
-      this.showCommandSuggestions(input);
-      await this.showCommandSelection();
-    }
-    // 未知命令 - 提示错误后返回命令选择
+    // 其他未知输入
     else {
-      this.handleUnknownCommand(input);
+      this.printUnknownCommand(input);
       await this.showCommandSelection();
     }
   }
 
   /**
-   * 显示命令匹配建议
-   * 当用户输入部分命令时提示可能的匹配项
-   *
-   * @param input - 用户输入的部分命令
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private showCommandSuggestions(input: string): void {
-    // 查找以输入开头的命令
-    const matches = AVAILABLE_COMMANDS
-      .filter(cmd => cmd.name.startsWith(input))
-      .map(cmd => `${cmd.name} - ${cmd.description}`);
-
-    // 无匹配时提示无此命令
-    if (matches.length === 0) {
-      this.uiRenderer.showError(`No command starts with: ${input}`);
-      this.uiRenderer.showCommands();
-      return;
-    }
-
-    // 显示匹配的命令建议
-    console.log(chalk.cyan('\nAvailable commands:'));
-    matches.forEach(cmd => {
-      console.log(chalk.gray(`  ${cmd}`));
-    });
-    console.log(chalk.gray('\n  (Press Enter to confirm, or continue typing)'));
-  }
-
-  /**
-   * 检查是否为退出命令
+   * 判断输入是否为需要选择工具的命令
    *
    * @param input - 用户输入
-   * @return 如果是退出命令返回 true
+   * @return true 表示需要走工具选择流程
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-03
    */
-  private isExitCommand(input: string): boolean {
-    const exitCommands = ['/exit', '/quit', 'exit', 'quit'];
-    return exitCommands.includes(input.toLowerCase());
+  private isToolSelectionCommand(input: string): boolean {
+    return ['/switch', '/add', '/remove', '/info', '/test', '/alias'].includes(input);
   }
 
   /**
-   * 处理未知命令
-   * 显示错误并推荐相似命令
+   * 判断输入是否为已注册命令
    *
-   * @param input - 用户输入的未知命令
+   * @param input - 用户输入
+   * @return true 表示完全匹配
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-03
    */
-  private handleUnknownCommand(input: string): void {
-    this.uiRenderer.showError(`Unknown command: ${input}`);
-
-    // 查找相似命令推荐
-    const suggestions = this.findSimilarCommands(input);
-
-    // 有相似命令时显示推荐
-    if (suggestions.length > 0) {
-      this.uiRenderer.showWarning('Did you mean:');
-      suggestions.forEach(cmd => {
-        console.log(`  ${chalk.green(cmd.name)} - ${chalk.gray(cmd.description)}`);
-      });
-    }
-    // 无相似命令时显示可用命令列表
-    else {
-      this.uiRenderer.showInfo('Available commands: /switch-model, /add-model, /list, /current, /exit');
-    }
+  private isKnownCommand(input: string): boolean {
+    return AVAILABLE_COMMANDS.some(cmd => cmd.name === input);
   }
 
   /**
-   * 查找与输入相似的命令
-   * 使用编辑距离算法匹配相似命令
+   * 输出未知命令提示
    *
-   * @param input - 用户输入的命令
-   * @return 相似命令列表
+   * @param input - 用户输入
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-03
    */
-  private findSimilarCommands(input: string): typeof AVAILABLE_COMMANDS {
-    const suggestions: typeof AVAILABLE_COMMANDS = [];
-    const threshold = 3;
-
-    // 遍历所有命令计算编辑距离
-    for (const cmd of AVAILABLE_COMMANDS) {
-      const distance = this.levenshteinDistance(input.toLowerCase(), cmd.name.toLowerCase());
-
-      // 编辑距离在阈值内或部分匹配则推荐
-      if (distance <= threshold || (input.startsWith('/') && cmd.name.includes(input))) {
-        suggestions.push(cmd);
-      }
-      // 不匹配则跳过
-      else {
-        continue;
-      }
-    }
-
-    return suggestions;
+  private printUnknownCommand(input: string): void {
+    handleUnknownCommand(
+      input,
+      (msg) => this.uiRenderer.showError(msg),
+      (msg) => this.uiRenderer.showWarning(msg),
+      (msg) => this.uiRenderer.showInfo(msg),
+    );
   }
 
   /**
-   * 计算编辑距离（Levenshtein Distance）
-   *
-   * @param a - 第一个字符串
-   * @param b - 第二个字符串
-   * @return 编辑距离数值
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private levenshteinDistance(a: string, b: string): number {
-    // 初始化矩阵
-    const matrix: number[][] = [];
-
-    // 构建矩阵第一列（b 的长度）
-    for (let i = 0; i <= b.length; i++) {
-      matrix[i] = [i];
-    }
-
-    // 构建矩阵第一行（a 的长度）
-    for (let j = 0; j <= a.length; j++) {
-      matrix[0][j] = j;
-    }
-
-    // 计算矩阵每个单元格的值
-    for (let i = 1; i <= b.length; i++) {
-      for (let j = 1; j <= a.length; j++) {
-        // 字符相同则取左上角值
-        if (b.charAt(i - 1) === a.charAt(j - 1)) {
-          matrix[i][j] = matrix[i - 1][j - 1];
-        }
-        // 字符不同则取最小值加1
-        else {
-          const minVal = Math.min(
-            matrix[i - 1][j - 1] + 1, // 替换
-            matrix[i][j - 1] + 1,     // 插入
-            matrix[i - 1][j] + 1      // 删除
-          );
-          matrix[i][j] = minVal;
-        }
-      }
-    }
-
-    return matrix[b.length][a.length];
-  }
-
-  /**
-   * 显示工具选择菜单
-   * 使用索引输入方式选择工具
+   * 退出程序（关闭 readline 后 process.exit）
    *
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-03
    */
-  private async showToolSelection(): Promise<void> {
-    // 移除旧监听器并关闭 readline 接口
-    this.rl.removeAllListeners('line');
+  private exitProgram(): void {
+    console.log(chalk.yellow('\nGoodbye!'));
     this.rl.close();
-
-    // 确保 stdin 不在 raw mode
-    if (process.stdin.isRaw) {
-      process.stdin.setRawMode(false);
-    }
-    process.stdin.resume();
-
-    const toolNames = registry.getToolNames();
-    // 选项总数：工具数量 + 2（返回、退出）
-    const totalOptions = toolNames.length + 2;
-    // 返回选项的索引
-    const backIndex = toolNames.length;
-    // 退出选项的索引
-    const exitIndex = toolNames.length + 1;
-
-    console.log(chalk.cyan('\n=== 选择工具 ==='));
-    console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
-
-    // 显示每个工具的索引
-    toolNames.forEach((toolName, index) => {
-      const adapter = registry.getAdapter(toolName);
-      console.log(chalk.gray(`[${index}] `) + adapter.displayName);
-    });
-
-    // 显示返回和退出选项
-    console.log(chalk.gray(`[${backIndex}] 返回上一级`));
-    console.log(chalk.gray(`[${exitIndex}] 直接退出`));
-
-    try {
-      // 使用 inquirer 获取用户输入
-      const response = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'index',
-          message: '请输入工具索引:',
-          validate: (value: string) => {
-            const num = parseInt(value, 10);
-            if (isNaN(num) || num < 0 || num >= totalOptions) {
-              return `请输入 0-${totalOptions - 1} 之间的数字`;
-            }
-            return true;
-          }
-        }
-      ] as any);
-
-      // 获取选择的索引
-      const selectedIndex = parseInt(response.index, 10);
-
-      // 返回上一级
-      if (selectedIndex === backIndex) {
-        await this.recreateReadline();
-        await this.showCommandSelection();
-        return;
-      }
-
-      // 直接退出
-      if (selectedIndex === exitIndex) {
-        console.log(chalk.yellow('\nGoodbye!'));
-        this.rl.close();
-        process.exit(0);
-        return;
-      }
-
-      // 获取选择的工具
-      const selectedTool = toolNames[selectedIndex];
-      this.selectedAdapter = registry.getAdapter(selectedTool);
-
-      this.uiRenderer.showSuccess(`\n已选择工具: ${this.selectedAdapter.displayName}`);
-
-      // 根据下一步操作继续流程
-      if (this.nextOperation === 'switch') {
-        await this.showModelSelection();
-      }
-      else if (this.nextOperation === 'add') {
-        await this.handleAddModel();
-      }
-      else if (this.nextOperation === 'remove') {
-        await this.showRemoveModelSelection();
-      }
-      else if (this.nextOperation === 'info') {
-        await this.showInfoModelSelection();
-      }
-      else {
-        // 无后续操作，返回命令选择菜单
-        await this.recreateReadline();
-        await this.showCommandSelection();
-      }
-    }
-    // 发生错误
-    catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.uiRenderer.showError(`选择失败: ${message}`);
-      await this.recreateReadline();
-      await this.showCommandSelection();
-    }
+    process.exit(0);
   }
 
   /**
-   * 显示模型选择菜单（用于 /switch）
-   * 使用索引输入方式选择模型
+   * 重新创建 readline 接口（在使用 inquirer 后必须调用）
    *
+   * @return 新创建的 readline 接口
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-03
    */
-  private async showModelSelection(): Promise<void> {
-    // 未选择工具时不执行
-    if (!this.selectedAdapter) {
-      return;
-    }
-
-    const models = this.selectedAdapter.getSavedModels();
-
-    // 无保存模型时显示提示
-    if (models.length === 0) {
-      this.uiRenderer.showWarning(`\n${this.selectedAdapter.displayName} 没有保存的模型配置`);
-      this.uiRenderer.showInfo('请使用 /add 命令添加模型配置');
-      await this.showCommandSelection();
-      return;
-    }
-
-    // 移除旧监听器并关闭 readline 接口
-    this.rl.removeAllListeners('line');
-    this.rl.close();
-
-    // 确保 stdin 不在 raw mode
-    if (process.stdin.isRaw) {
-      process.stdin.setRawMode(false);
-    }
-    process.stdin.resume();
-
-    // 选项总数：模型数量 + 2（返回、退出）
-    const totalOptions = models.length + 2;
-    // 返回选项的索引
-    const backIndex = models.length;
-    // 退出选项的索引
-    const exitIndex = models.length + 1;
-
-    console.log(chalk.cyan(`\n=== 选择 ${this.selectedAdapter.displayName} 模型 ===`));
-    console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
-
-    // 显示每个模型的索引
-    models.forEach((model, index) => {
-      const displayName = model.name || model.model;
-      const providerInfo = model.provider ? chalk.gray(`[${model.provider}]`) : '';
-      console.log(chalk.gray(`[${index}] `) + displayName + ` ${providerInfo}`);
-    });
-
-    // 显示返回和退出选项
-    console.log(chalk.gray(`[${backIndex}] 返回上一级`));
-    console.log(chalk.gray(`[${exitIndex}] 直接退出`));
-
-    try {
-      // 使用 inquirer 获取用户输入
-      const response = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'index',
-          message: '请输入索引号:',
-          validate: (value: string) => {
-            const num = parseInt(value, 10);
-            if (isNaN(num) || num < 0 || num >= totalOptions) {
-              return `请输入 0-${totalOptions - 1} 之间的数字`;
-            }
-            return true;
-          }
-        }
-      ] as any);
-
-      // 获取选择的索引
-      const selectedIndex = parseInt(response.index, 10);
-
-      // 返回上一级（回到工具选择）
-      if (selectedIndex === backIndex) {
-        await this.recreateReadline();
-        await this.showToolSelection();
-        return;
-      }
-
-      // 直接退出
-      if (selectedIndex === exitIndex) {
-        console.log(chalk.yellow('\nGoodbye!'));
-        this.rl.close();
-        process.exit(0);
-        return;
-      }
-
-      const selectedModel = models[selectedIndex];
-
-      // 切换模型（switchModel 内部会处理返回命令选择菜单）
-      await this.switchModel(selectedModel);
-    }
-    // 发生错误
-    catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.uiRenderer.showError(`选择失败: ${message}`);
-      await this.recreateReadline();
-      await this.showCommandSelection();
-    }
+  private recreateReadline(): readline.Interface {
+    this.rl = createReadlineInterface(
+      this.completer.bind(this),
+      (input) => this.handleInput(input),
+    );
+    return this.rl;
   }
 
   /**
-   * 显示删除模型选择菜单（用于 /remove）
-   * 使用索引输入方式选择要删除的模型
+   * 构建注入给编排层的上下文对象
    *
+   * @return 编排层依赖上下文
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-03
    */
-  private async showRemoveModelSelection(): Promise<void> {
-    // 未选择工具时不执行
-    if (!this.selectedAdapter) {
-      return;
-    }
-
-    const models = this.selectedAdapter.getSavedModels();
-
-    // 无保存模型时显示提示
-    if (models.length === 0) {
-      this.uiRenderer.showWarning(`\n${this.selectedAdapter.displayName} 没有保存的模型配置`);
-      this.uiRenderer.showInfo('请使用 /add 命令添加模型配置');
-      await this.showCommandSelection();
-      return;
-    }
-
-    // 移除旧监听器并关闭 readline 接口
-    this.rl.removeAllListeners('line');
-    this.rl.close();
-
-    // 确保 stdin 不在 raw mode
-    if (process.stdin.isRaw) {
-      process.stdin.setRawMode(false);
-    }
-    process.stdin.resume();
-
-    // 选项总数：模型数量 + 2（返回、退出）
-    const totalOptions = models.length + 2;
-    // 返回选项的索引
-    const backIndex = models.length;
-    // 退出选项的索引
-    const exitIndex = models.length + 1;
-
-    console.log(chalk.cyan(`\n=== 删除 ${this.selectedAdapter.displayName} 模型 ===`));
-    console.log(chalk.gray('(输入索引号按 Enter 确认删除)\n'));
-
-    // 显示每个模型的索引
-    models.forEach((model, index) => {
-      const displayName = model.name || model.model;
-      const providerInfo = model.provider ? chalk.gray(`[${model.provider}]`) : '';
-      console.log(chalk.gray(`[${index}] `) + displayName + ` ${providerInfo}`);
-    });
-
-    // 显示返回和退出选项
-    console.log(chalk.gray(`[${backIndex}] 返回上一级`));
-    console.log(chalk.gray(`[${exitIndex}] 直接退出`));
-
-    try {
-      // 使用 inquirer 获取用户输入
-      const response = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'index',
-          message: '请输入要删除的索引号:',
-          validate: (value: string) => {
-            const num = parseInt(value, 10);
-            if (isNaN(num) || num < 0 || num >= totalOptions) {
-              return `请输入 0-${totalOptions - 1} 之间的数字`;
-            }
-            return true;
-          }
-        }
-      ] as any);
-
-      // 获取选择的索引
-      const selectedIndex = parseInt(response.index, 10);
-
-      // 返回上一级（回到工具选择）
-      if (selectedIndex === backIndex) {
-        await this.recreateReadline();
-        await this.showToolSelection();
-        return;
-      }
-
-      // 直接退出
-      if (selectedIndex === exitIndex) {
-        console.log(chalk.yellow('\nGoodbye!'));
-        this.rl.close();
-        process.exit(0);
-        return;
-      }
-
-      const selectedModel = models[selectedIndex];
-
-      // 删除模型（removeModel 内部会处理返回命令选择菜单）
-      await this.removeModel(selectedModel);
-    }
-    // 发生错误
-    catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.uiRenderer.showError(`选择失败: ${message}`);
-      await this.recreateReadline();
-      await this.showCommandSelection();
-    }
-  }
-
-  /**
-   * 显示查看模型信息选择菜单（用于 /info）
-   * 使用索引输入方式选择要查看的模型
-   *
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private async showInfoModelSelection(): Promise<void> {
-    // 未选择工具时不执行
-    if (!this.selectedAdapter) {
-      return;
-    }
-
-    const models = this.selectedAdapter.getSavedModels();
-
-    // 无保存模型时显示提示
-    if (models.length === 0) {
-      this.uiRenderer.showWarning(`\n${this.selectedAdapter.displayName} 没有保存的模型配置`);
-      this.uiRenderer.showInfo('请使用 /add 命令添加模型配置');
-      await this.showCommandSelection();
-      return;
-    }
-
-    // 移除旧监听器并关闭 readline 接口
-    this.rl.removeAllListeners('line');
-    this.rl.close();
-
-    // 确保 stdin 不在 raw mode
-    if (process.stdin.isRaw) {
-      process.stdin.setRawMode(false);
-    }
-    process.stdin.resume();
-
-    // 选项总数：模型数量 + 2（返回、退出）
-    const totalOptions = models.length + 2;
-    // 返回选项的索引
-    const backIndex = models.length;
-    // 退出选项的索引
-    const exitIndex = models.length + 1;
-
-    console.log(chalk.cyan(`\n=== 查看 ${this.selectedAdapter.displayName} 模型信息 ===`));
-    console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
-
-    // 显示每个模型的索引
-    models.forEach((model, index) => {
-      const displayName = model.name || model.model;
-      const providerInfo = model.provider ? chalk.gray(`[${model.provider}]`) : '';
-      console.log(chalk.gray(`[${index}] `) + displayName + ` ${providerInfo}`);
-    });
-
-    // 显示返回和退出选项
-    console.log(chalk.gray(`[${backIndex}] 返回上一级`));
-    console.log(chalk.gray(`[${exitIndex}] 直接退出`));
-
-    try {
-      // 使用 inquirer 获取用户输入
-      const response = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'index',
-          message: '请输入索引号:',
-          validate: (value: string) => {
-            const num = parseInt(value, 10);
-            if (isNaN(num) || num < 0 || num >= totalOptions) {
-              return `请输入 0-${totalOptions - 1} 之间的数字`;
-            }
-            return true;
-          }
-        }
-      ] as any);
-
-      // 获取选择的索引
-      const selectedIndex = parseInt(response.index, 10);
-
-      // 返回上一级（回到工具选择）
-      if (selectedIndex === backIndex) {
-        await this.recreateReadline();
-        await this.showToolSelection();
-        return;
-      }
-
-      // 直接退出
-      if (selectedIndex === exitIndex) {
-        console.log(chalk.yellow('\nGoodbye!'));
-        this.rl.close();
-        process.exit(0);
-        return;
-      }
-
-      const selectedModel = models[selectedIndex];
-
-      // 显示模型信息（JSON 格式）
-      this.showModelInfo(selectedModel);
-    }
-    // 发生错误
-    catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.uiRenderer.showError(`选择失败: ${message}`);
-      await this.recreateReadline();
-      await this.showCommandSelection();
-    }
-  }
-
-  /**
-   * 显示模型详细信息（JSON 格式）
-   *
-   * @param model - 模型配置
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private showModelInfo(model: UnifiedModelConfig): void {
-    console.log(chalk.cyan('\n=== 模型详细信息 ===\n'));
-    console.log(JSON.stringify(model, null, 2));
-    console.log('');
-  }
-
-  /**
-   * 删除模型配置
-   *
-   * @param selectedModel - 要删除的模型配置
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private async removeModel(selectedModel: UnifiedModelConfig): Promise<void> {
-    // 未选择工具时不执行
-    if (!this.selectedAdapter) {
-      return;
-    }
-
-    // 获取配置名称
-    const configName = selectedModel.name || selectedModel.model;
-
-    try {
-      // 删除配置
-      const success = this.selectedAdapter.removeModel(configName);
-
-      // 删除成功
-      if (success) {
-        this.uiRenderer.showSuccess(`\n模型配置已删除: ${configName}`);
-      }
-      // 删除失败（配置不存在）
-      else {
-        this.uiRenderer.showError(`\n删除失败: 配置不存在`);
-      }
-    }
-    // 删除失败
-    catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.uiRenderer.showError(`\n删除失败: ${message}`);
-    }
-
-    // 清理状态并返回命令选择菜单
-    this.nextOperation = null;
-    await this.showCommandSelection();
-  }
-
-  /**
-   * 处理 /add 命令
-   * 交互式让用户输入模型配置信息
-   *
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private async handleAddModel(): Promise<void> {
-    // 未选择工具时不执行
-    if (!this.selectedAdapter) {
-      return;
-    }
-
-    // 移除旧监听器并关闭 readline 接口
-    this.rl.removeAllListeners('line');
-    this.rl.close();
-
-    // 确保 stdin 不在 raw mode
-    if (process.stdin.isRaw) {
-      process.stdin.setRawMode(false);
-    }
-    process.stdin.resume();
-
-    console.log(chalk.cyan(`\n=== 添加 ${this.selectedAdapter.displayName} 模型配置 ===\n`));
-    console.log(chalk.gray('提示：可选字段不填写可直接按 Enter 跳过\n'));
-
-    try {
-      // 构建问题列表
-      const questions = this.buildAddModelQuestions();
-
-      // 收集用户输入
-      const response = await inquirer.prompt(questions as any);
-
-      // 用户取消输入
-      if (Object.keys(response).length === 0) {
-        await this.recreateReadline();
-        this.uiRenderer.showWarning('\n已取消');
-        await this.showCommandSelection();
-        return;
-      }
-
-      // 构建配置对象
-      const config = this.buildModelConfig(response);
-
-      // 验证配置
-      if (!this.selectedAdapter.validateConfig(config)) {
-        await this.recreateReadline();
-        this.uiRenderer.showError('\n配置验证失败！请检查必填字段。');
-        await this.showCommandSelection();
-        return;
-      }
-
-      // 保存配置
-      this.selectedAdapter.saveModel(config);
-      this.showAddModelResult(config);
-    }
-    // 添加失败
-    catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.uiRenderer.showError(`添加失败: ${message}`);
-    }
-
-    // 清理状态并返回命令选择菜单
-    this.nextOperation = null;
-    await this.recreateReadline();
-    await this.showCommandSelection();
-  }
-
-  /**
-   * 重新创建 readline 接口
-   * 在使用 prompts 库后需要重新创建
-   *
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private recreateReadline(): void {
-    // 恢复 stdin
-    process.stdin.resume();
-
-    this.rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-      prompt: '> ',
-      completer: this.completer.bind(this)
-    });
-
-    // 重新绑定 line 事件
-    this.rl.on('line', (input) => {
-      this.handleInput(input.trim());
-    });
-  }
-
-  /**
-   * 构建添加模型的问题列表
-   *
-   * @return inquirer 问题数组
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private buildAddModelQuestions(): inquirer.QuestionCollection[] {
-    // Claude 配置问题列表
-    return [
-      {
-        type: 'input',
-        name: 'configName',
-        message: '配置名称（可选，不填则使用模型名称）',
-      },
-      {
-        type: 'input',
-        name: 'model',
-        message: '模型名称（必填）',
-        validate: (value: string) => value.trim() !== '' || '模型名称为必填字段',
-      },
-      {
-        type: 'input',
-        name: 'apiKey',
-        message: 'API Key（必填）',
-        validate: (value: string) => value.trim() !== '' || 'API Key 为必填字段',
-      },
-      {
-        type: 'input',
-        name: 'baseUrl',
-        message: 'Base URL（必填）',
-        default: 'https://api.anthropic.com',
-        validate: (value: string) => value.trim() !== '' || 'Base URL 为必填字段',
-      },
-      {
-        type: 'input',
-        name: 'haikuModel',
-        message: 'Haiku 模型（可选）',
-      },
-      {
-        type: 'input',
-        name: 'sonnetModel',
-        message: 'Sonnet 模型（可选）',
-      },
-      {
-        type: 'input',
-        name: 'opusModel',
-        message: 'Opus 模型（可选）',
-      },
-    ];
-  }
-
-  /**
-   * 根据用户输入构建模型配置对象
-   *
-   * @param response - prompts 返回的用户输入
-   * @return 统一模型配置对象
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private buildModelConfig(response: Record<string, any>): UnifiedModelConfig {
-    // 基础配置字段
-    const config: UnifiedModelConfig = {
-      name: response.configName?.trim() || response.model.trim(),
-      model: response.model.trim(),
-      apiKey: response.apiKey.trim(),
-      baseUrl: response.baseUrl.trim(),
+  private buildContext(): OrchestratorContext {
+    return {
+      rl: this.rl,
+      ui: this.uiRenderer,
+      recreateReadline: () => this.recreateReadline(),
+      showCommandSelection: () => this.showCommandSelection(),
+      exitProgram: () => this.exitProgram(),
     };
-
-    // Claude 可选字段
-    if (response.haikuModel?.trim()) {
-      config.haikuModel = response.haikuModel.trim();
-    }
-    else {
-      // 可选字段不填则不设置
-    }
-
-    if (response.sonnetModel?.trim()) {
-      config.sonnetModel = response.sonnetModel.trim();
-    }
-    else {
-      // 可选字段不填则不设置
-    }
-
-    if (response.opusModel?.trim()) {
-      config.opusModel = response.opusModel.trim();
-    }
-    else {
-      // 可选字段不填则不设置
-    }
-
-    return config;
-  }
-
-  /**
-   * 显示添加模型的结果
-   *
-   * @param config - 添加的模型配置
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private showAddModelResult(config: UnifiedModelConfig): void {
-    this.uiRenderer.showSuccess('\n模型配置已添加:');
-    this.uiRenderer.showInfo(`  名称:     ${config.name}`);
-    this.uiRenderer.showInfo(`  模型:     ${config.model}`);
-
-    // API Key 截断显示（保护敏感信息）
-    const truncatedApiKey = config.apiKey.substring(0, 10) + '...';
-    this.uiRenderer.showInfo(`  API Key:  ${truncatedApiKey}`);
-    this.uiRenderer.showInfo(`  Base URL: ${config.baseUrl}`);
-  }
-
-  /**
-   * 切换模型
-   * 写入模型配置到工具配置文件
-   *
-   * @param config - 要切换的模型配置
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private async switchModel(config: UnifiedModelConfig): Promise<void> {
-    // 未选择工具时不执行
-    if (!this.selectedAdapter) {
-      return;
-    }
-
-    try {
-      // 验证配置完整性
-      if (!this.selectedAdapter.validateConfig(config)) {
-        this.uiRenderer.showError('\n配置验证失败！缺少必填字段。');
-        await this.showCommandSelection();
-        return;
-      }
-
-      // 写入配置（自动备份）
-      const backupFileName = this.selectedAdapter.writeModelConfig(config);
-
-      // 显示切换结果
-      this.showSwitchResult(config, backupFileName);
-    }
-    // 切换失败
-    catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.uiRenderer.showError(`切换失败: ${message}`);
-    }
-
-    // 清理状态并返回命令选择菜单
-    this.nextOperation = null;
-    await this.showCommandSelection();
-  }
-
-  /**
-   * 显示模型切换结果
-   *
-   * @param config - 切换后的模型配置
-   * @param backupFileName - 备份文件名
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private showSwitchResult(config: UnifiedModelConfig, backupFileName: string): void {
-    this.uiRenderer.showSuccess('\n模型已切换:');
-    this.uiRenderer.showInfo(`  工具:     ${this.selectedAdapter!.displayName}`);
-    this.uiRenderer.showInfo(`  模型:     ${config.model}`);
-
-    // 有备份文件时显示
-    if (backupFileName) {
-      this.uiRenderer.showInfo(`  备份:     ${backupFileName}`);
-    }
-    else {
-      // 无备份（配置文件不存在）
-    }
   }
 }
 
 /**
  * CLI 启动入口
  * 仅在直接运行此文件时启动 CLI
+ * 启动分发逻辑(interactive vs shortcut)委托给 bootstrap()
  */
 if (require.main === module) {
-  const cli = new CLI();
-
-  cli.start().catch((error: Error) => {
-    console.error(chalk.red(`Fatal error: ${error.message}`));
-    process.exit(1);
-  });
+  bootstrap(() => new CLI());
 }

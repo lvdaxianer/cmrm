@@ -1,0 +1,128 @@
+/**
+ * 模型操作处理器
+ * 抽离自 cli.ts，集中处理已选中模型的三类操作：switch / remove / info
+ *
+ * 拆分原因：
+ * - 三个操作各自体量较小（10-40 行），合并为一个文件减少模块碎片
+ * - 共享 ToolAdapter + UIRenderer 注入风格，便于未来扩展
+ *
+ * @author lvdaxianerplus
+ * @date 2026-05-03
+ */
+
+import chalk from 'chalk';
+import { ToolAdapter } from '../adapters';
+import { UnifiedModelConfig } from '../types';
+import { UIRenderer } from './ui';
+
+/**
+ * 切换工具的当前模型配置
+ * 写入工具配置文件（自动备份）并打印结果
+ *
+ * @param adapter - 工具适配器
+ * @param config - 待切换的模型配置
+ * @param ui - UI 渲染器
+ * @author lvdaxianerplus
+ * @date 2026-05-03
+ */
+export async function runSwitchAction(
+  adapter: ToolAdapter,
+  config: UnifiedModelConfig,
+  ui: UIRenderer
+): Promise<void> {
+  try {
+    // 验证配置完整性
+    if (!adapter.validateConfig(config)) {
+      ui.showError('\n配置验证失败！缺少必填字段。');
+      return;
+    }
+    // 验证通过：写入并展示结果
+    else {
+      const backupFileName = adapter.writeModelConfig(config);
+      showSwitchResult(adapter, config, backupFileName, ui);
+    }
+  }
+  // 切换异常：友好提示
+  catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    ui.showError(`切换失败: ${message}`);
+  }
+}
+
+/**
+ * 显示切换成功后的摘要
+ *
+ * @param adapter - 工具适配器
+ * @param config - 切换后的配置
+ * @param backupFileName - 备份文件名（无备份时为空字符串）
+ * @param ui - UI 渲染器
+ * @author lvdaxianerplus
+ * @date 2026-05-03
+ */
+function showSwitchResult(
+  adapter: ToolAdapter,
+  config: UnifiedModelConfig,
+  backupFileName: string,
+  ui: UIRenderer
+): void {
+  ui.showSuccess('\n模型已切换:');
+  ui.showInfo(`  工具:     ${adapter.displayName}`);
+  ui.showInfo(`  模型:     ${config.model}`);
+
+  // 有备份：附加备份文件名
+  if (backupFileName) {
+    ui.showInfo(`  备份:     ${backupFileName}`);
+  }
+  // 无备份：不输出额外行
+  else {
+    // 配置文件首次创建，无需备份
+  }
+}
+
+/**
+ * 删除指定的模型配置
+ *
+ * @param adapter - 工具适配器
+ * @param config - 要删除的模型配置
+ * @param ui - UI 渲染器
+ * @author lvdaxianerplus
+ * @date 2026-05-03
+ */
+export async function runRemoveAction(
+  adapter: ToolAdapter,
+  config: UnifiedModelConfig,
+  ui: UIRenderer
+): Promise<void> {
+  const configName = config.name || config.model;
+
+  try {
+    const success = adapter.removeModel(configName);
+
+    // 删除成功
+    if (success) {
+      ui.showSuccess(`\n模型配置已删除: ${configName}`);
+    }
+    // 删除失败（配置不存在）
+    else {
+      ui.showError(`\n删除失败: 配置不存在`);
+    }
+  }
+  // 异常：友好提示
+  catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    ui.showError(`\n删除失败: ${message}`);
+  }
+}
+
+/**
+ * 显示模型详细信息（JSON 格式）
+ *
+ * @param model - 模型配置
+ * @author lvdaxianerplus
+ * @date 2026-05-03
+ */
+export function showModelInfo(model: UnifiedModelConfig): void {
+  console.log(chalk.cyan('\n=== 模型详细信息 ===\n'));
+  console.log(JSON.stringify(model, null, 2));
+  console.log('');
+}
