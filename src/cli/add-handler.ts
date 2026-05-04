@@ -2,9 +2,7 @@
  * /add 命令处理器
  * 抽离自 cli.ts 的 handleAddModel 流程，包含交互输入、配置验证、测试连通性、保存确认
  *
- * 与 cli.ts 协作关系：
- * - cli.ts 选完工具后调用 runAddFlow
- * - 本模块处理具体输入收集与保存决策
+ * 流程：选择添加方式(模板/自定义) → 收集输入 → 验证 → 测试连通性 → 保存
  *
  * @author lvdaxianerplus
  * @date 2026-05-03
@@ -20,10 +18,31 @@ import { testModelConfig } from '../utils/tester';
 import { prepareForInquirer } from './readline-helper';
 import { buildAddModelQuestions, buildModelConfig } from './add-questions';
 import { askApiType } from './api-type-prompt';
+import { printIndexMenu, askIndex } from './index-prompt';
+import { templateManager } from './template-manager';
+import { selectTemplateAndSave } from './template-add-handler';
+
+/**
+ * 添加方式选项
+ */
+interface AddMethodOption {
+  /** 选项标识 */
+  value: 'template' | 'custom';
+  /** 显示文本 */
+  label: string;
+  /** 选项描述 */
+  description: string;
+}
+
+/** 添加方式选项列表 */
+const ADD_METHOD_OPTIONS: AddMethodOption[] = [
+  { value: 'template', label: '基于模板添加', description: '选择预设模型模板，自动填充配置' },
+  { value: 'custom', label: '自定义添加', description: '手动输入所有配置字段' },
+];
 
 /**
  * 执行 /add 主流程
- * 收集用户输入 → 验证 → 测试连通性 → 决定是否保存
+ * 选择添加方式 → 收集用户输入 → 验证 → 测试连通性 → 决定是否保存
  *
  * @param adapter - 已选中的工具适配器
  * @param ui - UI 渲染器
@@ -40,15 +59,114 @@ export async function runAddFlow(
   prepareForInquirer(rl);
 
   console.log(chalk.cyan(`\n=== 添加 ${adapter.displayName} 模型配置 ===\n`));
-  console.log(chalk.gray('提示：可选字段不填写可直接按 Enter 跳过\n'));
 
   try {
-    await collectAndSave(adapter, ui);
+    // 先选择添加方式
+    const method = await askAddMethod();
+
+    // 用户取消选择
+    if (!method) {
+      ui.showWarning('\n已取消');
+    }
+    // 用户选择了添加方式：分发到对应子流程
+    else {
+      await dispatchAddMethod(method, adapter, ui);
+    }
   }
-  // 添加流程异常：友好提示
+  // 添加流程异常：友好提示错误信息
   catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     ui.showError(`添加失败: ${message}`);
+  }
+}
+
+/**
+ * 询问添加方式
+ * 显示模板添加与自定义添加的索引菜单
+ *
+ * @return 'template' | 'custom' | null（取消）
+ * @author lvdaxianerplus
+ * @date 2026-05-03
+ */
+async function askAddMethod(): Promise<'template' | 'custom' | null> {
+  // 打印添加方式选择菜单
+  printIndexMenu('选择添加方式', ADD_METHOD_OPTIONS, (opt) => {
+    const desc = chalk.gray(`(${opt.description})`);
+    return opt.label + ` ${desc}`;
+  });
+
+  // 提示用户输入索引并校验范围
+  const idx = await askIndex(
+    `请输入方式索引(1-${ADD_METHOD_OPTIONS.length}):`,
+    ADD_METHOD_OPTIONS.length
+  );
+
+  // 用户取消或输入无效
+  if (idx === null) {
+    return null;
+  }
+  // 返回对应选项的值
+  else {
+    return ADD_METHOD_OPTIONS[idx - 1]?.value || null;
+  }
+}
+
+/**
+ * 根据用户选择的添加方式分发到对应子流程
+ *
+ * @param method - 用户选择的添加方式
+ * @param adapter - 工具适配器
+ * @param ui - UI 渲染器
+ * @author lvdaxianerplus
+ * @date 2026-05-04
+ */
+async function dispatchAddMethod(
+  method: 'template' | 'custom',
+  adapter: ToolAdapter,
+  ui: UIRenderer
+): Promise<void> {
+  // 基于模板添加：先检查模板可用性
+  if (method === 'template') {
+    await runTemplateAddFlow(adapter, ui);
+  }
+  // 自定义添加：进入手动输入流程
+  else {
+    console.log(chalk.gray('提示：可选字段不填写可直接按 Enter 跳过\n'));
+    await collectAndSave(adapter, ui);
+  }
+}
+
+/**
+ * 执行模板添加子流程
+ * 热加载模板列表，无模板时降级到自定义添加
+ *
+ * @param adapter - 工具适配器
+ * @param ui - UI 渲染器
+ * @author lvdaxianerplus
+ * @date 2026-05-04
+ */
+async function runTemplateAddFlow(adapter: ToolAdapter, ui: UIRenderer): Promise<void> {
+  // 热加载模板列表（每次重新读取文件）
+  const templates = templateManager.getTemplates();
+
+  // 无可用模板：降级到自定义添加
+  if (templates.length === 0) {
+    ui.showWarning('暂无可用模板，将使用自定义添加');
+    console.log(chalk.gray('提示：可选字段不填写可直接按 Enter 跳过\n'));
+    await collectAndSave(adapter, ui);
+  }
+  // 有可用模板：进入模板选择流程
+  else {
+    const response = await selectTemplateAndSave(adapter, ui, templates);
+
+    // 用户取消模板选择或配置输入
+    if (response === null) {
+      ui.showWarning('\n已取消');
+    }
+    // 收集完成：进入验证保存流程
+    else {
+      await validateAndPersist(adapter, ui, response);
+    }
   }
 }
 
@@ -70,7 +188,6 @@ async function collectAndSave(adapter: ToolAdapter, ui: UIRenderer): Promise<voi
   // 用户取消（Ctrl+C 等）
   if (Object.keys(response).length === 0) {
     ui.showWarning('\n已取消');
-    return;
   }
   // 输入完整：合并 apiType 后进入验证
   else {
@@ -92,12 +209,12 @@ async function validateAndPersist(
   ui: UIRenderer,
   response: Record<string, any>
 ): Promise<void> {
+  // 将 inquirer 响应组装为标准配置对象
   const config = buildModelConfig(response);
 
-  // 验证失败：终止流程
+  // 验证失败：终止流程，提示用户检查必填字段
   if (!adapter.validateConfig(config)) {
     ui.showError('\n配置验证失败！请检查必填字段。');
-    return;
   }
   // 验证通过：测试连通性后决定是否保存
   else {
@@ -119,9 +236,10 @@ async function testThenSave(
   ui: UIRenderer,
   config: UnifiedModelConfig
 ): Promise<void> {
+  // 测试配置连通性并询问保存意愿
   const shouldSave = await testAndConfirmSave(config, ui);
 
-  // 用户同意保存
+  // 用户同意保存：持久化配置并展示结果
   if (shouldSave) {
     adapter.saveModel(config);
     showAddModelResult(config, ui);
@@ -144,6 +262,7 @@ async function testThenSave(
 async function testAndConfirmSave(config: UnifiedModelConfig, ui: UIRenderer): Promise<boolean> {
   ui.showInfo('\n正在测试连接...');
 
+  // 发起模型连通性测试
   const result = await testModelConfig(
     config.model,
     config.apiKey,
@@ -152,11 +271,11 @@ async function testAndConfirmSave(config: UnifiedModelConfig, ui: UIRenderer): P
   );
   ui.showTestResult(result);
 
-  // 测试通过：直接保存
+  // 测试通过：直接同意保存
   if (result.success) {
     return true;
   }
-  // 测试失败：询问用户
+  // 测试失败：询问用户是否仍保存
   else {
     return confirmStillSave();
   }
@@ -170,6 +289,7 @@ async function testAndConfirmSave(config: UnifiedModelConfig, ui: UIRenderer): P
  * @date 2026-05-03
  */
 async function confirmStillSave(): Promise<boolean> {
+  // 弹出确认对话框
   const response = await inquirer.prompt([
     {
       type: 'confirm',
@@ -183,7 +303,7 @@ async function confirmStillSave(): Promise<boolean> {
 }
 
 /**
- * 显示添加成功结果（API Key 截断）
+ * 显示添加成功结果（API Key 截断脱敏）
  *
  * @param config - 已保存的配置对象
  * @param ui - UI 渲染器
@@ -195,7 +315,7 @@ function showAddModelResult(config: UnifiedModelConfig, ui: UIRenderer): void {
   ui.showInfo(`  名称:     ${config.name}`);
   ui.showInfo(`  模型:     ${config.model}`);
 
-  // API Key 脱敏（仅显示前 10 位）
+  // API Key 脱敏（仅显示前 10 位，避免泄露完整密钥）
   const truncatedApiKey = config.apiKey.substring(0, 10) + '...';
   ui.showInfo(`  API Key:  ${truncatedApiKey}`);
   ui.showInfo(`  Base URL: ${config.baseUrl}`);

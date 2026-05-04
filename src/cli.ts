@@ -31,6 +31,7 @@ import {
 } from './cli/operation-orchestrator';
 import { bootstrap } from './cli/bootstrap';
 import { printShortcutBanner } from './cli/shortcut-banner';
+import { templateManager } from './cli/template-manager';
 
 /**
  * CLI 类
@@ -120,6 +121,22 @@ export class CLI {
     // 不存在：尝试初始化
     else {
       this.initializeConfigFile();
+    }
+
+    // 确保模板配置文件存在（优先远程拉取，失败则用内置默认）
+    const templateInitResult = await templateManager.initializeDefaults();
+
+    // 远程拉取失败：提示用户使用内置模板，并告知如何手动刷新
+    if (templateInitResult === 'builtin') {
+      const templatesPath = templateManager.getTemplatesPath();
+
+      console.log(chalk.yellow('\n模板远程拉取失败，已使用内置默认模板。'));
+      console.log(chalk.gray(`如需更新到最新模板，请检查网络后删除 ${templatesPath} 重新启动。`));
+      console.log(chalk.gray(`或手动编辑该文件添加自定义模型模板。`));
+    }
+    // 远程拉取成功或本地已存在：静默处理，无需额外提示
+    else {
+      // 不输出任何提示，避免干扰用户正常操作流程
     }
   }
 

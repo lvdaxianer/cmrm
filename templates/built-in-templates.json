@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "description": "DeepSeek V3.2 (Anthropic 格式)",
+      "model": "DeepSeek-V3.2",
+      "baseUrl": "https://api.deepseek.com/anthropic",
+      "apiType": "anthropic",
+      "provider": "deepseek"
+    },
+    {
+      "id": "zhipu-bigmodel",
+      "name": "智谱 AI (bigmodel)",
+      "description": "智谱 GLM-4.7 (bigmodel 接入点)",
+      "model": "glm-4.7",
+      "baseUrl": "https://open.bigmodel.cn/api/anthropic",
+      "apiType": "anthropic",
+      "provider": "zhipu"
+    },
+    {
+      "id": "zai",
+      "name": "Z.AI",
+      "description": "智谱 GLM-4.7 (Z.AI 接入点)",
+      "model": "glm-4.7",
+      "baseUrl": "https://api.z.ai/api/anthropic",
+      "apiType": "anthropic",
+      "provider": "zai"
+    },
+    {
+      "id": "kimi",
+      "name": "Kimi / Moonshot",
+      "description": "月之暗面 Kimi (Coding 端点)",
+      "model": "kimi-k2.6",
+      "baseUrl": "https://api.kimi.com/coding/",
+      "apiType": "anthropic",
+      "provider": "kimi"
+    },
+    {
+      "id": "minimax-cn",
+      "name": "Minimax 国内版",
+      "description": "海螺 AI MiniMax-M2.1 (Anthropic 格式)",
+      "model": "MiniMax-M2.1",
+      "baseUrl": "https://api.minimaxi.com/anthropic",
+      "apiType": "anthropic",
+      "provider": "minimax"
+    },
+    {
+      "id": "minimax-intl",
+      "name": "Minimax 国际版",
+      "description": "MiniMax International M2.1 (Anthropic 格式)",
+      "model": "MiniMax-M2.1",
+      "baseUrl": "https://api.minimax.io/anthropic",
+      "apiType": "anthropic",
+      "provider": "minimax"
+    },
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "description": "OpenRouter 聚合 API (Anthropic 格式)",
+      "model": "anthropic/claude-sonnet-4.5",
+      "baseUrl": "https://openrouter.ai/api",
+      "apiType": "anthropic",
+      "provider": "openrouter",
+      "haikuModel": "anthropic/claude-haiku-4.5",
+      "sonnetModel": "anthropic/claude-sonnet-4.5",
+      "opusModel": "anthropic/claude-opus-4.5"
+    },
+    {
+      "id": "xiaomi",
+      "name": "小米 MiMo",
+      "description": "小米 MiMo-v2-flash (Anthropic 格式)",
+      "model": "mimo-v2-flash",
+      "baseUrl": "https://api.xiaomimimo.com/anthropic",
+      "apiType": "anthropic",
+      "provider": "xiaomi"
+    },
+    {
+      "id": "alibaba",
+      "name": "通义千问 / DashScope",
+      "description": "阿里云 qwen3-max (Anthropic 格式)",
+      "model": "qwen3-max",
+      "baseUrl": "https://dashscope.aliyuncs.com/apps/anthropic",
+      "apiType": "anthropic",
+      "provider": "alibaba"
+    }
+  ]
+}

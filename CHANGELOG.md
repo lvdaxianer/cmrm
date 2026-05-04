@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-04
+
+### Added
+- 模型模板功能，`/add` 进入后支持"基于模板添加"和"自定义添加"
+- 9 个内置模型模板（DeepSeek、智谱 AI、Kimi、Minimax 国内/国际、OpenRouter、小米 MiMo、通义千问）
+- 模板配置文件 `~/.cmrm/templates.json`，支持热更新和用户自定义
+- 首次启动自动从 GitHub Raw 拉取远程模板，网络失败时回退内置默认并提示用户
+- 模板字段预填充（model、baseUrl、apiType、可选模型），用户仅需输入 apiKey
+- `TemplateManager` 模板管理器，负责模板配置的读写、热加载与远程刷新
+- `TemplateFetcher` 远程拉取器，支持 3xx 重定向跟随，使用 Buffer 数组收集响应体
+- `IndexPrompt` 通用索引提示器，统一索引菜单打印与输入校验逻辑
+
+### Changed
+- `/add` 命令交互流程重构：先选择添加方式（模板/自定义），再进入字段收集
+- `add-questions.ts` 支持默认值注入，`buildAddModelQuestionsWithDefaults` 为模板场景预填充字段
+- `add-handler.ts` 拆分为 `template-add-handler.ts`，模板选择与自定义添加职责分离
+- 代码审查整改：方法行数控制（≤20 行）、if-else 强制配对、循环内字符串拼接修复
+
 ## [0.1.0] - 2026-05-03
 
 ### Added

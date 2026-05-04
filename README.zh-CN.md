@@ -11,11 +11,12 @@
 ## 功能特性
 
 - 🔄 **Claude 支持** - 完全支持 Claude CLI 模型配置
+- 📝 **模型模板** - 9 个内置提供商模板，自动填充 model/baseUrl，仅需输入 API Key
 - 📦 **备份机制** - 每次配置写入前自动备份
 - 🔀 **合并策略** - 保留现有配置字段，仅更新模型相关字段
 - 🔢 **索引选择** - 输入数字进行选择，Enter 确认
 - ↩️ **导航选项** - 可返回上一级或直接退出
-- ➕ **添加模型** - 交互式逐字段输入，自动验证
+- ➕ **添加模型** - 支持基于模板添加或自定义逐字段输入，自动验证
 - 📋 **查看所有配置** - 按工具分组显示
 - ℹ️ **查看模型详情** - 以 JSON 格式显示完整配置
 - 🔍 **当前模型状态** - 显示当前生效的模型
@@ -100,18 +101,30 @@ cmrm
 
 ### 添加新模型
 
-使用 `/add` 命令输入配置字段：
+使用 `/add` 命令，首先选择添加方式：
 
-- **配置名称**（可选）- 配置的友好名称
-- **API 类型**（必选）- `anthropic`（Claude Messages）或 `openai`（Chat Completions），默认 `anthropic`
-- **模型名称**（必填）- 如 `claude-sonnet-4-5`
-- **API Key**（必填）
-- **Base URL**（必填）- 如 `https://api.anthropic.com`
-- **Haiku 模型**（可选）
-- **Sonnet 模型**（可选）
-- **Opus 模型**（可选）
+1. **基于模板添加**（推荐）- 从 9 个内置提供商模板中选择：
+   - DeepSeek、智谱 AI（bigmodel/Z.AI）、Kimi、Minimax（国内/国际）、OpenRouter、小米 MiMo、通义千问
+   - 模板自动预填 `model`、`baseUrl`、`apiType` 及可选模型
+   - 仅需输入你的 **API Key**
+
+2. **自定义添加** - 手动输入所有字段：
+   - **配置名称**（可选）- 配置的友好名称
+   - **API 类型**（必选）- `anthropic` 或 `openai`，默认 `anthropic`
+   - **模型名称**（必填）
+   - **API Key**（必填）
+   - **Base URL**（必填）
+   - **Haiku/Sonnet/Opus 模型**（可选）
 
 > 💡 配置完成后，cmrm 会自动发起 ping 请求验证配置可用性。如果测试失败，会询问是否仍然保存。
+
+### 模型模板
+
+模板存储在 `~/.cmrm/templates.json` 中，支持**热更新**——直接编辑文件即可生效，无需重启。
+
+- **首次启动**：自动从 GitHub Raw 拉取最新模板；离线时回退到内置默认
+- **自定义模板**：编辑 `~/.cmrm/templates.json` 添加你自己的提供商
+- **刷新模板**：删除 `~/.cmrm/templates.json` 后重启即可重新从远程拉取
 
 ### 测试模型配置
 
@@ -181,6 +194,7 @@ cmrm 支持两种 API 协议格式：
 |------|----------|------|------|
 | Claude | `~/.claude/settings.json` | JSON | 设置和模型配置 |
 | cmrm 存储 | `~/.cmrm/settings.json` | JSON | 保存的模型配置 |
+| cmrm 模板 | `~/.cmrm/templates.json` | JSON | 模型提供商模板（支持热更新） |
 
 ### Claude 配置说明
 
@@ -214,6 +228,12 @@ npm start
 ```
 
 ## 更新日志
+
+### 0.2.0
+- 📝 新增模型模板功能：9 个内置提供商模板，`/add` 支持基于模板添加或自定义添加
+- 📝 模板配置文件 `~/.cmrm/templates.json` 支持热更新，首次启动自动从 GitHub Raw 拉取
+- 📝 模板字段自动预填（model、baseUrl、apiType），仅需输入 API Key
+- 📝 抽离 `TemplateManager`、`TemplateFetcher`、`IndexPrompt`、`TemplateAddHandler` 模块
 
 ### 0.1.0
 - ✨ 新增模型多别名管理:`UnifiedModelConfig.aliases?: string[]`,跨工具/跨模型全局唯一

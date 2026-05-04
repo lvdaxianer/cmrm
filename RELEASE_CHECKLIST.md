@@ -33,6 +33,7 @@
 | 提交记录完整 | `git log --oneline -5` | 包含所有预期改动 |
 | 分支正确 | `git branch` | 在期望的分支上（通常是 master/main） |
 | 无敏感信息 | `git diff` 检查 | 无 hardcoded secrets、API keys 等 |
+| 新文件已跟踪 | `git ls-files --others --exclude-standard` | 无预期外未跟踪文件 |
 
 ---
 

@@ -11,11 +11,12 @@ This tool provides a convenient way to **manage Claude CLI model configurations*
 ## Features
 
 - 🔄 **Claude support** - Full support for Claude CLI model configuration
+- 📝 **Model templates** - 9 built-in provider templates, auto-fill model/baseUrl, only API Key needed
 - 📦 **Backup mechanism** - Automatic backup before each config write
 - 🔀 **Merge strategy** - Preserve existing config fields, only update model-related fields
 - 🔢 **Index-based selection** - Input numbers to select, Enter to confirm
 - ↩️ **Navigation options** - Return to previous level or exit directly
-- ➕ **Add models** - Interactive field-by-field input with validation
+- ➕ **Add models** - Template-based or custom field-by-field input with validation
 - 📋 **View all configurations** - Grouped display by tool
 - ℹ️ **View model details** - Display full config in JSON format
 - 🔍 **Current model status** - Show active model
@@ -100,18 +101,30 @@ Example:
 
 ### Adding New Models
 
-Use `/add` command to enter configuration fields:
+Use `/add` command. You'll first choose between two modes:
 
-- **Config name** (optional) - Friendly name for this config
-- **API type** (required) - `anthropic` (Claude Messages) or `openai` (Chat Completions), defaults to `anthropic`
-- **Model name** (required) - e.g., `claude-sonnet-4-5`
-- **API Key** (required)
-- **Base URL** (required) - e.g., `https://api.anthropic.com`
-- **Haiku model** (optional)
-- **Sonnet model** (optional)
-- **Opus model** (optional)
+1. **Template-based** (recommended) - Select from 9 built-in provider templates:
+   - DeepSeek, Zhipu AI (bigmodel/Z.AI), Kimi, Minimax (CN/Intl), OpenRouter, Xiaomi MiMo, Alibaba Qwen
+   - Template pre-fills `model`, `baseUrl`, `apiType`, and optional models
+   - You only need to enter your **API Key**
 
-> 💡 After entering the configuration, cmrm will send a ping request to verify the configuration. If the test fails, you'll be asked whether to save it anyway.
+2. **Custom** - Enter all fields manually:
+   - **Config name** (optional) - Friendly name for this config
+   - **API type** (required) - `anthropic` or `openai`, defaults to `anthropic`
+   - **Model name** (required)
+   - **API Key** (required)
+   - **Base URL** (required)
+   - **Haiku/Sonnet/Opus model** (optional)
+
+> 💡 After entering the configuration, cmrm will send a ping request to verify it. If the test fails, you'll be asked whether to save it anyway.
+
+### Model Templates
+
+Templates are stored in `~/.cmrm/templates.json` and support **hot-reload** - edit the file and changes take effect immediately without restarting.
+
+- **First launch**: Automatically fetches the latest templates from GitHub Raw; falls back to built-in defaults if offline
+- **Custom templates**: Edit `~/.cmrm/templates.json` to add your own providers
+- **Refresh**: Delete `~/.cmrm/templates.json` and restart to re-fetch from remote
 
 ### Testing Model Configurations
 
@@ -181,6 +194,7 @@ Example output:
 |------|-------------|--------|-------------|
 | Claude | `~/.claude/settings.json` | JSON | Settings and model config |
 | cmrm storage | `~/.cmrm/settings.json` | JSON | Saved model configurations |
+| cmrm templates | `~/.cmrm/templates.json` | JSON | Model provider templates (hot-reloadable) |
 
 ### Claude Configuration
 
@@ -214,6 +228,12 @@ npm start
 ```
 
 ## Changelog
+
+### 0.2.0
+- 📝 Add model templates: 9 built-in provider templates, `/add` supports template-based or custom adding
+- 📝 Templates hot-reload from `~/.cmrm/templates.json`, auto-fetch from GitHub Raw on first launch
+- 📝 Template fields auto-filled (model, baseUrl, apiType), only API Key required
+- 📝 Extract `TemplateManager`, `TemplateFetcher`, `IndexPrompt`, `TemplateAddHandler` modules
 
 ### 0.1.0
 - ✨ Add model multi-aliases management: `UnifiedModelConfig.aliases?: string[]`, globally unique across tools/models
