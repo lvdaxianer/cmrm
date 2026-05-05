@@ -11,6 +11,8 @@ This tool provides a convenient way to **manage Claude CLI model configurations*
 ## Features
 
 - 🔄 **Claude support** - Full support for Claude CLI model configuration
+- 🌏 **Multi-language support** - Chinese (zh), English (en), Japanese (ja) with auto geo-detection
+- 🌍 **Language switching** - Use `/set-lang` command to switch language manually
 - 📝 **Model templates** - 9 built-in provider templates, auto-fill model/baseUrl, only API Key needed
 - 📦 **Backup mechanism** - Automatic backup before each config write
 - 🔀 **Merge strategy** - Preserve existing config fields, only update model-related fields
@@ -20,7 +22,7 @@ This tool provides a convenient way to **manage Claude CLI model configurations*
 - 📋 **View all configurations** - Grouped display by tool
 - ℹ️ **View model details** - Display full config in JSON format
 - 🔍 **Current model status** - Show active model
-- 🧪 **Connection testing** - Verify model configuration via real HTTP request
+- 🧪 **Connection testing** - Verify model configuration via real HTTP request with retry
 - 🌐 **Multi-protocol support** - Compatible with both Anthropic Messages and OpenAI Chat Completions
 - 💡 **Smart suggestions** - Recommend similar commands for unknown inputs
 
@@ -54,10 +56,11 @@ cmrm
 | `/add` | Add a new model configuration interactively (auto-tests before saving) |
 | `/remove` | Remove a saved model configuration |
 | `/info` | View detailed model configuration in JSON format |
-| `/test` | Test if a model configuration works (saved or custom) |
+| `/test` | Test if a model configuration works (saved or custom, with retry) |
 | `/alias` | Manage model aliases (add/remove/list) |
 | `/list` | Display all saved model configurations |
 | `/current` | Display the currently configured model |
+| `/set-lang` | Switch interface language (zh/en/ja) |
 | `/exit` | Exit the CLI |
 
 ### CLI Shortcuts
@@ -228,6 +231,12 @@ npm start
 ```
 
 ## Changelog
+
+### 0.2.1
+- 🌏 Add multi-language support (zh/en/ja) with geo-detection auto-switch
+- 🌍 Add `/set-lang` command for manual language switching
+- 🔄 Add test retry mechanism (3 retries by default, configurable via `settings.retry`)
+- 📝 Migrate all UI text to i18n system, remove hardcoded strings
 
 ### 0.2.0
 - 📝 Add model templates: 9 built-in provider templates, `/add` supports template-based or custom adding
