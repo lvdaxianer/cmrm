@@ -10,11 +10,12 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { ApiType } from '../adapters/types';
+import { t } from '../i18n';
 
 /** API 类型选项(索引从 1 开始,与用户输入对齐) */
-const API_TYPE_OPTIONS: { value: ApiType; description: string }[] = [
-  { value: 'anthropic', description: 'Claude Messages 格式' },
-  { value: 'openai', description: 'Chat Completions 格式' },
+const API_TYPE_OPTIONS: { value: ApiType; labelKey: string; description: string }[] = [
+  { value: 'anthropic', labelKey: 'add.apiTypeAnthropic', description: 'Claude Messages 格式' },
+  { value: 'openai', labelKey: 'add.apiTypeOpenAI', description: 'Chat Completions 格式' },
 ];
 
 /** 默认索引(对应 anthropic) */
@@ -35,7 +36,7 @@ export async function askApiType(): Promise<ApiType> {
     {
       type: 'input',
       name: 'index',
-      message: `请输入索引(默认 ${DEFAULT_INDEX}):`,
+      message: `${t('tools.enterIndex')} (default ${DEFAULT_INDEX}):`,
       default: DEFAULT_INDEX,
       validate: validateApiTypeIndex,
     },
@@ -52,13 +53,13 @@ export async function askApiType(): Promise<ApiType> {
  * @date 2026-05-03
  */
 function printApiTypeMenu(): void {
-  console.log(chalk.cyan('\n=== 选择 API 类型 ==='));
-  console.log(chalk.gray('(输入索引号按 Enter 确认,默认为 1=anthropic)\n'));
+  console.log(chalk.cyan('\n=== ' + t('add.apiTypeSelect') + ' ==='));
+  console.log(chalk.gray('(' + t('tools.selectToolHint') + ', default 1)\n'));
 
   API_TYPE_OPTIONS.forEach((option, index) => {
     const indexNum = index + 1;
     const desc = chalk.gray(`(${option.description})`);
-    console.log(chalk.gray(`[${indexNum}] `) + option.value + ` ${desc}`);
+    console.log(chalk.gray(`[${indexNum}] `) + t(option.labelKey) + ` ${desc}`);
   });
   console.log('');
 }
@@ -78,7 +79,7 @@ export function validateApiTypeIndex(value: string): string | true {
 
   // 输入非法:返回提示语
   if (isNaN(num) || num < 1 || num > max) {
-    return `请输入 1-${max} 之间的数字`;
+    return t('alias.invalidIndex', { max: max });
   }
   // 输入合法:放行
   else {

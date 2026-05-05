@@ -11,6 +11,7 @@
  */
 
 import chalk from 'chalk';
+import { t } from '../i18n';
 
 /**
  * 打印 CLI 使用说明
@@ -34,7 +35,7 @@ export function printHelp(): void {
  */
 function printHeader(): void {
   console.log(chalk.cyan('cmrm - Model Registry Manager'));
-  console.log(chalk.gray('Claude CLI 模型快速切换/测试工具\n'));
+  console.log(chalk.gray(`${t('help.subtitle')}\n`));
 }
 
 /**
@@ -45,11 +46,11 @@ function printHeader(): void {
  */
 function printUsage(): void {
   console.log(chalk.cyan('USAGE:'));
-  console.log('  ' + chalk.green('cmrm') + chalk.gray('                                 进入交互式菜单(默认)'));
-  console.log('  ' + chalk.green('cmrm switch <model-name>') + chalk.gray('             快速切换 claude 工具的模型'));
-  console.log('  ' + chalk.green('cmrm test <model-name>') + chalk.gray('               快速测试已保存模型的连通性'));
-  console.log('  ' + chalk.green('cmrm alias <model-name> <new-alias>') + chalk.gray('  为模型添加全局唯一别名'));
-  console.log('  ' + chalk.green('cmrm --help, -h') + chalk.gray('                      显示本帮助'));
+  console.log('  ' + chalk.green('cmrm') + chalk.gray(`                                 ${t('help.usageInteractive')}`));
+  console.log('  ' + chalk.green('cmrm switch <model-name>') + chalk.gray(`             ${t('help.usageSwitch')}`));
+  console.log('  ' + chalk.green('cmrm test <model-name>') + chalk.gray(`               ${t('help.usageTest')}`));
+  console.log('  ' + chalk.green('cmrm alias <model-name> <new-alias>') + chalk.gray(`  ${t('help.usageAlias')}`));
+  console.log('  ' + chalk.green('cmrm --help, -h') + chalk.gray(`                      ${t('help.usageHelp')}`));
   console.log('');
 }
 
@@ -61,11 +62,11 @@ function printUsage(): void {
  */
 function printExamples(): void {
   console.log(chalk.cyan('EXAMPLES:'));
-  console.log('  ' + chalk.gray('# 切换到名为 sonnet-4 的模型(默认工具=claude)'));
+  console.log('  ' + chalk.gray(`# ${t('help.exampleSwitchComment')}`));
   console.log('  ' + chalk.green('cmrm switch sonnet-4'));
-  console.log('  ' + chalk.gray('# 测试 gpt-4o-mini 模型的连通性'));
+  console.log('  ' + chalk.gray(`# ${t('help.exampleTestComment')}`));
   console.log('  ' + chalk.green('cmrm test gpt-4o-mini'));
-  console.log('  ' + chalk.gray('# 为 sonnet-4 模型添加 fast 别名,之后可 cmrm switch fast'));
+  console.log('  ' + chalk.gray(`# ${t('help.exampleAliasComment')}`));
   console.log('  ' + chalk.green('cmrm alias sonnet-4 fast'));
   console.log('');
 }
@@ -78,9 +79,9 @@ function printExamples(): void {
  */
 function printNotes(): void {
   console.log(chalk.cyan('NOTES:'));
-  console.log(chalk.gray('  - 模型名按 name → aliases → model 三级匹配,首项命中即返回'));
-  console.log(chalk.gray('  - 别名全局唯一,跨模型/跨工具不可重复'));
-  console.log(chalk.gray('  - 找不到模型时会列出所有可用名称,退出码为 1'));
-  console.log(chalk.gray('  - 不传任何参数时进入完整交互菜单'));
+  console.log(chalk.gray(`  - ${t('help.noteMatchRule')}`));
+  console.log(chalk.gray(`  - ${t('help.noteAliasUnique')}`));
+  console.log(chalk.gray(`  - ${t('help.noteNotFound')}`));
+  console.log(chalk.gray(`  - ${t('help.noteInteractive')}`));
   console.log('');
 }

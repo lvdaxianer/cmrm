@@ -12,6 +12,7 @@
 
 import chalk from 'chalk';
 import { AVAILABLE_COMMANDS, CommandDefinition } from './commands';
+import { t } from '../i18n';
 
 /** Levenshtein 距离阈值（≤ 该值视为相似命令） */
 const LEVENSHTEIN_THRESHOLD = 3;
@@ -42,6 +43,22 @@ export function isExitCommand(input: string): boolean {
  * @date 2026-05-03
  */
 export function levenshteinDistance(a: string, b: string): number {
+  const matrix = createMatrix(a, b);
+  fillMatrix(matrix, a, b);
+  return matrix[b.length][a.length];
+}
+
+/**
+ * 创建编辑距离矩阵
+ * 初始化首行和首列
+ *
+ * @param a - 源字符串
+ * @param b - 目标字符串
+ * @return 初始化后的矩阵
+ * @author lvdaxianerplus
+ * @date 2026-05-05
+ */
+function createMatrix(a: string, b: string): number[][] {
   const matrix: number[][] = [];
 
   // 初始化首列
@@ -54,19 +71,28 @@ export function levenshteinDistance(a: string, b: string): number {
     matrix[0][j] = j;
   }
 
-  // 填充矩阵
+  return matrix;
+}
+
+/**
+ * 填充编辑距离矩阵
+ *
+ * @param matrix - 矩阵引用
+ * @param a - 源字符串
+ * @param b - 目标字符串
+ * @author lvdaxianerplus
+ * @date 2026-05-05
+ */
+function fillMatrix(matrix: number[][], a: string, b: string): void {
   for (let i = 1; i <= b.length; i++) {
     for (let j = 1; j <= a.length; j++) {
       matrix[i][j] = computeCell(matrix, a, b, i, j);
     }
   }
-
-  return matrix[b.length][a.length];
 }
 
 /**
  * 计算编辑距离矩阵单元格的值
- * 抽离自 levenshteinDistance 内部循环以满足 ≤20 行规范
  *
  * @param matrix - 当前矩阵
  * @param a - 源字符串
@@ -147,44 +173,34 @@ export function showCommandSuggestions(input: string, printError: (msg: string) 
 
   // 无任何前缀匹配：错误提示 + 列出所有命令
   if (matches.length === 0) {
-    printError(`No command starts with: ${input}`);
-    listAllCommands();
+    printError(t('fuzzy.noCommandStartsWith', { input }));
+    listCommands(AVAILABLE_COMMANDS, false);
   }
   // 有匹配：列出匹配项
   else {
-    listMatches(matches);
+    listCommands(matches, true);
   }
 }
 
 /**
- * 列出所有可用命令
+ * 列出命令列表
  *
+ * @param commands - 要列出的命令数组
+ * @param showHint - 是否显示按 Enter 提示
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-05
  */
-function listAllCommands(): void {
-  console.log(chalk.cyan('\nAvailable commands:'));
+function listCommands(commands: CommandDefinition[], showHint: boolean = false): void {
+  console.log(chalk.cyan(`\n${t('fuzzy.availableCommands')}:`));
 
-  AVAILABLE_COMMANDS.forEach(cmd => {
-    console.log(chalk.gray(`  ${cmd.name} - ${cmd.description}`));
-  });
-}
-
-/**
- * 列出匹配的命令
- *
- * @param matches - 匹配的命令数组
- * @author lvdaxianerplus
- * @date 2026-05-03
- */
-function listMatches(matches: CommandDefinition[]): void {
-  console.log(chalk.cyan('\nAvailable commands:'));
-
-  matches.forEach(cmd => {
+  commands.forEach(cmd => {
     console.log(chalk.gray(`  ${cmd.name} - ${cmd.description}`));
   });
 
-  console.log(chalk.gray('\n  (Press Enter to confirm, or continue typing)'));
+  // 仅在需要提示时显示
+  if (showHint) {
+    console.log(chalk.gray(`\n  (${t('fuzzy.pressEnterHint')})`));
+  }
 }
 
 /**
@@ -203,7 +219,7 @@ export function handleUnknownCommand(
   printWarn: (msg: string) => void,
   printInfo: (msg: string) => void
 ): void {
-  printError(`Unknown command: ${input}`);
+  printError(t('fuzzy.unknownCommand', { input }));
 
   const suggestions = findSimilarCommands(input);
 
@@ -213,7 +229,7 @@ export function handleUnknownCommand(
   }
   // 无相似命令：列出常用命令
   else {
-    printInfo('Available commands: /switch, /add, /remove, /info, /test, /list, /current, /exit');
+    printInfo(t('fuzzy.commandListFallback'));
   }
 }
 
@@ -226,7 +242,7 @@ export function handleUnknownCommand(
  * @date 2026-05-03
  */
 function printSuggestions(suggestions: CommandDefinition[], printWarn: (msg: string) => void): void {
-  printWarn('Did you mean:');
+  printWarn(t('fuzzy.didYouMean'));
 
   suggestions.forEach(cmd => {
     console.log(`  ${chalk.green(cmd.name)} - ${chalk.gray(cmd.description)}`);

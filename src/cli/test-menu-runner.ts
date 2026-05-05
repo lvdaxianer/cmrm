@@ -18,6 +18,7 @@ import chalk from 'chalk';
 import { ToolAdapter } from '../adapters';
 import { UIRenderer } from './ui';
 import { TestHandler, TestMenuChoice } from './test-handler';
+import { t } from '../i18n';
 
 /**
  * 执行 /test 主菜单流程
@@ -77,7 +78,7 @@ async function runOneRound(handler: TestHandler, ui: UIRenderer): Promise<boolea
  * @date 2026-05-03
  */
 function printContinueHint(ui: UIRenderer): void {
-  ui.showInfo('\n可以继续选择测试方式，或选择「返回上一级」回到命令菜单');
+  ui.showInfo('\n' + t('test.continueHint'));
 }
 
 /**
@@ -93,7 +94,7 @@ function handleTestMenuError(error: unknown, ui: UIRenderer): void {
   const message = error instanceof Error ? error.message : String(error);
 
   // 用户可见提示
-  ui.showError(`\n测试失败: ${message}`);
+  ui.showError(`\n${t('test.testFailed')}: ${message}`);
 
   // Error 实例：保留 stack 便于排查
   if (error instanceof Error && error.stack) {
@@ -127,7 +128,7 @@ async function dispatchTestChoice(handler: TestHandler, choice: TestMenuChoice):
   }
   // 直接退出程序（不返回）
   else if (choice === 'exit') {
-    console.log(chalk.yellow('\nGoodbye!'));
+    console.log(chalk.yellow('\n' + t('commands.goodbye')));
     process.exit(0);
   }
   // back：跳出循环，由外层返回命令菜单

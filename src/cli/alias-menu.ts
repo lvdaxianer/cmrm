@@ -18,6 +18,7 @@ import { UnifiedModelConfig } from '../types';
 import { UIRenderer } from './ui';
 import { getModelKey } from './alias-validator';
 import { handleAddAlias, handleRemoveAlias, handleListAliases } from './alias-actions';
+import { t } from '../i18n';
 
 /** 子菜单选项索引常量 */
 export const ACTION_INDEX = {
@@ -131,14 +132,14 @@ async function dispatchAction(
  */
 function renderSubMenu(model: UnifiedModelConfig): void {
   const aliases = model.aliases ?? [];
-  const aliasText = aliases.length > 0 ? aliases.join(', ') : '(无)';
+  const aliasText = aliases.length > 0 ? aliases.join(', ') : t('alias.none');
 
-  console.log(chalk.cyan(`\n=== 管理 ${getModelKey(model)} 的别名 ===`));
-  console.log(chalk.gray(`当前别名: [${aliasText}]\n`));
-  console.log(chalk.gray(`[${ACTION_INDEX.ADD}] 添加别名`));
-  console.log(chalk.gray(`[${ACTION_INDEX.REMOVE}] 删除别名`));
-  console.log(chalk.gray(`[${ACTION_INDEX.LIST}] 列出别名`));
-  console.log(chalk.gray(`[${ACTION_INDEX.BACK}] 返回上一级`));
+  console.log(chalk.cyan(`\n=== ${t('alias.manageTitle', { model: getModelKey(model) })} ===`));
+  console.log(chalk.gray(`${t('alias.currentAliases')}: [${aliasText}]\n`));
+  console.log(chalk.gray(`[${ACTION_INDEX.ADD}] ${t('alias.add')}`));
+  console.log(chalk.gray(`[${ACTION_INDEX.REMOVE}] ${t('alias.remove')}`));
+  console.log(chalk.gray(`[${ACTION_INDEX.LIST}] ${t('alias.list')}`));
+  console.log(chalk.gray(`[${ACTION_INDEX.BACK}] ${t('tools.back')}`));
 }
 
 /**
@@ -153,7 +154,7 @@ async function promptActionIndex(): Promise<number> {
     {
       type: 'input',
       name: 'index',
-      message: '请输入索引号:',
+      message: t('tools.enterIndex'),
       validate: (value: string) => validateActionIndex(value),
     },
   ] as any);
@@ -174,7 +175,7 @@ function validateActionIndex(value: string): true | string {
 
   // 非数字 / 越界
   if (isNaN(num) || num < 0 || num >= ACTION_COUNT) {
-    return `请输入 0-${ACTION_COUNT - 1} 之间的数字`;
+    return t('alias.invalidIndex', { max: ACTION_COUNT - 1 });
   }
   // 合法
   else {

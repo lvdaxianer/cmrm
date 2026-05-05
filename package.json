@@ -1,14 +1,14 @@
 {
   "name": "cmrm",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "CLI tool to manage and switch Claude CLI model configurations",
   "main": "dist/cli.js",
   "bin": {
     "cmrm": "./dist/cli.js"
   },
   "scripts": {
-    "build": "esbuild src/cli.ts --bundle --platform=node --target=es2017 --outfile=dist/cli.js --minify --banner:js=\"#!/usr/bin/env node\" && chmod +x dist/cli.js",
-    "build:dev": "esbuild src/cli.ts --bundle --platform=node --target=es2017 --outfile=dist/cli.js --banner:js=\"#!/usr/bin/env node\" && chmod +x dist/cli.js",
+    "build": "esbuild src/cli.ts --bundle --platform=node --target=es2017 --outfile=dist/cli.js --minify --banner:js=\"#!/usr/bin/env node\" && chmod +x dist/cli.js && mkdir -p dist/locales && cp -r src/i18n/locales/*.json dist/locales/",
+    "build:dev": "esbuild src/cli.ts --bundle --platform=node --target=es2017 --outfile=dist/cli.js --banner:js=\"#!/usr/bin/env node\" && chmod +x dist/cli.js && mkdir -p dist/locales && cp -r src/i18n/locales/*.json dist/locales/",
     "dev": "ts-node src/cli.ts",
     "start": "node dist/cli.js",
     "test": "vitest run",

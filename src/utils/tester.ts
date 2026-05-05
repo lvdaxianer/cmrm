@@ -44,16 +44,21 @@ const ANTHROPIC_API_VERSION = '2023-06-01';
  * @param baseUrl - API 基础 URL（必填，如 https://api.anthropic.com）
  * @param apiType - API 协议类型，默认 'anthropic'
  * @param timeoutMs - 请求超时毫秒数，默认 10000
+ * @param maxRetries - 最大重试次数，默认 3
+ * @param onRetry - 重试时的回调函数，参数为当前重试次数
  * @return Promise，resolve 测试结果（永不 reject）
  * @author lvdaxianerplus
  * @date 2026-05-03
+ * @date 2026-05-05 修改：添加重试机制
  */
 export async function testModelConfig(
   model: string,
   apiKey: string,
   baseUrl: string,
   apiType: ApiType = 'anthropic',
-  timeoutMs: number = DEFAULT_TIMEOUT_MS
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  maxRetries: number = 3,
+  onRetry?: (retryCount: number) => void
 ): Promise<TestResult> {
   // 记录开始时间用于计算耗时
   const startTime = Date.now();
@@ -76,6 +81,75 @@ export async function testModelConfig(
     const durationMs = Date.now() - startTime;
     return buildErrorResult(error, durationMs);
   }
+}
+
+/**
+ * 带重试机制的测试模型配置
+ * 失败时自动重试，直到成功或达到最大重试次数
+ *
+ * @param model - 模型名称
+ * @param apiKey - API 密钥
+ * @param baseUrl - API 基础 URL
+ * @param apiType - API 协议类型
+ * @param timeoutMs - 请求超时毫秒数
+ * @param maxRetries - 最大重试次数（默认3次）
+ * @param onRetry - 每次重试前的回调函数，参数为(当前重试次数, 最大重试次数)
+ * @return 测试结果
+ * @author lvdaxianerplus
+ * @date 2026-05-05
+ */
+export async function testModelConfigWithRetry(
+  model: string,
+  apiKey: string,
+  baseUrl: string,
+  apiType: ApiType = 'anthropic',
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  maxRetries: number = 3,
+  onRetry?: (retryCount: number, maxRetries: number) => void
+): Promise<TestResult> {
+  let lastResult: TestResult | null = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    // 记录开始时间用于计算耗时
+    const startTime = Date.now();
+
+    try {
+      // 构建协议相关的请求要素
+      const endpoint = buildEndpoint(baseUrl, apiType);
+      const headers = buildHeaders(apiKey, apiType);
+      const body = buildRequestBody(model);
+
+      // 发送请求并收集响应
+      const response = await sendRequest(endpoint, headers, body, timeoutMs);
+      const durationMs = Date.now() - startTime;
+
+      // 委托 parser 模块解析响应
+      lastResult = parseResponse(response.statusCode, response.body, durationMs, apiType);
+
+      // 测试成功：直接返回
+      if (lastResult.success) {
+        return lastResult;
+      }
+
+      // 测试失败且还有重试机会
+      if (attempt < maxRetries && onRetry) {
+        onRetry(attempt + 1, maxRetries);
+      }
+    }
+    // 捕获网络层异常或超时
+    catch (error) {
+      const durationMs = Date.now() - startTime;
+      lastResult = buildErrorResult(error, durationMs);
+
+      // 还有重试机会
+      if (attempt < maxRetries && onRetry) {
+        onRetry(attempt + 1, maxRetries);
+      }
+    }
+  }
+
+  // 达到最大重试次数，返回最后一次结果
+  return lastResult!;
 }
 
 /**

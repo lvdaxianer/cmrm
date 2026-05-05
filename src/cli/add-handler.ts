@@ -21,6 +21,7 @@ import { askApiType } from './api-type-prompt';
 import { printIndexMenu, askIndex } from './index-prompt';
 import { templateManager } from './template-manager';
 import { selectTemplateAndSave } from './template-add-handler';
+import { t } from '../i18n';
 
 /**
  * 添加方式选项
@@ -36,8 +37,8 @@ interface AddMethodOption {
 
 /** 添加方式选项列表 */
 const ADD_METHOD_OPTIONS: AddMethodOption[] = [
-  { value: 'template', label: '基于模板添加', description: '选择预设模型模板，自动填充配置' },
-  { value: 'custom', label: '自定义添加', description: '手动输入所有配置字段' },
+  { value: 'template', label: t('add.templateAdd'), description: t('add.templateDesc') },
+  { value: 'custom', label: t('add.customAdd'), description: t('add.customDesc') },
 ];
 
 /**
@@ -58,7 +59,7 @@ export async function runAddFlow(
   // 进入 inquirer 模式（关闭 readline 等）
   prepareForInquirer(rl);
 
-  console.log(chalk.cyan(`\n=== 添加 ${adapter.displayName} 模型配置 ===\n`));
+  console.log(chalk.cyan(`\n=== ${t('add.title', { tool: adapter.displayName })} ===\n`));
 
   try {
     // 先选择添加方式
@@ -66,7 +67,7 @@ export async function runAddFlow(
 
     // 用户取消选择
     if (!method) {
-      ui.showWarning('\n已取消');
+      ui.showWarning('\n' + t('add.cancel'));
     }
     // 用户选择了添加方式：分发到对应子流程
     else {
@@ -76,7 +77,7 @@ export async function runAddFlow(
   // 添加流程异常：友好提示错误信息
   catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    ui.showError(`添加失败: ${message}`);
+    ui.showError(t('alias.addFailed') + `: ${message}`);
   }
 }
 
@@ -90,14 +91,14 @@ export async function runAddFlow(
  */
 async function askAddMethod(): Promise<'template' | 'custom' | null> {
   // 打印添加方式选择菜单
-  printIndexMenu('选择添加方式', ADD_METHOD_OPTIONS, (opt) => {
+  printIndexMenu(t('add.selectMethod'), ADD_METHOD_OPTIONS, (opt) => {
     const desc = chalk.gray(`(${opt.description})`);
     return opt.label + ` ${desc}`;
   });
 
   // 提示用户输入索引并校验范围
   const idx = await askIndex(
-    `请输入方式索引(1-${ADD_METHOD_OPTIONS.length}):`,
+    t('add.enterMethodIndex', { count: ADD_METHOD_OPTIONS.length }),
     ADD_METHOD_OPTIONS.length
   );
 
@@ -131,7 +132,7 @@ async function dispatchAddMethod(
   }
   // 自定义添加：进入手动输入流程
   else {
-    console.log(chalk.gray('提示：可选字段不填写可直接按 Enter 跳过\n'));
+    console.log(chalk.gray(t('add.hintOptional') + '\n'));
     await collectAndSave(adapter, ui);
   }
 }
@@ -151,8 +152,8 @@ async function runTemplateAddFlow(adapter: ToolAdapter, ui: UIRenderer): Promise
 
   // 无可用模板：降级到自定义添加
   if (templates.length === 0) {
-    ui.showWarning('暂无可用模板，将使用自定义添加');
-    console.log(chalk.gray('提示：可选字段不填写可直接按 Enter 跳过\n'));
+    ui.showWarning(t('add.noTemplates'));
+    console.log(chalk.gray(t('add.hintOptional') + '\n'));
     await collectAndSave(adapter, ui);
   }
   // 有可用模板：进入模板选择流程
@@ -161,7 +162,7 @@ async function runTemplateAddFlow(adapter: ToolAdapter, ui: UIRenderer): Promise
 
     // 用户取消模板选择或配置输入
     if (response === null) {
-      ui.showWarning('\n已取消');
+      ui.showWarning('\n' + t('add.cancel'));
     }
     // 收集完成：进入验证保存流程
     else {
@@ -187,7 +188,7 @@ async function collectAndSave(adapter: ToolAdapter, ui: UIRenderer): Promise<voi
 
   // 用户取消（Ctrl+C 等）
   if (Object.keys(response).length === 0) {
-    ui.showWarning('\n已取消');
+    ui.showWarning('\n' + t('add.cancel'));
   }
   // 输入完整：合并 apiType 后进入验证
   else {
@@ -214,7 +215,7 @@ async function validateAndPersist(
 
   // 验证失败：终止流程，提示用户检查必填字段
   if (!adapter.validateConfig(config)) {
-    ui.showError('\n配置验证失败！请检查必填字段。');
+    ui.showError('\n' + t('add.validateFailed'));
   }
   // 验证通过：测试连通性后决定是否保存
   else {
@@ -246,7 +247,7 @@ async function testThenSave(
   }
   // 用户放弃保存
   else {
-    ui.showWarning('\n已取消保存');
+    ui.showWarning('\n' + t('add.cancelSave'));
   }
 }
 
@@ -260,7 +261,7 @@ async function testThenSave(
  * @date 2026-05-03
  */
 async function testAndConfirmSave(config: UnifiedModelConfig, ui: UIRenderer): Promise<boolean> {
-  ui.showInfo('\n正在测试连接...');
+  ui.showInfo('\n' + t('add.testing'));
 
   // 发起模型连通性测试
   const result = await testModelConfig(
@@ -294,7 +295,7 @@ async function confirmStillSave(): Promise<boolean> {
     {
       type: 'confirm',
       name: 'stillSave',
-      message: '测试失败，是否仍保存此配置？',
+      message: t('add.testFailStillSave'),
       default: false,
     },
   ] as any);
@@ -311,9 +312,9 @@ async function confirmStillSave(): Promise<boolean> {
  * @date 2026-05-03
  */
 function showAddModelResult(config: UnifiedModelConfig, ui: UIRenderer): void {
-  ui.showSuccess('\n模型配置已添加:');
-  ui.showInfo(`  名称:     ${config.name}`);
-  ui.showInfo(`  模型:     ${config.model}`);
+  ui.showSuccess('\n' + t('add.modelAdded'));
+  ui.showInfo(`  ${t('actions.tool')}:     ${config.name}`);
+  ui.showInfo(`  ${t('actions.model')}:     ${config.model}`);
 
   // API Key 脱敏（仅显示前 10 位，避免泄露完整密钥）
   const truncatedApiKey = config.apiKey.substring(0, 10) + '...';

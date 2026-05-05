@@ -19,7 +19,7 @@ describe('命令定义', () => {
     const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/switch');
 
     expect(cmd).toBeDefined();
-    expect(cmd?.description).toContain('切换模型');
+    expect(cmd?.descriptionKey).toBe('commands.desc.switch');
   });
 
   // /add 命令存在
@@ -27,7 +27,7 @@ describe('命令定义', () => {
     const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/add');
 
     expect(cmd).toBeDefined();
-    expect(cmd?.description).toContain('添加新模型');
+    expect(cmd?.descriptionKey).toBe('commands.desc.add');
   });
 
   // /remove 命令存在
@@ -35,7 +35,7 @@ describe('命令定义', () => {
     const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/remove');
 
     expect(cmd).toBeDefined();
-    expect(cmd?.description).toContain('删除');
+    expect(cmd?.descriptionKey).toBe('commands.desc.remove');
   });
 
   // /info 命令存在
@@ -43,7 +43,7 @@ describe('命令定义', () => {
     const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/info');
 
     expect(cmd).toBeDefined();
-    expect(cmd?.description).toContain('详细信息');
+    expect(cmd?.descriptionKey).toBe('commands.desc.info');
   });
 
   // /test 命令存在
@@ -51,7 +51,7 @@ describe('命令定义', () => {
     const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/test');
 
     expect(cmd).toBeDefined();
-    expect(cmd?.description).toContain('测试');
+    expect(cmd?.descriptionKey).toBe('commands.desc.test');
   });
 
   // /list 命令存在
@@ -59,7 +59,7 @@ describe('命令定义', () => {
     const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/list');
 
     expect(cmd).toBeDefined();
-    expect(cmd?.description).toContain('显示所有');
+    expect(cmd?.descriptionKey).toBe('commands.desc.list');
   });
 
   // /current 命令存在
@@ -67,7 +67,7 @@ describe('命令定义', () => {
     const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/current');
 
     expect(cmd).toBeDefined();
-    expect(cmd?.description).toContain('当前');
+    expect(cmd?.descriptionKey).toBe('commands.desc.current');
   });
 
   // /exit 命令存在
@@ -75,7 +75,7 @@ describe('命令定义', () => {
     const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/exit');
 
     expect(cmd).toBeDefined();
-    expect(cmd?.description).toContain('退出');
+    expect(cmd?.descriptionKey).toBe('commands.desc.exit');
   });
 
   // /alias 命令存在
@@ -83,12 +83,20 @@ describe('命令定义', () => {
     const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/alias');
 
     expect(cmd).toBeDefined();
-    expect(cmd?.description).toContain('别名');
+    expect(cmd?.descriptionKey).toBe('commands.desc.alias');
+  });
+
+  // /set-lang 命令存在
+  it('/set-lang 命令定义正确', () => {
+    const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/set-lang');
+
+    expect(cmd).toBeDefined();
+    expect(cmd?.descriptionKey).toBe('commands.desc.setLang');
   });
 
   // 命令数量验证
-  it('可用命令数量为9个', () => {
-    expect(AVAILABLE_COMMANDS.length).toBe(9);
+  it('可用命令数量为10个', () => {
+    expect(AVAILABLE_COMMANDS.length).toBe(10);
   });
 
   // 所有命令以/开头

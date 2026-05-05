@@ -29,6 +29,9 @@ export function buildAddModelQuestions(): Question[] {
   return buildAddModelQuestionsWithDefaults({});
 }
 
+// 导入 t 函数用于翻译（需要在运行时获取翻译）
+import { t } from '../i18n';
+
 /**
  * 构建带默认值的添加模型问题列表
  * 用于模板添加场景，模板字段已预填充，用户可直接 Enter 跳过
@@ -64,7 +67,7 @@ function buildConfigNameQuestion(defaults: Partial<UnifiedModelConfig>): Questio
   return {
     type: 'input',
     name: 'configName',
-    message: buildMessage('配置名称（可选，不填则使用模型名称）', defaults.name),
+    message: buildMessage(t('add.configName'), defaults.name),
     default: defaults.name || undefined,
   };
 }
@@ -82,9 +85,9 @@ function buildModelQuestion(defaults: Partial<UnifiedModelConfig>): Question {
   return {
     type: 'input',
     name: 'model',
-    message: buildMessage('模型名称（必填）', defaults.model),
+    message: buildMessage(t('add.modelName'), defaults.model),
     default: defaults.model || undefined,
-    validate: (value: string) => value.trim() !== '' || '模型名称为必填字段',
+    validate: (value: string) => value.trim() !== '' || t('add.modelName') + ' is required',
   };
 }
 
@@ -100,8 +103,8 @@ function buildApiKeyQuestion(): Question {
   return {
     type: 'input',
     name: 'apiKey',
-    message: 'API Key（必填）',
-    validate: (value: string) => value.trim() !== '' || 'API Key 为必填字段',
+    message: t('add.apiKey'),
+    validate: (value: string) => value.trim() !== '' || t('add.apiKey') + ' is required',
   };
 }
 
@@ -118,9 +121,9 @@ function buildBaseUrlQuestion(defaults: Partial<UnifiedModelConfig>): Question {
   return {
     type: 'input',
     name: 'baseUrl',
-    message: buildMessage('Base URL（必填）', defaults.baseUrl, 'https://api.anthropic.com'),
+    message: buildMessage(t('add.baseUrl'), defaults.baseUrl, 'https://api.anthropic.com'),
     default: defaults.baseUrl || 'https://api.anthropic.com',
-    validate: (value: string) => value.trim() !== '' || 'Base URL 为必填字段',
+    validate: (value: string) => value.trim() !== '' || t('add.baseUrl') + ' is required',
   };
 }
 
@@ -137,7 +140,7 @@ function buildHaikuQuestion(defaults: Partial<UnifiedModelConfig>): Question {
   return {
     type: 'input',
     name: 'haikuModel',
-    message: buildMessage('Haiku 模型（可选）', defaults.haikuModel),
+    message: buildMessage(t('add.haikuModel'), defaults.haikuModel),
     default: defaults.haikuModel || undefined,
   };
 }
@@ -155,7 +158,7 @@ function buildSonnetQuestion(defaults: Partial<UnifiedModelConfig>): Question {
   return {
     type: 'input',
     name: 'sonnetModel',
-    message: buildMessage('Sonnet 模型（可选）', defaults.sonnetModel),
+    message: buildMessage(t('add.sonnetModel'), defaults.sonnetModel),
     default: defaults.sonnetModel || undefined,
   };
 }
@@ -173,7 +176,7 @@ function buildOpusQuestion(defaults: Partial<UnifiedModelConfig>): Question {
   return {
     type: 'input',
     name: 'opusModel',
-    message: buildMessage('Opus 模型（可选）', defaults.opusModel),
+    message: buildMessage(t('add.opusModel'), defaults.opusModel),
     default: defaults.opusModel || undefined,
   };
 }

@@ -14,6 +14,7 @@ import inquirer from 'inquirer';
 import * as readline from 'readline';
 import { registry, ToolAdapter } from '../adapters';
 import { prepareForInquirer, validateIndexInput } from './readline-helper';
+import { t } from '../i18n';
 
 /**
  * 工具选择结果
@@ -62,8 +63,8 @@ export async function selectTool(rl: readline.Interface): Promise<ToolPickResult
  * @date 2026-05-03
  */
 function renderMenu(toolNames: string[], backIndex: number, exitIndex: number): void {
-  console.log(chalk.cyan('\n=== 选择工具 ==='));
-  console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
+  console.log(chalk.cyan('\n=== ' + t('tools.selectTool') + ' ==='));
+  console.log(chalk.gray('(' + t('tools.selectToolHint') + ')\n'));
 
   // 工具行
   toolNames.forEach((toolName, index) => {
@@ -72,8 +73,8 @@ function renderMenu(toolNames: string[], backIndex: number, exitIndex: number): 
   });
 
   // 控制选项行
-  console.log(chalk.gray(`[${backIndex}] 返回上一级`));
-  console.log(chalk.gray(`[${exitIndex}] 直接退出`));
+  console.log(chalk.gray(`[${backIndex}] ` + t('tools.back')));
+  console.log(chalk.gray(`[${exitIndex}] ` + t('tools.exit')));
 }
 
 /**
@@ -89,7 +90,7 @@ async function promptIndex(totalOptions: number): Promise<number> {
     {
       type: 'input',
       name: 'index',
-      message: '请输入工具索引:',
+      message: t('tools.enterToolIndex'),
       validate: (value: string) => validateIndexInput(value, totalOptions),
     },
   ] as any);

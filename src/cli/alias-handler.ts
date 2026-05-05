@@ -24,6 +24,7 @@ import { UnifiedModelConfig } from '../types';
 import { UIRenderer } from './ui';
 import { pickModel } from './model-picker';
 import { runActionLoop } from './alias-menu';
+import { t } from '../i18n';
 
 /**
  * 执行 /alias 交互流程
@@ -69,9 +70,9 @@ async function pickTargetModel(
   ui: UIRenderer
 ): Promise<UnifiedModelConfig | null> {
   const result = await pickModel(adapter, rl, {
-    title: `选择 ${adapter.displayName} 模型(管理别名)`,
-    prompt: '请输入索引号:',
-    hint: '(输入索引号按 Enter 确认)',
+    title: t('alias.selectModel', { tool: adapter.displayName }),
+    prompt: t('tools.enterIndex'),
+    hint: t('tools.confirmHint'),
   });
 
   // 选中模型:返回模型实例
@@ -80,8 +81,8 @@ async function pickTargetModel(
   }
   // 无模型:友好提示
   else if (result.kind === 'empty') {
-    ui.showWarning(`\n${adapter.displayName} 没有保存的模型配置`);
-    ui.showInfo('请使用 /add 命令添加模型配置');
+    ui.showWarning(`\n${adapter.displayName} ${t('tools.noModels')}`);
+    ui.showInfo(t('tools.addModelHint'));
     return null;
   }
   // back / exit:放弃

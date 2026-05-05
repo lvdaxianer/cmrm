@@ -67,6 +67,8 @@ export interface ToolConfig {
 export interface Settings {
   /** 工具配置映射 */
   tools: Record<string, ToolConfig>;
+  /** 测试重试次数（默认3次） */
+  retry?: number;
   /** 其他扩展属性 */
   [key: string]: any;
 }

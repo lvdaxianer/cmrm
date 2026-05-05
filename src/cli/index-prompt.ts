@@ -9,6 +9,7 @@
 
 import inquirer from 'inquirer';
 import chalk from 'chalk';
+import { t } from '../i18n';
 
 /**
  * 打印索引选择菜单
@@ -28,7 +29,7 @@ export function printIndexMenu<T>(
   // 打印菜单标题
   console.log(chalk.cyan(`\n=== ${title} ===`));
   // 打印操作提示
-  console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
+  console.log(chalk.gray(`(${t('tools.selectToolHint')})\n`));
 
   // 逐条打印菜单项，索引从 1 开始
   items.forEach((item, index) => {
@@ -60,7 +61,7 @@ export async function askIndex(prompt: string, maxIndex: number): Promise<number
         const num = parseInt(String(value).trim(), 10);
         // 非数字或超出范围
         if (isNaN(num) || num < 1 || num > maxIndex) {
-          return `请输入 1-${maxIndex} 之间的数字`;
+          return t('alias.invalidIndex', { max: maxIndex });
         }
         // 校验通过
         else {

@@ -17,13 +17,14 @@ import inquirer from 'inquirer';
 import { UIRenderer } from './ui';
 import { ToolAdapter } from '../adapters';
 import { ApiType, UnifiedModelConfig } from '../adapters/types';
-import { testModelConfig, TestResult } from '../utils/tester';
+import { testModelConfigWithRetry, TestResult } from '../utils/tester';
 import {
   validateMenuIndex,
   validateModelIndex,
   validateRequired,
 } from './test-handler-validators';
 import { askApiType } from './api-type-prompt';
+import { t } from '../i18n';
 
 /**
  * 测试子菜单选项
@@ -74,14 +75,14 @@ export class TestHandler {
    */
   async showMenu(): Promise<TestMenuChoice> {
     // 标题与操作提示
-    console.log(chalk.cyan(`\n=== 测试 ${this.adapter.displayName} 模型 ===`));
-    console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
+    console.log(chalk.cyan(`\n=== ${t('test.menuTitle', { tool: this.adapter.displayName })} ===`));
+    console.log(chalk.gray(`(${t('tools.selectToolHint')})\n`));
 
     // 列出每个菜单选项（保持索引与 mapMenuIndex 对应）
-    console.log(chalk.gray('[0] 选择已保存的模型测试'));
-    console.log(chalk.gray('[1] 自定义参数测试（不保存）'));
-    console.log(chalk.gray('[2] 返回上一级'));
-    console.log(chalk.gray('[3] 直接退出'));
+    console.log(chalk.gray(`[0] ${t('test.testSaved')}`));
+    console.log(chalk.gray(`[1] ${t('test.testCustom')}`));
+    console.log(chalk.gray(`[2] ${t('tools.back')}`));
+    console.log(chalk.gray(`[3] ${t('tools.exit')}`));
 
     return this.promptMenuChoice();
   }
@@ -98,7 +99,7 @@ export class TestHandler {
       {
         type: 'input',
         name: 'index',
-        message: '请输入索引:',
+        message: t('tools.enterIndex'),
         validate: (value: string) => validateMenuIndex(value, MENU_OPTION_COUNT),
       },
     ] as any);
@@ -147,8 +148,8 @@ export class TestHandler {
 
     // 无模型可测：提示用户先添加配置
     if (models.length === 0) {
-      this.ui.showWarning(`\n${this.adapter.displayName} 没有保存的模型配置`);
-      this.ui.showInfo('请使用 /add 命令添加模型配置');
+      this.ui.showWarning(`\n${this.adapter.displayName} ${t('tools.noModels')}`);
+      this.ui.showInfo(t('tools.addModelHint'));
       return false;
     }
     // 已有模型：进入选择流程
@@ -189,8 +190,8 @@ export class TestHandler {
    * @date 2026-05-03
    */
   private async promptModelSelection(models: UnifiedModelConfig[]): Promise<UnifiedModelConfig | null> {
-    console.log(chalk.cyan(`\n=== 选择要测试的模型 ===`));
-    console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
+    console.log(chalk.cyan(`\n=== ${t('test.selectModel')} ===`));
+    console.log(chalk.gray(`(${t('tools.selectToolHint')})\n`));
 
     // 显示每个模型选项（含 apiType 标记便于辨识）
     models.forEach((model, index) => {
@@ -199,7 +200,7 @@ export class TestHandler {
       console.log(chalk.gray(`[${index}] `) + displayName + ` ${apiTypeInfo}`);
     });
     // 取消选项放在末尾
-    console.log(chalk.gray(`[${models.length}] 取消`));
+    console.log(chalk.gray(`[${models.length}] ${t('add.cancel')}`));
 
     return this.promptIndexAndResolve(models);
   }
@@ -219,7 +220,7 @@ export class TestHandler {
       {
         type: 'input',
         name: 'index',
-        message: '请输入索引:',
+        message: t('tools.enterIndex'),
         validate: (value: string) => validateModelIndex(value, cancelIndex),
       },
     ] as any);
@@ -249,7 +250,7 @@ export class TestHandler {
 
     // 用户中途取消输入
     if (!params) {
-      this.ui.showWarning('已取消');
+      this.ui.showWarning(t('add.cancel'));
       return;
     }
     // 输入完整：执行测试
@@ -270,20 +271,20 @@ export class TestHandler {
       {
         type: 'input',
         name: 'model',
-        message: '模型名称（必填）',
-        validate: (value: string) => validateRequired(value, '模型名称'),
+        message: t('add.modelName'),
+        validate: (value: string) => validateRequired(value, t('add.modelName')),
       },
       {
         type: 'input',
         name: 'apiKey',
-        message: 'API Key（必填）',
-        validate: (value: string) => validateRequired(value, 'API Key'),
+        message: t('add.apiKey'),
+        validate: (value: string) => validateRequired(value, t('add.apiKey')),
       },
       {
         type: 'input',
         name: 'baseUrl',
-        message: 'Base URL（必填）',
-        validate: (value: string) => validateRequired(value, 'Base URL'),
+        message: t('add.baseUrl'),
+        validate: (value: string) => validateRequired(value, t('add.baseUrl')),
       },
     ] as any);
 
@@ -311,6 +312,7 @@ export class TestHandler {
    * @return 测试结果
    * @author lvdaxianerplus
    * @date 2026-05-03
+   * @date 2026-05-05 修改：添加重试机制
    */
   private async runAndShow(
     model: string,
@@ -318,11 +320,38 @@ export class TestHandler {
     baseUrl: string,
     apiType: ApiType
   ): Promise<TestResult> {
-    this.ui.showInfo(`\n正在测试 [${apiType}] ...`);
+    this.ui.showInfo(`\n${t('add.testing')} [${apiType}] ...`);
 
-    const result = await testModelConfig(model, apiKey, baseUrl, apiType);
+    // 获取重试次数配置（默认3次）
+    const retryCount = this.getRetryCount();
+
+    // 带重试的测试
+    const result = await testModelConfigWithRetry(
+      model,
+      apiKey,
+      baseUrl,
+      apiType,
+      10000, // timeout
+      retryCount,
+      (currentRetry, maxRetries) => {
+        // 重试时的回调，显示重试信息
+        const retryMsg = t('test.retrying', { current: currentRetry, max: maxRetries });
+        this.ui.showInfo(chalk.yellow(`\n${retryMsg}`));
+      }
+    );
+
     this.ui.showTestResult(result);
-
     return result;
+  }
+
+  /**
+   * 从配置获取重试次数
+   *
+   * @return 重试次数，默认3
+   * @author lvdaxianerplus
+   * @date 2026-05-05
+   */
+  private getRetryCount(): number {
+    return this.adapter.getRetryCount();
   }
 }

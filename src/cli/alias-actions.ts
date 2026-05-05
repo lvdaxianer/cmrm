@@ -19,6 +19,7 @@ import { UIRenderer } from './ui';
 import { validateAlias, getModelKey } from './alias-validator';
 import { collectAllModels } from './model-finder';
 import { validateIndexInput } from './readline-helper';
+import { t } from '../i18n';
 
 /**
  * 处理「添加别名」子操作
@@ -41,7 +42,7 @@ export async function handleAddAlias(
 
   // 校验失败:提示并保持原模型
   if (!result.valid) {
-    ui.showError(`添加失败: ${result.error}`);
+    ui.showError(t('alias.addFailed') + `: ${result.error}`);
     return model;
   }
   // 校验通过:写入并返回最新模型
@@ -62,7 +63,7 @@ async function promptAliasInput(): Promise<string> {
     {
       type: 'input',
       name: 'alias',
-      message: '请输入要添加的别名:',
+      message: t('alias.enterAlias'),
     },
   ] as any);
 
@@ -92,7 +93,7 @@ function persistAddedAlias(
   };
 
   adapter.saveModel(updated);
-  ui.showSuccess(`已添加别名: ${trimmedAlias}`);
+  ui.showSuccess(t('alias.aliasAdded') + `: ${trimmedAlias}`);
   return updated;
 }
 
@@ -115,7 +116,7 @@ export async function handleRemoveAlias(
 
   // 无别名:直接提示
   if (aliases.length === 0) {
-    ui.showWarning('当前模型没有别名,无需删除');
+    ui.showWarning(t('alias.noAliasToRemove'));
     return model;
   }
   // 有别名:让用户选择索引
@@ -141,14 +142,14 @@ async function promptRemoveIndex(
   aliases: string[],
   ui: UIRenderer
 ): Promise<UnifiedModelConfig> {
-  console.log(chalk.cyan('\n=== 选择要删除的别名 ==='));
+  console.log(chalk.cyan('\n=== ' + t('alias.selectToRemove') + ' ==='));
   aliases.forEach((a, i) => console.log(chalk.gray(`[${i}] ${a}`)));
 
   const response = await inquirer.prompt([
     {
       type: 'input',
       name: 'index',
-      message: '请输入索引号:',
+      message: t('tools.enterIndex'),
       validate: (value: string) => validateIndexInput(value, aliases.length),
     },
   ] as any);
@@ -184,7 +185,7 @@ function persistRemovedAlias(
   };
 
   adapter.saveModel(updated);
-  ui.showSuccess(`已删除别名: ${removed}`);
+  ui.showSuccess(t('alias.aliasRemoved') + `: ${removed}`);
   return updated;
 }
 
@@ -201,11 +202,11 @@ export function handleListAliases(model: UnifiedModelConfig, ui: UIRenderer): vo
 
   // 无别名:提示
   if (aliases.length === 0) {
-    ui.showInfo('\n当前模型没有别名');
+    ui.showInfo('\n' + t('alias.noAlias'));
   }
   // 有别名:逐个列出
   else {
-    console.log(chalk.cyan('\n=== 当前别名列表 ==='));
+    console.log(chalk.cyan('\n=== ' + t('alias.aliasList') + ' ==='));
     aliases.forEach((a, i) => console.log(chalk.gray(`  [${i}] ${a}`)));
   }
 }

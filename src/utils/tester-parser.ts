@@ -9,6 +9,7 @@
  */
 
 import { ApiType } from '../adapters/types';
+import { t } from '../i18n';
 
 /**
  * 错误类型分类
@@ -91,7 +92,7 @@ export function buildErrorResult(error: unknown, durationMs: number): TestResult
 
   return {
     success: false,
-    message: `请求失败 [${errorKind}]`,
+    message: t('test.requestFailed', { errorKind }),
     durationMs,
     errorKind,
     errorDetail,
@@ -123,7 +124,7 @@ function parseSuccessResponse(
 
     // 响应结构合法：测试通过
     if (valid) {
-      return { success: true, message: '测试通过', durationMs, statusCode };
+      return { success: true, message: t('test.testPassed'), durationMs, statusCode };
     }
     // 响应结构非法：返回 invalid_response 错误
     else {
@@ -170,7 +171,7 @@ function validateResponseShape(json: any, apiType: ApiType): boolean {
 function buildInvalidResponseResult(durationMs: number, statusCode: number): TestResult {
   return {
     success: false,
-    message: '响应格式不符合预期',
+    message: t('test.invalidResponse'),
     durationMs,
     statusCode,
     errorKind: 'invalid_response',
@@ -198,7 +199,7 @@ function parseFailureResponse(
 
   return {
     success: false,
-    message: `请求失败 [${errorKind}]`,
+    message: t('test.requestFailed', { errorKind }),
     durationMs,
     statusCode,
     errorKind,

@@ -104,6 +104,12 @@ export interface ToolAdapter {
    * @return 验证通过返回 true，否则返回 false
    */
   validateConfig(config: UnifiedModelConfig): boolean;
+
+  /**
+   * 获取配置的重试次数
+   * @return 重试次数，默认 3
+   */
+  getRetryCount(): number;
 }
 
 /**

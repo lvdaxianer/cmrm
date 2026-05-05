@@ -20,6 +20,7 @@ import { runSwitchAction } from './model-actions';
 import { testModelConfig } from '../utils/tester';
 import { printHelp } from './help-printer';
 import { runAliasShortcut } from './alias-shortcut';
+import { t } from '../i18n';
 
 /** 默认工具名(目前 registry 仅注册了 claude) */
 const DEFAULT_TOOL_NAME = 'claude';
@@ -203,7 +204,8 @@ async function runTestShortcut(adapter: ToolAdapter, name: string, ui: UIRendere
  */
 async function runTestForModel(model: UnifiedModelConfig, ui: UIRenderer): Promise<number> {
   const apiType = model.apiType ?? 'anthropic';
-  ui.showInfo(`正在测试 [${apiType}] ${model.name || model.model} ...`);
+  const modelName = model.name || model.model;
+  ui.showInfo(t('shortcut.testing', { apiType, name: modelName }));
 
   const result = await testModelConfig(model.model, model.apiKey, model.baseUrl, apiType);
   ui.showTestResult(result);
@@ -229,8 +231,8 @@ async function runTestForModel(model: UnifiedModelConfig, ui: UIRenderer): Promi
  * @date 2026-05-03
  */
 function reportUnknown(input: string, ui: UIRenderer): number {
-  ui.showError(`Unknown command: ${input}`);
-  ui.showInfo('使用 `cmrm --help` 查看支持的命令');
+  ui.showError(t('fuzzy.unknownCommand', { input }));
+  ui.showInfo(t('help.showHelpHint'));
   return EXIT_FAIL;
 }
 
@@ -244,16 +246,16 @@ function reportUnknown(input: string, ui: UIRenderer): number {
  * @date 2026-05-03
  */
 function printModelNotFound(adapter: ToolAdapter, name: string, ui: UIRenderer): void {
-  ui.showError(`未找到模型: ${name}`);
+  ui.showError(t('shortcut.modelNotFound', { name }));
   const available = listAvailableNames(adapter);
 
   // 有已保存模型:列出供参考
   if (available.length > 0) {
-    ui.showInfo('可用模型:');
+    ui.showInfo(t('shortcut.availableModels'));
     available.forEach(n => ui.showInfo(`  - ${n}`));
   }
   // 完全没有模型:引导用户先添加
   else {
-    ui.showInfo('当前没有保存的模型,使用 `cmrm` 进入交互菜单后选 /add 添加');
+    ui.showInfo(t('shortcut.noModelsHint'));
   }
 }

@@ -19,6 +19,7 @@ import * as readline from 'readline';
 import { ToolAdapter } from '../adapters';
 import { UnifiedModelConfig } from '../types';
 import { prepareForInquirer, validateIndexInput } from './readline-helper';
+import { t } from '../i18n';
 
 /**
  * 模型选择结果（Union Type）
@@ -131,8 +132,8 @@ function renderMenu(
   });
 
   // 控制选项行
-  console.log(chalk.gray(`[${backIndex}] 返回上一级`));
-  console.log(chalk.gray(`[${exitIndex}] 直接退出`));
+  console.log(chalk.gray(`[${backIndex}] ` + t('tools.back')));
+  console.log(chalk.gray(`[${exitIndex}] ` + t('tools.exit')));
 }
 
 /**

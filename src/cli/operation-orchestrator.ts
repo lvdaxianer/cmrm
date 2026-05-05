@@ -22,6 +22,7 @@ import { runAddFlow } from './add-handler';
 import { runSwitchAction, runRemoveAction, showModelInfo } from './model-actions';
 import { runTestMenu } from './test-menu-runner';
 import { runAliasFlow } from './alias-handler';
+import { t } from '../i18n';
 
 /** 顶级命令对应的下游操作类型 */
 export type NextOperation = 'switch' | 'add' | 'remove' | 'info' | 'test' | 'alias' | null;
@@ -65,7 +66,7 @@ export async function showToolSelection(ctx: OrchestratorContext, op: NextOperat
   // 工具选择异常：返回命令菜单
   catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    ctx.ui.showError(`选择失败: ${message}`);
+    ctx.ui.showError(t('errors.selectFailed', { message: message }));
     ctx.rl = ctx.recreateReadline();
     await ctx.showCommandSelection();
   }
@@ -96,7 +97,7 @@ async function dispatchToolResult(
   }
   // 选中工具：进入子流程
   else {
-    ctx.ui.showSuccess(`\n已选择工具: ${result.adapter.displayName}`);
+    ctx.ui.showSuccess(`\n${t('tools.selected')}: ${result.adapter.displayName}`);
     await runOperation(ctx, op, result.adapter);
   }
 }
@@ -163,13 +164,13 @@ async function handleSwitchOrRemove(
   mode: 'switch' | 'remove'
 ): Promise<void> {
   const titleMap = {
-    switch: { title: `选择 ${adapter.displayName} 模型`, prompt: '请输入索引号:' },
-    remove: { title: `删除 ${adapter.displayName} 模型`, prompt: '请输入要删除的索引号:' },
+    switch: { title: t('tools.selectModel', { tool: adapter.displayName }), prompt: t('tools.enterIndex') },
+    remove: { title: t('tools.removeModel', { tool: adapter.displayName }), prompt: t('tools.enterIndexToRemove') },
   };
   const result = await pickModel(adapter, ctx.rl, {
     title: titleMap[mode].title,
     prompt: titleMap[mode].prompt,
-    hint: mode === 'remove' ? '(输入索引号按 Enter 确认删除)' : '(输入索引号按 Enter 确认)',
+    hint: mode === 'remove' ? t('tools.confirmDeleteHint') : t('tools.confirmHint'),
   });
   await dispatchModelResult(ctx, adapter, result, mode);
 }
@@ -184,9 +185,9 @@ async function handleSwitchOrRemove(
  */
 async function handleInfo(ctx: OrchestratorContext, adapter: ToolAdapter): Promise<void> {
   const result = await pickModel(adapter, ctx.rl, {
-    title: `查看 ${adapter.displayName} 模型信息`,
-    prompt: '请输入索引号:',
-    hint: '(输入索引号按 Enter 确认)',
+    title: t('tools.viewModelInfo', { tool: adapter.displayName }),
+    prompt: t('tools.enterIndex'),
+    hint: t('tools.confirmHint'),
   });
   await dispatchModelResult(ctx, adapter, result, 'info');
 }
@@ -209,8 +210,8 @@ async function dispatchModelResult(
 ): Promise<void> {
   // 无任何已保存模型
   if (result.kind === 'empty') {
-    ctx.ui.showWarning(`\n${adapter.displayName} 没有保存的模型配置`);
-    ctx.ui.showInfo('请使用 /add 命令添加模型配置');
+    ctx.ui.showWarning(`\n${adapter.displayName} ${t('tools.noModels')}`);
+    ctx.ui.showInfo(t('tools.addModelHint'));
     await finalizeAndReturn(ctx);
   }
   // 返回上一级（回到工具选择）

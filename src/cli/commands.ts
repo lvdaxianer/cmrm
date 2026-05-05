@@ -13,8 +13,10 @@
 export interface CommandDefinition {
   /** 命令名称（如 /switch-model） */
   name: string;
-  /** 命令描述 */
+  /** 命令描述（已翻译的文本） */
   description: string;
+  /** 命令描述翻译 key */
+  descriptionKey: string;
 }
 
 /**
@@ -22,13 +24,14 @@ export interface CommandDefinition {
  * 用户可输入的所有命令
  */
 export const AVAILABLE_COMMANDS: CommandDefinition[] = [
-  { name: '/switch', description: '切换模型配置' },
-  { name: '/add', description: '添加新模型配置(支持模板/自定义)' },
-  { name: '/remove', description: '删除模型配置' },
-  { name: '/info', description: '查看模型详细信息' },
-  { name: '/test', description: '测试模型配置是否可用' },
-  { name: '/alias', description: '管理模型别名(添加/删除/列出)' },
-  { name: '/list', description: '显示所有模型配置' },
-  { name: '/current', description: '显示当前模型' },
-  { name: '/exit', description: '退出程序' }
+  { name: '/switch', description: 'Switch Model Config', descriptionKey: 'commands.desc.switch' },
+  { name: '/add', description: 'Add Model Config', descriptionKey: 'commands.desc.add' },
+  { name: '/remove', description: 'Remove Model Config', descriptionKey: 'commands.desc.remove' },
+  { name: '/info', description: 'View Model Details', descriptionKey: 'commands.desc.info' },
+  { name: '/test', description: 'Test Model Config', descriptionKey: 'commands.desc.test' },
+  { name: '/alias', description: 'Manage Aliases', descriptionKey: 'commands.desc.alias' },
+  { name: '/list', description: 'Show All Models', descriptionKey: 'commands.desc.list' },
+  { name: '/current', description: 'Show Current Model', descriptionKey: 'commands.desc.current' },
+  { name: '/set-lang', description: 'Set Language', descriptionKey: 'commands.desc.setLang' },
+  { name: '/exit', description: 'Exit Program', descriptionKey: 'commands.desc.exit' }
 ];

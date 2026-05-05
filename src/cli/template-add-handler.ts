@@ -19,6 +19,7 @@ import { templateManager } from './template-manager';
 import { ModelTemplate } from './template-data';
 import { buildAddModelQuestionsWithDefaults } from './add-questions';
 import { askIndex } from './index-prompt';
+import { t } from '../i18n';
 
 /**
  * 选择模板并收集配置
@@ -93,7 +94,7 @@ async function askTemplateSelection(templates: ModelTemplate[]): Promise<ModelTe
   printTemplateMenu(templates);
 
   // 提示用户输入索引并校验范围
-  const idx = await askIndex(`请输入模板索引(1-${templates.length}):`, templates.length);
+  const idx = await askIndex(t('template.enterIndex', { count: templates.length }), templates.length);
 
   // 用户取消或输入无效
   if (idx === null) {
@@ -116,8 +117,8 @@ async function askTemplateSelection(templates: ModelTemplate[]): Promise<ModelTe
  */
 function printTemplateMenu(templates: ModelTemplate[]): void {
   // 打印菜单标题和操作提示
-  console.log(chalk.cyan('\n=== 选择模型模板 ==='));
-  console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
+  console.log(chalk.cyan('\n=== ' + t('template.selectTitle') + ' ==='));
+  console.log(chalk.gray(`(${t('tools.selectToolHint')})\n`));
 
   // 计算列宽：名称列至少 20，模型列至少 15
   const nameWidth = Math.max(20, ...templates.map((t) => t.name.length));

@@ -14,6 +14,7 @@ import chalk from 'chalk';
 import { ToolAdapter } from '../adapters';
 import { UnifiedModelConfig } from '../types';
 import { UIRenderer } from './ui';
+import { t } from '../i18n';
 
 /**
  * 切换工具的当前模型配置
@@ -33,7 +34,7 @@ export async function runSwitchAction(
   try {
     // 验证配置完整性
     if (!adapter.validateConfig(config)) {
-      ui.showError('\n配置验证失败！缺少必填字段。');
+      ui.showError('\n' + t('actions.validateFailed'));
       return;
     }
     // 验证通过：写入并展示结果
@@ -45,7 +46,7 @@ export async function runSwitchAction(
   // 切换异常：友好提示
   catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    ui.showError(`切换失败: ${message}`);
+    ui.showError(t('actions.switchFailed') + `: ${message}`);
   }
 }
 
@@ -65,13 +66,13 @@ function showSwitchResult(
   backupFileName: string,
   ui: UIRenderer
 ): void {
-  ui.showSuccess('\n模型已切换:');
-  ui.showInfo(`  工具:     ${adapter.displayName}`);
-  ui.showInfo(`  模型:     ${config.model}`);
+  ui.showSuccess('\n' + t('actions.modelSwitched'));
+  ui.showInfo(`  ${t('actions.tool')}:     ${adapter.displayName}`);
+  ui.showInfo(`  ${t('actions.model')}:     ${config.model}`);
 
   // 有备份：附加备份文件名
   if (backupFileName) {
-    ui.showInfo(`  备份:     ${backupFileName}`);
+    ui.showInfo(`  ${t('actions.backup')}:     ${backupFileName}`);
   }
   // 无备份：不输出额外行
   else {
@@ -100,17 +101,17 @@ export async function runRemoveAction(
 
     // 删除成功
     if (success) {
-      ui.showSuccess(`\n模型配置已删除: ${configName}`);
+      ui.showSuccess(`\n${t('actions.modelDeleted')}: ${configName}`);
     }
     // 删除失败（配置不存在）
     else {
-      ui.showError(`\n删除失败: 配置不存在`);
+      ui.showError(`\n${t('actions.deleteFailed')}: ${t('actions.configNotExists')}`);
     }
   }
   // 异常：友好提示
   catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    ui.showError(`\n删除失败: ${message}`);
+    ui.showError(`\n${t('actions.deleteFailed')}: ${message}`);
   }
 }
 
@@ -122,7 +123,7 @@ export async function runRemoveAction(
  * @date 2026-05-03
  */
 export function showModelInfo(model: UnifiedModelConfig): void {
-  console.log(chalk.cyan('\n=== 模型详细信息 ===\n'));
+  console.log(chalk.cyan('\n=== ' + t('actions.modelDetails') + ' ===\n'));
   console.log(JSON.stringify(model, null, 2));
   console.log('');
 }

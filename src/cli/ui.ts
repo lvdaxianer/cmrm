@@ -12,6 +12,7 @@ import { AVAILABLE_COMMANDS } from './commands';
 import { UnifiedModelConfig } from '../types';
 import { ToolAdapter, registry } from '../adapters';
 import { TestResult } from '../utils/tester';
+import { t } from '../i18n';
 
 /**
  * ANSI 转义序列常量
@@ -85,29 +86,30 @@ export class UIRenderer {
     if (isFirstRender) {
       // 首次渲染：显示完整提示（2行：空行 + 标题）
       console.log('');
-      console.log(chalk.cyan('选择命令 (↑/↓ 选择，Enter 确认，Ctrl+C 退出):'));
+      console.log(chalk.cyan(t('ui.selectCommandFull')));
     } else {
       // 后续渲染：简化标题（2行：空行 + 标题）
       console.log('');
-      console.log(chalk.cyan('选择命令:'));
+      console.log(chalk.cyan(t('ui.selectCommand')));
     }
 
     // 渲染每个命令选项（每个选项占 1 行）
     AVAILABLE_COMMANDS.forEach((cmd, index) => {
       const isSelected = index === currentSelection;
+      const translatedDesc = t(cmd.descriptionKey);
 
       // 选中项显示箭头和绿色高亮
       if (isSelected) {
         const prefix = chalk.cyan('❯ ');
         const paddedName = chalk.green(cmd.name.padEnd(15));
-        const description = chalk.gray(cmd.description);
+        const description = chalk.gray(translatedDesc);
         console.log(`${prefix}${paddedName} ${description}`);
       }
       // 未选中项显示灰色
       else {
         const prefix = '  ';
         const paddedName = chalk.gray(cmd.name.padEnd(15));
-        const description = chalk.gray(cmd.description);
+        const description = chalk.gray(translatedDesc);
         console.log(`${prefix}${paddedName} ${description}`);
       }
     });
@@ -136,10 +138,10 @@ export class UIRenderer {
     // 渲染标题（首次和非首次行数相同）
     if (isFirstRender) {
       console.log('');
-      console.log(chalk.cyan('选择工具 (↑/↓ 选择，Enter 确认，Esc 取消):'));
+      console.log(chalk.cyan(t('ui.selectToolFull')));
     } else {
       console.log('');
-      console.log(chalk.cyan('选择工具:'));
+      console.log(chalk.cyan(t('ui.selectTool')));
     }
 
     // 渲染每个工具选项
@@ -176,8 +178,8 @@ export class UIRenderer {
   renderModelList(adapter: ToolAdapter, models: UnifiedModelConfig[], currentSelection: number, isFirstRender: boolean = false): void {
     // 渲染标题
     if (isFirstRender) {
-      console.log(chalk.cyan(`\n=== 选择 ${adapter.displayName} 模型 ===`));
-      console.log(chalk.gray('(输入索引号按 Enter 确认，或按 Esc 取消)\n'));
+      console.log(chalk.cyan(`\n=== ${t('ui.selectModel', { tool: adapter.displayName })} ===`));
+      console.log(chalk.gray(`(${t('ui.selectModelHint')})\n`));
     }
 
     // 渲染每个模型选项
@@ -197,7 +199,7 @@ export class UIRenderer {
 
     // 显示提示
     if (isFirstRender) {
-      console.log(chalk.gray('\n请输入索引号:'));
+      console.log(chalk.gray(`\n${t('ui.enterIndex')}:`));
     }
   }
 
@@ -210,7 +212,7 @@ export class UIRenderer {
   showAllModels(): void {
     const adapters = registry.getAllAdapters();
 
-    console.log(chalk.cyan('\n=== 所有模型配置 ===\n'));
+    console.log(chalk.cyan(`\n=== ${t('ui.allModels')} ===\n`));
 
     // 遍历每个工具显示其模型
     adapters.forEach(adapter => {
@@ -218,7 +220,7 @@ export class UIRenderer {
 
       // 无模型配置时显示提示
       if (models.length === 0) {
-        console.log(chalk.gray(`[${adapter.displayName}] (无模型配置)`));
+        console.log(chalk.gray(`[${adapter.displayName}] ${t('ui.noModels')}`));
       }
       // 有模型时显示列表
       else {
@@ -239,7 +241,7 @@ export class UIRenderer {
   showCurrentModels(): void {
     const adapters = registry.getAllAdapters();
 
-    console.log(chalk.cyan('\n=== 当前生效模型 ===\n'));
+    console.log(chalk.cyan(`\n=== ${t('ui.currentModels')} ===\n`));
 
     // 遍历每个工具显示当前模型
     adapters.forEach(adapter => {
@@ -247,11 +249,11 @@ export class UIRenderer {
 
       // 有配置时显示当前模型
       if (currentModel) {
-        console.log(chalk.green(`[${adapter.displayName}] 当前: ${currentModel.model}`));
+        console.log(chalk.green(`[${adapter.displayName}] ${t('ui.current')}: ${currentModel.model}`));
       }
       // 无配置时显示未配置
       else {
-        console.log(chalk.gray(`[${adapter.displayName}] 当前: (未配置)`));
+        console.log(chalk.gray(`[${adapter.displayName}] ${t('ui.current')}: ${t('ui.notConfigured')}`));
       }
     });
 
@@ -318,7 +320,7 @@ export class UIRenderer {
 
     // 失败且包含详情时附加输出，否则不输出额外行
     if (!result.success && result.errorDetail) {
-      console.log(chalk.gray(`  详情: ${result.errorDetail}`));
+      console.log(chalk.gray(`  ${t('ui.detail')}: ${result.errorDetail}`));
     }
     // 无详情或测试通过：保持 UI 简洁
     else {

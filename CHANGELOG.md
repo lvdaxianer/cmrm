@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-05-06
+
+### Added
+- 多语言支持（zh/en/ja），默认中文，通过 `/set-lang` 手动切换
+- 地理位置自动检测：中国→中文，日本→日语，其他→英语
+- 测试命令重试机制，默认 3 次重试，配置项 `retry` 可自定义
+- `testModelConfigWithRetry` 支持重试回调，UI 显示重试进度
+
+### Changed
+- UI 文本全部迁移至 i18n 系统，移除所有硬编码中文/英文
+- `tester-parser.ts` 错误消息通过 `t()` 翻译
+- `commands.ts` 命令描述使用 `descriptionKey` 动态翻译
+- `ui.ts` 渲染时调用 `t()` 获取翻译文本
+
+### Fixed
+- `shortcut-runner.ts` 硬编码中文消息改为 i18n 翻译
+- `fuzzy-match.ts` 相似命令提示改为 i18n 翻译
+- `help-printer.ts` 帮助文档改为 i18n 翻译
+
 ## [0.2.0] - 2026-05-04
 
 ### Added

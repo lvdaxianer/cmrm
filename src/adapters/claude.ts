@@ -488,4 +488,20 @@ export class ClaudeAdapter implements ToolAdapter {
       }
     }
   }
+
+  /**
+   * 获取配置的重试次数
+   * 从 ~/.cmrm/settings.json 的 retry 字段读取
+   *
+   * @return 重试次数，默认 3
+   * @author lvdaxianerplus
+   * @date 2026-05-05
+   */
+  getRetryCount(): number {
+    const settings = this.parseCmrmSettings();
+    if (settings && typeof settings.retry === 'number' && settings.retry > 0) {
+      return settings.retry;
+    }
+    return 3;
+  }
 }

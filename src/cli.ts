@@ -32,6 +32,8 @@ import {
 import { bootstrap } from './cli/bootstrap';
 import { printShortcutBanner } from './cli/shortcut-banner';
 import { templateManager } from './cli/template-manager';
+import { createI18n, I18nManager } from './i18n';
+import { handleSetLang } from './i18n/commands/set-lang';
 
 /**
  * CLI 类
@@ -50,6 +52,9 @@ export class CLI {
   /** UI 渲染器（统一颜色样式） */
   private uiRenderer: UIRenderer;
 
+  /** i18n 管理器（多语言支持） */
+  private i18n: I18nManager;
+
   /**
    * 构造函数
    * 注册适配器并创建初始 readline 接口
@@ -59,6 +64,7 @@ export class CLI {
    */
   constructor() {
     this.configManager = new ConfigManager();
+    this.i18n = createI18n(this.configManager);
     this.uiRenderer = new UIRenderer();
 
     registry.register(new ClaudeAdapter());
@@ -99,10 +105,13 @@ export class CLI {
    * @date 2026-05-03
    */
   async start(): Promise<void> {
+    // 初始化 i18n（优先于任何 UI 输出）
+    await this.i18n.initialize();
+
     await this.ensureConfigFile();
 
-    console.log(chalk.cyan('Model Registry Manager (cmrm) - Multi-tool support'));
-    console.log(chalk.gray('\n提示：输入命令索引号按 Enter 确认\n'));
+    console.log(chalk.cyan(this.i18n.t('app.welcome')));
+    console.log(chalk.gray('\n' + this.i18n.t('commands.selectHint') + '\n'));
 
     await this.showCommandSelection();
   }
@@ -130,9 +139,8 @@ export class CLI {
     if (templateInitResult === 'builtin') {
       const templatesPath = templateManager.getTemplatesPath();
 
-      console.log(chalk.yellow('\n模板远程拉取失败，已使用内置默认模板。'));
-      console.log(chalk.gray(`如需更新到最新模板，请检查网络后删除 ${templatesPath} 重新启动。`));
-      console.log(chalk.gray(`或手动编辑该文件添加自定义模型模板。`));
+      console.log(chalk.yellow('\n' + this.i18n.t('messages.templateBuiltin')));
+      console.log(chalk.gray(this.i18n.t('messages.templateHint', { path: templatesPath })));
     }
     // 远程拉取成功或本地已存在：静默处理，无需额外提示
     else {
@@ -147,18 +155,18 @@ export class CLI {
    * @date 2026-05-03
    */
   private initializeConfigFile(): void {
-    console.log(chalk.yellow('Configuration file not found. Initializing...'));
+    console.log(chalk.yellow(this.i18n.t('errors.configNotFound') + '. Initializing...'));
 
     try {
       this.configManager.initializeSettings();
       const path = this.configManager.getSettingsPath();
-      console.log(chalk.green(`Configuration file created at: ${path}`));
-      console.log(chalk.gray('Please edit the file to add your API keys.\n'));
+      console.log(chalk.green(this.i18n.t('messages.configCreated', { path: path })));
+      console.log(chalk.gray(this.i18n.t('messages.editApiKey') + '\n'));
     }
     // 初始化失败：直接退出（无法继续运行）
     catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.log(chalk.red(`Failed to initialize: ${message}`));
+      console.log(chalk.red(this.i18n.t('errors.initFailed') + `: ${message}`));
       process.exit(1);
     }
   }
@@ -175,11 +183,12 @@ export class CLI {
     // 顶部展示快捷方式横幅,引导一行式快捷命令
     printShortcutBanner();
 
-    console.log(chalk.cyan('\n=== 选择命令 ==='));
-    console.log(chalk.gray('(输入索引号按 Enter 确认)\n'));
+    console.log(chalk.cyan('\n=== ' + this.i18n.t('commands.select') + ' ==='));
+    console.log(chalk.gray('(' + this.i18n.t('commands.selectHint') + ')\n'));
 
     AVAILABLE_COMMANDS.forEach((cmd, index) => {
-      console.log(chalk.gray(`[${index}] `) + cmd.name.padEnd(15) + chalk.gray(cmd.description));
+      const translatedDesc = this.i18n.t(cmd.descriptionKey);
+      console.log(chalk.gray(`[${index}] `) + cmd.name.padEnd(15) + chalk.gray(translatedDesc));
     });
 
     try {
@@ -190,7 +199,7 @@ export class CLI {
     // 选择异常：返回菜单重新选择
     catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.uiRenderer.showError(`选择失败: ${message}`);
+      this.uiRenderer.showError(this.i18n.t('errors.selectFailed', { message: message }));
       this.rl = this.recreateReadline();
       await this.showCommandSelection();
     }
@@ -208,11 +217,11 @@ export class CLI {
       {
         type: 'input',
         name: 'index',
-        message: '请输入命令索引:',
+        message: this.i18n.t('commands.enterIndex'),
         validate: (value: string) => {
           const num = parseInt(value, 10);
           if (isNaN(num) || num < 0 || num >= AVAILABLE_COMMANDS.length) {
-            return `请输入 0-${AVAILABLE_COMMANDS.length - 1} 之间的数字`;
+            return this.i18n.t('commands.invalidIndex', { max: AVAILABLE_COMMANDS.length - 1 });
           }
           else {
             return true;
@@ -245,6 +254,11 @@ export class CLI {
     // /current 直接展示当前模型
     else if (input === '/current') {
       this.uiRenderer.showCurrentModels();
+      await this.showCommandSelection();
+    }
+    // /set-lang 设置语言
+    else if (input === '/set-lang') {
+      await handleSetLang(this.i18n);
       await this.showCommandSelection();
     }
     // 退出命令
@@ -314,7 +328,7 @@ export class CLI {
    * @date 2026-05-03
    */
   private exitProgram(): void {
-    console.log(chalk.yellow('\nGoodbye!'));
+    console.log(chalk.yellow('\n' + this.i18n.t('commands.goodbye')));
     this.rl.close();
     process.exit(0);
   }

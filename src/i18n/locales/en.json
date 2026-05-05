@@ -1,0 +1,185 @@
+{
+  "app": {
+    "name": "Model Registry Manager",
+    "welcome": "Model Registry Manager (cmrm) - Multi-tool support"
+  },
+  "commands": {
+    "select": "Select Command",
+    "selectHint": "Enter index number to confirm",
+    "enterIndex": "Enter command index:",
+    "invalidIndex": "Please enter a number between 0 and {max}",
+    "exit": "Exit program",
+    "goodbye": "Goodbye!",
+    "setLang": {
+      "select": "Select Language",
+      "enterIndex": "Enter language index:",
+      "invalidIndex": "Please enter a number between 0 and {max}",
+      "success": "Language set to: {locale}"
+    },
+    "desc": {
+      "switch": "Switch Model Config",
+      "add": "Add Model Config (Template/Custom)",
+      "remove": "Remove Model Config",
+      "info": "View Model Details",
+      "test": "Test Model Config",
+      "alias": "Manage Aliases (Add/Remove/List)",
+      "list": "Show All Models",
+      "current": "Show Current Model",
+      "setLang": "Set Interface Language",
+      "exit": "Exit Program"
+    }
+  },
+  "errors": {
+    "configNotFound": "Configuration file not found",
+    "initFailed": "Initialization failed",
+    "selectFailed": "Selection failed: {message}",
+    "unknownCommand": "Unknown command: {command}"
+  },
+  "tools": {
+    "selectTool": "Select Tool",
+    "selectToolHint": "Enter index number to confirm",
+    "selectModel": "Select {tool} Model",
+    "selectModelHint": "(Enter index number to confirm, or Esc to cancel)",
+    "selected": "Selected tool",
+    "removeModel": "Remove {tool} Model",
+    "enterIndex": "Enter index number:",
+    "enterIndexToRemove": "Enter index number to remove:",
+    "confirmHint": "(Enter index number to confirm)",
+    "confirmDeleteHint": "(Enter index number to confirm deletion)",
+    "viewModelInfo": "View {tool} Model Info",
+    "noModels": "No saved model configurations",
+    "addModelHint": "Use /add command to add model configuration",
+    "back": "Back",
+    "exit": "Exit",
+    "enterToolIndex": "Enter tool index:"
+  },
+  "messages": {
+    "initialized": "Configuration file created at: {path}",
+    "editApiKey": "Please edit the file to add your API keys.",
+    "templateBuiltin": "Template remote fetch failed, using built-in default templates.",
+    "templateHint": "To update to latest templates, check network and delete {path} then restart.",
+    "configCreated": "Configuration file created at: {path}",
+    "networkError": "Network error, please check your connection"
+  },
+  "shortcuts": {
+    "banner": "Shortcuts:"
+  },
+  "actions": {
+    "validateFailed": "Configuration validation failed! Missing required fields.",
+    "switchFailed": "Switch failed",
+    "modelSwitched": "Model switched",
+    "tool": "Tool",
+    "model": "Model",
+    "backup": "Backup",
+    "modelDeleted": "Model config deleted",
+    "deleteFailed": "Delete failed",
+    "configNotExists": "Config does not exist",
+    "modelDetails": "Model Details"
+  },
+  "alias": {
+    "selectModel": "Select {tool} Model (Manage Aliases)",
+    "add": "Add Alias",
+    "remove": "Remove Alias",
+    "list": "List Aliases",
+    "none": "(none)",
+    "manageTitle": "Manage aliases for {model}",
+    "currentAliases": "Current aliases",
+    "enterAlias": "Enter alias to add:",
+    "aliasAdded": "Alias added",
+    "addFailed": "Add failed",
+    "noAliasToRemove": "No aliases to remove",
+    "selectToRemove": "Select alias to remove",
+    "aliasRemoved": "Alias removed",
+    "noAlias": "No aliases",
+    "aliasList": "Alias List",
+    "invalidIndex": "Please enter a number between 0 and {max}"
+  },
+  "test": {
+    "continueHint": "You can continue testing or select 'Back' to return to command menu",
+    "testFailed": "Test failed",
+    "testPassed": "Test passed",
+    "requestFailed": "Request failed [{errorKind}]",
+    "invalidResponse": "Invalid response format",
+    "menuTitle": "Test {tool} Model",
+    "testSaved": "Test Saved Model",
+    "testCustom": "Custom Parameters Test (No Save)",
+    "selectModel": "Select Model to Test",
+    "retrying": "Retry {current}/{max}..."
+  },
+  "template": {
+    "selectTitle": "Select Model Template",
+    "enterIndex": "Enter template index (1-{count}):"
+  },
+  "add": {
+    "title": "Add {tool} Model Config",
+    "selectMethod": "Select Add Method",
+    "templateAdd": "Add from Template",
+    "customAdd": "Custom Add",
+    "templateDesc": "Select preset model template, auto-fill config",
+    "customDesc": "Manually input all config fields",
+    "enterMethodIndex": "Enter method index (1-{count}):",
+    "hintOptional": "Hint: Optional fields can be skipped by pressing Enter",
+    "noTemplates": "No templates available, using custom add",
+    "cancel": "Cancelled",
+    "cancelSave": "Save cancelled",
+    "validateFailed": "Config validation failed! Please check required fields.",
+    "testing": "Testing connection...",
+    "testFailStillSave": "Test failed. Still save this config?",
+    "modelAdded": "Model config added",
+    "configName": "Config name (optional, uses model name if empty)",
+    "modelName": "Model name (required)",
+    "apiKey": "API Key (required)",
+    "baseUrl": "Base URL (required)",
+    "haikuModel": "Haiku model (optional)",
+    "sonnetModel": "Sonnet model (optional)",
+    "opusModel": "Opus model (optional)",
+    "apiTypeAnthropic": "Anthropic",
+    "apiTypeOpenAI": "OpenAI",
+    "apiTypeSelect": "Select API Type"
+  },
+  "fuzzy": {
+    "noCommandStartsWith": "No command starts with: {input}",
+    "availableCommands": "Available commands",
+    "unknownCommand": "Unknown command: {input}",
+    "pressEnterHint": "Press Enter to confirm, or continue typing",
+    "didYouMean": "Did you mean:",
+    "commandListFallback": "Available commands: /switch, /add, /remove, /info, /test, /list, /current, /exit"
+  },
+  "ui": {
+    "selectCommandFull": "Select command (↑/↓ navigate, Enter confirm, Ctrl+C exit):",
+    "selectCommand": "Select command:",
+    "selectToolFull": "Select tool (↑/↓ navigate, Enter confirm, Esc cancel):",
+    "selectTool": "Select tool:",
+    "selectModel": "Select {tool} Model",
+    "selectModelHint": "Enter index number to confirm, or Esc to cancel",
+    "enterIndex": "Enter index number",
+    "allModels": "All Model Configs",
+    "noModels": "(no model configs)",
+    "currentModels": "Current Active Models",
+    "current": "Current",
+    "notConfigured": "(not configured)",
+    "detail": "Detail"
+  },
+  "help": {
+    "subtitle": "Claude CLI model quick switch/test tool",
+    "usageInteractive": "Enter interactive menu (default)",
+    "usageSwitch": "Quick switch claude tool model",
+    "usageTest": "Quick test saved model connectivity",
+    "usageAlias": "Add global unique alias for model",
+    "usageHelp": "Show this help",
+    "exampleSwitchComment": "Switch to sonnet-4 model (default tool=claude)",
+    "exampleTestComment": "Test gpt-4o-mini model connectivity",
+    "exampleAliasComment": "Add fast alias for sonnet-4, then cmrm switch fast",
+    "noteMatchRule": "Model name matches by name → aliases → model, first match returns",
+    "noteAliasUnique": "Aliases are globally unique, cannot repeat across models/tools",
+    "noteNotFound": "When model not found, lists all available names, exit code 1",
+    "noteInteractive": "No args enters full interactive menu",
+    "showHelpHint": "Use `cmrm --help` to see supported commands"
+  },
+  "shortcut": {
+    "testing": "Testing [{apiType}] {name} ...",
+    "modelNotFound": "Model not found: {name}",
+    "availableModels": "Available models:",
+    "noModelsHint": "No saved models. Run `cmrm` to enter interactive menu and select /add to add one"
+  }
+}
