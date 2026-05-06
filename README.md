@@ -232,6 +232,13 @@ npm start
 
 ## Changelog
 
+### 0.2.2
+- ⚡ Skip tool selection when only one adapter is registered
+- 🏷️ Show tool name suffix in model selection menu for clarity
+- 🆕 `cmrm --version` / `-v` to display version number
+- 🐛 Fix Fatal error on first run when settings.json is missing
+- 🐛 Fix module-level `t()` calls resolving before i18n initialization
+
 ### 0.2.1
 - 🌏 Add multi-language support (zh/en/ja) with geo-detection auto-switch
 - 🌍 Add `/set-lang` command for manual language switching

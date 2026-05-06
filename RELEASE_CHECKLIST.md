@@ -22,6 +22,7 @@
 | CHANGELOG 更新 | 检查 `CHANGELOG.md` | 包含本次所有改动 |
 | README 更新 | 检查 `README.md` 和 `README.zh-CN.md` | 与最新功能一致 |
 | README 中英同步 | 对比两个文件内容 | 功能描述一致 |
+| README 版本号同步 | 检查两个 README 的「更新日志」头版本号 | 与 `package.json` 一致 |
 
 ---
 
