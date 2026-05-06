@@ -184,3 +184,58 @@ describe('parseArgv - alias', () => {
     expect(result.kind).toBe('unknown');
   });
 });
+
+/**
+ * set-lang 分支(cmrm set-lang <locale>)
+ */
+describe('parseArgv - setLang', () => {
+  // 完整 set-lang 命令
+  it('set-lang en 应返回 setLang 分支并携带 locale', () => {
+    expect(parseArgv(['set-lang', 'en'])).toEqual({
+      kind: 'setLang',
+      locale: 'en',
+    });
+  });
+
+  it('set-lang zh 应返回 setLang 分支并携带 locale', () => {
+    expect(parseArgv(['set-lang', 'zh'])).toEqual({
+      kind: 'setLang',
+      locale: 'zh',
+    });
+  });
+
+  it('set-lang ja 应返回 setLang 分支并携带 locale', () => {
+    expect(parseArgv(['set-lang', 'ja'])).toEqual({
+      kind: 'setLang',
+      locale: 'ja',
+    });
+  });
+
+  // 缺失语言代码:降级 unknown
+  it('set-lang 缺少 locale 时应降级为 unknown', () => {
+    const result = parseArgv(['set-lang']);
+
+    expect(result.kind).toBe('unknown');
+    if (result.kind === 'unknown') {
+      expect(result.input).toContain('set-lang');
+    }
+  });
+
+  // 无效语言代码:降级 unknown
+  it('set-lang 无效 locale 时应降级为 unknown', () => {
+    const result = parseArgv(['set-lang', 'fr']);
+
+    expect(result.kind).toBe('unknown');
+    if (result.kind === 'unknown') {
+      expect(result.input).toContain('fr');
+    }
+  });
+
+  // locale 两端有空白:trim 处理
+  it('set-lang 应自动 trim locale', () => {
+    expect(parseArgv(['set-lang', '  en  '])).toEqual({
+      kind: 'setLang',
+      locale: 'en',
+    });
+  });
+});

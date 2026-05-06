@@ -28,11 +28,15 @@ const TEST_SETTINGS_PATH = path.join(os.homedir(), '.cmrm', 'settings.json');
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(fs.writeFileSync).mockImplementation(() => undefined);
+  vi.mocked(fs.readdirSync).mockReturnValue([]);
+  vi.mocked(fs.copyFileSync).mockImplementation(() => undefined);
 });
 
 afterEach(() => {
   vi.clearAllMocks();
   vi.mocked(fs.writeFileSync).mockImplementation(() => undefined);
+  vi.mocked(fs.readdirSync).mockReturnValue([]);
+  vi.mocked(fs.copyFileSync).mockImplementation(() => undefined);
 });
 
 /**

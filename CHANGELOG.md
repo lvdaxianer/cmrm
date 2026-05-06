@@ -6,12 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Added
-- 0.2.2 单工具跳过选择 + i18n 首次运行修复 (485098e)
 
 ## [0.2.2] - 2026-05-06
 
 ### Added
+- `cmrm set-lang <zh|en|ja>` 快捷方式，无需进入交互菜单直接设置语言
+- `~/.cmrm/settings.json` 每次写入时自动备份，格式 `settings.json.backup.YYYYMMDDNN`
 - 单工具注册时跳过「选工具」步骤，`/switch` 直接进入模型选择
 - 模型选择菜单显示工具名后缀 `[idx] 模型名 [提供商] (工具名)`，提升辨识
 - `cmrm` 无参数快捷方式支持 `--version` / `-v` 查看版本号

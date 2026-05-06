@@ -29,6 +29,7 @@ export type ParsedArgs =
   | { kind: 'switch'; model: string }
   | { kind: 'test'; model: string }
   | { kind: 'alias'; model: string; alias: string }
+  | { kind: 'setLang'; locale: string }
   | { kind: 'unknown'; input: string }
   | { kind: 'interactive' };
 
@@ -90,6 +91,10 @@ function parseFirstToken(args: string[]): ParsedArgs {
   else if (first === 'alias') {
     return parseAlias(rest);
   }
+  // set-lang 子命令
+  else if (first === 'set-lang') {
+    return parseSetLang(rest);
+  }
   // 其他:未知命令
   else {
     return { kind: 'unknown', input: first };
@@ -137,6 +142,35 @@ function parseTest(rest: string[]): ParsedArgs {
   // 输入完整:返回 test 分支
   else {
     return { kind: 'test', model };
+  }
+}
+
+/** 支持的语言代码集合 */
+const VALID_LOCALES = new Set(['zh', 'en', 'ja']);
+
+/**
+ * 解析 set-lang <locale>
+ * 缺失 locale 或无效时降级为 unknown
+ *
+ * @param rest - 'set-lang' 之后的剩余参数
+ * @return 解析结果
+ * @author lvdaxianerplus
+ * @date 2026-05-06
+ */
+function parseSetLang(rest: string[]): ParsedArgs {
+  const locale = rest[0]?.trim();
+
+  // 缺失语言代码:作为未知命令处理
+  if (!locale) {
+    return { kind: 'unknown', input: 'set-lang (missing locale)' };
+  }
+  // 无效语言代码:提示可用选项
+  else if (!VALID_LOCALES.has(locale)) {
+    return { kind: 'unknown', input: `set-lang ${locale} (invalid, must be zh/en/ja)` };
+  }
+  // 输入完整且有效:返回 setLang 分支
+  else {
+    return { kind: 'setLang', locale };
   }
 }
 

@@ -72,6 +72,7 @@ For one-line workflows, the following arguments are accepted directly without en
 | `cmrm switch <name>` | Quickly switch to a saved model |
 | `cmrm test <name>` | Quickly test a saved model's connectivity |
 | `cmrm alias <model> <new-alias>` | Add a globally-unique alias to a model |
+| `cmrm set-lang <zh/en/ja>` | Set interface language directly |
 | `cmrm --help` / `-h` | Show help |
 
 `<name>` is matched in three tiers: `name` → `aliases` → `model` (first hit wins). Aliases are globally unique across all models and tools — conflicts are rejected with a clear error.
@@ -233,6 +234,8 @@ npm start
 ## Changelog
 
 ### 0.2.2
+- 🆕 `cmrm set-lang <zh|en/ja>` shortcut to set language without interactive menu
+- 📦 Auto-backup `settings.json` on every write with format `settings.json.backup.YYYYMMDDNN`
 - ⚡ Skip tool selection when only one adapter is registered
 - 🏷️ Show tool name suffix in model selection menu for clarity
 - 🆕 `cmrm --version` / `-v` to display version number

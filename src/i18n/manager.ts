@@ -153,12 +153,8 @@ export class I18nManager {
     }
     settings.language.manual = locale;
 
-    // 写入配置文件
-    const fs = require('fs');
-    const path = require('path');
-    const os = require('os');
-    const settingsPath = path.join(os.homedir(), '.cmrm', 'settings.json');
-    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+    // 统一保存(自动备份)
+    this.configManager.saveSettings(settings);
   }
 
   /**

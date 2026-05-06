@@ -72,6 +72,7 @@ cmrm
 | `cmrm switch <name>` | 快速切换到已保存的模型 |
 | `cmrm test <name>` | 快速测试已保存模型的连通性 |
 | `cmrm alias <model> <new-alias>` | 为模型添加全局唯一的别名 |
+| `cmrm set-lang <zh/en/ja>` | 直接设置界面语言 |
 | `cmrm --help` / `-h` | 查看帮助 |
 
 `<name>` 按三级优先级匹配: `name` → `aliases` → `model`(首项命中即返回)。别名跨模型 / 跨工具全局唯一,冲突时直接拒绝并提示原因。
@@ -233,6 +234,8 @@ npm start
 ## 更新日志
 
 ### 0.2.2
+- 🆕 `cmrm set-lang <zh|en|ja>` 快捷方式，直接设置语言
+- 📦 `settings.json` 每次写入自动备份，格式 `settings.json.backup.YYYYMMDDNN`
 - ⚡ 单工具时跳过「选工具」步骤，直接选择模型
 - 🏷️ 模型选择菜单显示工具名后缀，提升辨识
 - 🆕 `cmrm --version` / `-v` 查看版本号

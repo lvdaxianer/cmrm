@@ -15,6 +15,7 @@ vi.mock('fs');
 
 const mockConfigManager = {
   readSettings: vi.fn(),
+  saveSettings: vi.fn(),
 } as unknown as ConfigManager;
 
 beforeEach(() => {

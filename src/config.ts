@@ -113,8 +113,8 @@ export class ConfigManager {
       },
     };
 
-    // 写入新格式配置（迁移）
-    fs.writeFileSync(this.settingsPath, JSON.stringify(newSettings, null, 2), 'utf-8');
+    // 写入新格式配置（迁移,自动备份）
+    this.saveSettings(newSettings);
 
     return newSettings;
   }
@@ -314,9 +314,6 @@ export class ConfigManager {
    */
   saveToolModel(toolName: string, config: UnifiedModelConfig): void {
     try {
-      // 确保 cmrm 配置目录存在
-      this.ensureCmrmDir();
-
       // 读取或创建配置
       let settings = this.loadOrCreateSettings();
 
@@ -326,8 +323,8 @@ export class ConfigManager {
       // 更新模型配置列表
       settings = this.updateToolModes(settings, toolName, config);
 
-      // 写入配置文件
-      fs.writeFileSync(this.settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+      // 保存配置(自动备份)
+      this.saveSettings(settings);
     }
     // 处理异常
     catch (error) {
@@ -389,14 +386,68 @@ export class ConfigManager {
         },
       };
 
-      // 写入配置文件
-      fs.writeFileSync(this.settingsPath, JSON.stringify(defaultSettings, null, 2), 'utf-8');
+      // 保存配置(自动备份)
+      this.saveSettings(defaultSettings);
     }
     // 处理异常
     catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to initialize settings: ${message}`);
     }
+  }
+
+  /**
+   * 备份当前 settings.json
+   * 备份格式: settings.json.backup.YYYYMMDDNN (NN 为当天递增序号)
+   *
+   * @author lvdaxianerplus
+   * @date 2026-05-06
+   */
+  private backupSettings(): void {
+    // 文件不存在:无需备份
+    if (!fs.existsSync(this.settingsPath)) {
+      return;
+    }
+
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const backupDir = path.dirname(this.settingsPath);
+    const baseName = `settings.json.backup.${dateStr}`;
+
+    // 扫描当天已有备份,获取最大序号
+    let maxSeq = -1;
+    const pattern = new RegExp(`^settings\\.json\\.backup\\.${dateStr}(\\d{2})$`);
+
+    if (fs.existsSync(backupDir)) {
+      const files = fs.readdirSync(backupDir);
+      for (const file of files) {
+        const match = file.match(pattern);
+        if (match) {
+          const seq = parseInt(match[1], 10);
+          if (seq > maxSeq) {
+            maxSeq = seq;
+          }
+        }
+      }
+    }
+
+    const seqStr = String(maxSeq + 1).padStart(2, '0');
+    const backupPath = path.join(backupDir, `${baseName}${seqStr}`);
+
+    fs.copyFileSync(this.settingsPath, backupPath);
+  }
+
+  /**
+   * 保存配置并自动备份
+   * 所有写入 settings.json 的入口都应走此方法
+   *
+   * @param settings - 要保存的配置对象
+   * @author lvdaxianerplus
+   * @date 2026-05-06
+   */
+  saveSettings(settings: Settings): void {
+    this.ensureCmrmDir();
+    this.backupSettings();
+    fs.writeFileSync(this.settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
   }
 
   /**

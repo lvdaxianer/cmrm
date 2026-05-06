@@ -21,7 +21,8 @@ import { testModelConfig } from '../utils/tester';
 import { printHelp } from './help-printer';
 import { printVersion } from './version-printer';
 import { runAliasShortcut } from './alias-shortcut';
-import { t } from '../i18n';
+import { createI18n, t } from '../i18n';
+import { ConfigManager } from '../config';
 
 /** 默认工具名(目前 registry 仅注册了 claude) */
 const DEFAULT_TOOL_NAME = 'claude';
@@ -52,6 +53,10 @@ export async function runShortcut(parsed: ParsedArgs, ui: UIRenderer): Promise<n
   else if (parsed.kind === 'version') {
     printVersion();
     return EXIT_OK;
+  }
+  // set-lang:直接设置语言,无需 adapter
+  else if (parsed.kind === 'setLang') {
+    return runSetLangShortcut(parsed.locale, ui);
   }
   // switch / test / unknown:进入命令分发(需保证 adapter 已注册)
   else {
@@ -264,4 +269,24 @@ function printModelNotFound(adapter: ToolAdapter, name: string, ui: UIRenderer):
   else {
     ui.showInfo(t('shortcut.noModelsHint'));
   }
+}
+
+/**
+ * 执行 set-lang 快捷方式
+ * 直接设置语言,无需交互和 adapter
+ *
+ * @param locale - 目标语言代码(zh/en/ja)
+ * @param ui - UI 渲染器
+ * @return 退出码
+ * @author lvdaxianerplus
+ * @date 2026-05-06
+ */
+async function runSetLangShortcut(locale: string, ui: UIRenderer): Promise<number> {
+  const configManager = new ConfigManager();
+  const i18n = createI18n(configManager);
+  await i18n.initialize();
+  await i18n.setLocale(locale as 'zh' | 'en' | 'ja');
+
+  ui.showSuccess(t('commands.setLang.success', { locale }));
+  return EXIT_OK;
 }
