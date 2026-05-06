@@ -25,6 +25,7 @@
  */
 export type ParsedArgs =
   | { kind: 'help' }
+  | { kind: 'version' }
   | { kind: 'switch'; model: string }
   | { kind: 'test'; model: string }
   | { kind: 'alias'; model: string; alias: string }
@@ -33,6 +34,9 @@ export type ParsedArgs =
 
 /** 帮助标志集合(所有等价于 --help 的形式) */
 const HELP_FLAGS = new Set(['--help', '-h', 'help']);
+
+/** 版本标志集合(所有等价于 --version 的形式) */
+const VERSION_FLAGS = new Set(['--version', '-v', '-version', 'version']);
 
 /**
  * 解析 process.argv.slice(2) 为结构化结果
@@ -69,6 +73,10 @@ function parseFirstToken(args: string[]): ParsedArgs {
   // help 标志(--help / -h / help)
   if (HELP_FLAGS.has(first)) {
     return { kind: 'help' };
+  }
+  // version 标志(--version / -v / version)
+  else if (VERSION_FLAGS.has(first)) {
+    return { kind: 'version' };
   }
   // switch 子命令
   else if (first === 'switch') {

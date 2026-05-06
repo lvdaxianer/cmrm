@@ -25,20 +25,21 @@ import { t } from '../i18n';
 
 /**
  * 添加方式选项
+ * 使用 i18n key 而非已翻译文本,避免模块加载时 i18n 未初始化导致返回 raw key
  */
 interface AddMethodOption {
   /** 选项标识 */
   value: 'template' | 'custom';
-  /** 显示文本 */
-  label: string;
-  /** 选项描述 */
-  description: string;
+  /** 显示文本 i18n key */
+  labelKey: string;
+  /** 选项描述 i18n key */
+  descriptionKey: string;
 }
 
-/** 添加方式选项列表 */
+/** 添加方式选项列表(运行时再调用 t() 解析) */
 const ADD_METHOD_OPTIONS: AddMethodOption[] = [
-  { value: 'template', label: t('add.templateAdd'), description: t('add.templateDesc') },
-  { value: 'custom', label: t('add.customAdd'), description: t('add.customDesc') },
+  { value: 'template', labelKey: 'add.templateAdd', descriptionKey: 'add.templateDesc' },
+  { value: 'custom', labelKey: 'add.customAdd', descriptionKey: 'add.customDesc' },
 ];
 
 /**
@@ -90,10 +91,10 @@ export async function runAddFlow(
  * @date 2026-05-03
  */
 async function askAddMethod(): Promise<'template' | 'custom' | null> {
-  // 打印添加方式选择菜单
+  // 打印添加方式选择菜单(运行时解析 i18n key)
   printIndexMenu(t('add.selectMethod'), ADD_METHOD_OPTIONS, (opt) => {
-    const desc = chalk.gray(`(${opt.description})`);
-    return opt.label + ` ${desc}`;
+    const desc = chalk.gray(`(${t(opt.descriptionKey)})`);
+    return t(opt.labelKey) + ` ${desc}`;
   });
 
   // 提示用户输入索引并校验范围

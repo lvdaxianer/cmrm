@@ -19,6 +19,7 @@ import { findModelByName, listAvailableNames } from './model-finder';
 import { runSwitchAction } from './model-actions';
 import { testModelConfig } from '../utils/tester';
 import { printHelp } from './help-printer';
+import { printVersion } from './version-printer';
 import { runAliasShortcut } from './alias-shortcut';
 import { t } from '../i18n';
 
@@ -45,6 +46,11 @@ export async function runShortcut(parsed: ParsedArgs, ui: UIRenderer): Promise<n
   // help 直接打印文案
   if (parsed.kind === 'help') {
     printHelp();
+    return EXIT_OK;
+  }
+  // version 直接打印版本号
+  else if (parsed.kind === 'version') {
+    printVersion();
     return EXIT_OK;
   }
   // switch / test / unknown:进入命令分发(需保证 adapter 已注册)

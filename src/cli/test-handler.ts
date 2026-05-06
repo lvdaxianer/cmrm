@@ -193,11 +193,12 @@ export class TestHandler {
     console.log(chalk.cyan(`\n=== ${t('test.selectModel')} ===`));
     console.log(chalk.gray(`(${t('tools.selectToolHint')})\n`));
 
-    // 显示每个模型选项（含 apiType 标记便于辨识）
+    // 显示每个模型选项（含 apiType 标记 + 工具名后缀便于辨识）
+    const toolSuffix = chalk.gray(`(${this.adapter.displayName})`);
     models.forEach((model, index) => {
       const displayName = model.name || model.model;
       const apiTypeInfo = chalk.gray(`[${model.apiType ?? 'anthropic'}]`);
-      console.log(chalk.gray(`[${index}] `) + displayName + ` ${apiTypeInfo}`);
+      console.log(chalk.gray(`[${index}] `) + displayName + ` ${apiTypeInfo} ${toolSuffix}`);
     });
     // 取消选项放在末尾
     console.log(chalk.gray(`[${models.length}] ${t('add.cancel')}`));

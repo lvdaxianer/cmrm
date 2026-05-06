@@ -13,7 +13,7 @@
  */
 
 import * as readline from 'readline';
-import { ToolAdapter } from '../adapters';
+import { registry, ToolAdapter } from '../adapters';
 import { UnifiedModelConfig } from '../types';
 import { UIRenderer } from './ui';
 import { selectTool, ToolPickResult } from './tool-selector';
@@ -52,6 +52,7 @@ export interface OrchestratorContext {
 
 /**
  * 显示工具选择菜单并分发到对应子流程
+ * 单工具优化:仅注册一个适配器时跳过「选工具」步骤,直接进入对应子流程
  *
  * @param ctx - 编排上下文
  * @param op - 当前命令对应的子操作
@@ -60,8 +61,16 @@ export interface OrchestratorContext {
  */
 export async function showToolSelection(ctx: OrchestratorContext, op: NextOperation): Promise<void> {
   try {
-    const result = await selectTool(ctx.rl);
-    await dispatchToolResult(ctx, op, result);
+    // 单工具场景:跳过选择菜单,直接使用唯一适配器
+    const adapters = registry.getAllAdapters();
+    if (adapters.length === 1) {
+      await runOperation(ctx, op, adapters[0]);
+    }
+    // 多工具场景:正常走选择流程
+    else {
+      const result = await selectTool(ctx.rl);
+      await dispatchToolResult(ctx, op, result);
+    }
   }
   // 工具选择异常：返回命令菜单
   catch (error) {

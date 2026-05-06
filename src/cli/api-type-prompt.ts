@@ -13,9 +13,9 @@ import { ApiType } from '../adapters/types';
 import { t } from '../i18n';
 
 /** API 类型选项(索引从 1 开始,与用户输入对齐) */
-const API_TYPE_OPTIONS: { value: ApiType; labelKey: string; description: string }[] = [
-  { value: 'anthropic', labelKey: 'add.apiTypeAnthropic', description: 'Claude Messages 格式' },
-  { value: 'openai', labelKey: 'add.apiTypeOpenAI', description: 'Chat Completions 格式' },
+const API_TYPE_OPTIONS: { value: ApiType; labelKey: string; descriptionKey: string }[] = [
+  { value: 'anthropic', labelKey: 'add.apiTypeAnthropic', descriptionKey: 'add.apiTypeAnthropicDesc' },
+  { value: 'openai', labelKey: 'add.apiTypeOpenAI', descriptionKey: 'add.apiTypeOpenAIDesc' },
 ];
 
 /** 默认索引(对应 anthropic) */
@@ -58,7 +58,7 @@ function printApiTypeMenu(): void {
 
   API_TYPE_OPTIONS.forEach((option, index) => {
     const indexNum = index + 1;
-    const desc = chalk.gray(`(${option.description})`);
+    const desc = chalk.gray(`(${t(option.descriptionKey)})`);
     console.log(chalk.gray(`[${indexNum}] `) + t(option.labelKey) + ` ${desc}`);
   });
   console.log('');

@@ -135,6 +135,8 @@
     "opusModel": "Opus model (optional)",
     "apiTypeAnthropic": "Anthropic",
     "apiTypeOpenAI": "OpenAI",
+    "apiTypeAnthropicDesc": "Claude Messages format",
+    "apiTypeOpenAIDesc": "Chat Completions format",
     "apiTypeSelect": "Select API Type"
   },
   "fuzzy": {
@@ -167,6 +169,7 @@
     "usageTest": "Quick test saved model connectivity",
     "usageAlias": "Add global unique alias for model",
     "usageHelp": "Show this help",
+    "usageVersion": "Show version number",
     "exampleSwitchComment": "Switch to sonnet-4 model (default tool=claude)",
     "exampleTestComment": "Test gpt-4o-mini model connectivity",
     "exampleAliasComment": "Add fast alias for sonnet-4, then cmrm switch fast",

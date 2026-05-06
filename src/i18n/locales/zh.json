@@ -135,6 +135,8 @@
     "opusModel": "Opus 模型（可选）",
     "apiTypeAnthropic": "Anthropic",
     "apiTypeOpenAI": "OpenAI",
+    "apiTypeAnthropicDesc": "Claude Messages 格式",
+    "apiTypeOpenAIDesc": "Chat Completions 格式",
     "apiTypeSelect": "选择 API 类型"
   },
   "fuzzy": {
@@ -167,6 +169,7 @@
     "usageTest": "快速测试已保存模型的连通性",
     "usageAlias": "为模型添加全局唯一别名",
     "usageHelp": "显示本帮助",
+    "usageVersion": "显示版本号",
     "exampleSwitchComment": "切换到名为 sonnet-4 的模型(默认工具=claude)",
     "exampleTestComment": "测试 gpt-4o-mini 模型的连通性",
     "exampleAliasComment": "为 sonnet-4 模型添加 fast 别名,之后可 cmrm switch fast",

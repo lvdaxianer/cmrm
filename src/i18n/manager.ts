@@ -68,18 +68,19 @@ export class I18nManager {
   /**
    * 初始化 i18n
    * 优先级: 手动设置 > 地理位置检测 > 默认语言(zh)
+   * 配置文件不存在或读取失败时静默降级为默认中文,不抛错
    *
    * @returns 初始化后的语言代码
    * @author lvdaxianerplus
    * @date 2026-05-05
+   * @date 2026-05-06 修复: 配置不存在时不再抛错,降级到 defaultLocale
    */
   async initialize(): Promise<Locale> {
-    // 加载语言文件
+    // 加载默认语言文件作为兜底
     this.loadMessages(this.options.defaultLocale);
 
-    // 读取用户语言配置
-    const settings = this.configManager.readSettings();
-    const languageConfig = settings.language || {};
+    // 读取用户语言配置(失败则使用空对象,让后续逻辑落到默认 zh)
+    const languageConfig = this.readLanguageConfigSafely();
 
     // 手动设置优先
     if (languageConfig.manual) {
@@ -88,7 +89,7 @@ export class I18nManager {
       return this.currentLocale;
     }
 
-    // 地理位置检测
+    // 地理位置检测(当前未实现自动获取坐标,始终返回 null)
     if (languageConfig.geoDetection !== false) {
       const detectedLocale = this.detectLocaleByGeo();
       if (detectedLocale) {
@@ -98,10 +99,29 @@ export class I18nManager {
       }
     }
 
-    // 默认使用中文
+    // 默认使用中文(defaultLocale)
     this.currentLocale = this.options.defaultLocale;
     this.loadMessages(this.currentLocale);
     return this.currentLocale;
+  }
+
+  /**
+   * 安全读取语言配置
+   * settings.json 不存在或解析失败时返回空配置,确保 i18n 可降级到默认中文
+   *
+   * @returns 语言配置对象,失败时返回空对象
+   * @author lvdaxianerplus
+   * @date 2026-05-06
+   */
+  private readLanguageConfigSafely(): { manual?: Locale; geoDetection?: boolean } {
+    try {
+      const settings = this.configManager.readSettings();
+      return settings.language || {};
+    }
+    // 配置文件缺失/损坏:返回空配置,让 initialize 落到默认中文
+    catch {
+      return {};
+    }
   }
 
   /**

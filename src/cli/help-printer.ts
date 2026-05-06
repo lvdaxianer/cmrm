@@ -51,6 +51,7 @@ function printUsage(): void {
   console.log('  ' + chalk.green('cmrm test <model-name>') + chalk.gray(`               ${t('help.usageTest')}`));
   console.log('  ' + chalk.green('cmrm alias <model-name> <new-alias>') + chalk.gray(`  ${t('help.usageAlias')}`));
   console.log('  ' + chalk.green('cmrm --help, -h') + chalk.gray(`                      ${t('help.usageHelp')}`));
+  console.log('  ' + chalk.green('cmrm --version, -v') + chalk.gray(`                   ${t('help.usageVersion')}`));
   console.log('');
 }
 

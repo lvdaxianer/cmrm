@@ -20,9 +20,34 @@ import { UIRenderer } from './ui';
 import { parseArgv, ParsedArgs } from './argv-parser';
 import { runShortcut } from './shortcut-runner';
 import type { CLI } from '../cli';
+import { createI18n } from '../i18n';
+import { ConfigManager } from '../config';
 
 /** 致命错误的退出码 */
 const FATAL_EXIT_CODE = 1;
+
+/** 全局 i18n 是否已初始化 */
+let i18nInitialized = false;
+
+/**
+ * 确保 i18n 已初始化（快捷方式模式下需要）
+ *
+ * @author lvdaxianerplus
+ * @date 2026-05-06
+ */
+async function ensureI18n(): Promise<void> {
+  // 已初始化：直接返回
+  if (i18nInitialized) {
+    return;
+  }
+  // 未初始化：创建并初始化
+  else {
+    const configManager = new ConfigManager();
+    const i18n = createI18n(configManager);
+    await i18n.initialize();
+    i18nInitialized = true;
+  }
+}
 
 /**
  * 启动交互式 CLI(原默认行为)
@@ -51,7 +76,9 @@ export function startInteractiveCli(createCli: () => CLI): void {
 export function startShortcut(parsed: ParsedArgs): void {
   const ui = new UIRenderer();
 
-  runShortcut(parsed, ui)
+  // 快捷方式模式下先初始化 i18n，确保帮助文案能正确翻译
+  ensureI18n()
+    .then(() => runShortcut(parsed, ui))
     .then((code) => process.exit(code))
     .catch((error: Error) => {
       console.error(chalk.red(`Fatal error: ${error.message}`));

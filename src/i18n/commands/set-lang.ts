@@ -8,7 +8,8 @@
 
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { I18nManager, Locale } from '../manager';
+import { I18nManager } from '../manager';
+import { Locale } from '../types';
 
 /**
  * 处理 /set-lang 命令

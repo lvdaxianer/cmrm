@@ -135,6 +135,8 @@
     "opusModel": "Opus モデル（オプション）",
     "apiTypeAnthropic": "Anthropic",
     "apiTypeOpenAI": "OpenAI",
+    "apiTypeAnthropicDesc": "Claude Messages 形式",
+    "apiTypeOpenAIDesc": "Chat Completions 形式",
     "apiTypeSelect": "API タイプを選択"
   },
   "fuzzy": {
@@ -167,6 +169,7 @@
     "usageTest": "保存済みモデルの接続性を高速テスト",
     "usageAlias": "モデルにグローバルな別名を追加",
     "usageHelp": "このヘルプを表示",
+    "usageVersion": "バージョン番号を表示",
     "exampleSwitchComment": "sonnet-4 というモデルに切り替え(デフォルトツール=claude)",
     "exampleTestComment": "gpt-4o-mini モデルの接続性をテスト",
     "exampleAliasComment": "sonnet-4 モデルに fast という別名を追加、cmrm switch fast 可能に",

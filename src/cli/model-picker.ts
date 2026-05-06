@@ -68,7 +68,7 @@ export async function pickModel(
   }
   // 有模型：进入索引选择流程
   else {
-    return runIndexSelection(rl, models, options);
+    return runIndexSelection(adapter, rl, models, options);
   }
 }
 
@@ -76,6 +76,7 @@ export async function pickModel(
  * 执行索引选择主流程
  * 切换 stdin 状态、渲染列表、读取索引、解析为 ModelPickResult
  *
+ * @param adapter - 当前工具适配器(传入 renderMenu 显示工具名)
  * @param rl - 当前 readline 接口
  * @param models - 已保存模型列表
  * @param options - 选择器配置
@@ -84,6 +85,7 @@ export async function pickModel(
  * @date 2026-05-03
  */
 async function runIndexSelection(
+  adapter: ToolAdapter,
   rl: readline.Interface,
   models: UnifiedModelConfig[],
   options: ModelPickerOptions
@@ -96,7 +98,7 @@ async function runIndexSelection(
   const exitIndex = models.length + 1;
 
   // 渲染菜单（标题+模型列表+返回/退出选项）
-  renderMenu(models, options, backIndex, exitIndex);
+  renderMenu(adapter, models, options, backIndex, exitIndex);
 
   // 收集用户输入
   const selectedIndex = await promptIndex(options.prompt, totalOptions);
@@ -108,6 +110,7 @@ async function runIndexSelection(
 /**
  * 渲染模型选择菜单
  *
+ * @param adapter - 当前工具适配器(用于显示工具名后缀)
  * @param models - 已保存模型列表
  * @param options - 选择器配置
  * @param backIndex - 返回选项的索引
@@ -116,6 +119,7 @@ async function runIndexSelection(
  * @date 2026-05-03
  */
 function renderMenu(
+  adapter: ToolAdapter,
   models: UnifiedModelConfig[],
   options: ModelPickerOptions,
   backIndex: number,
@@ -124,11 +128,13 @@ function renderMenu(
   console.log(chalk.cyan(`\n=== ${options.title} ===`));
   console.log(chalk.gray(`${options.hint}\n`));
 
-  // 模型行
+  // 模型行(显示模型名 + 提供商 + 工具名后缀)
+  const toolSuffix = chalk.gray(`(${adapter.displayName})`);
   models.forEach((model, index) => {
     const displayName = model.name || model.model;
     const providerInfo = model.provider ? chalk.gray(`[${model.provider}]`) : '';
-    console.log(chalk.gray(`[${index}] `) + displayName + ` ${providerInfo}`);
+    const providerSegment = providerInfo ? ` ${providerInfo}` : '';
+    console.log(chalk.gray(`[${index}] `) + displayName + providerSegment + ` ${toolSuffix}`);
   });
 
   // 控制选项行

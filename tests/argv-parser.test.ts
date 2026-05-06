@@ -103,6 +103,26 @@ describe('parseArgv - test', () => {
 });
 
 /**
+ * version 分支(--version / -v / version)
+ */
+describe('parseArgv - version', () => {
+  // --version 长参数
+  it('--version 应返回 version 分支', () => {
+    expect(parseArgv(['--version'])).toEqual({ kind: 'version' });
+  });
+
+  // -v 短参数
+  it('-v 应返回 version 分支', () => {
+    expect(parseArgv(['-v'])).toEqual({ kind: 'version' });
+  });
+
+  // version 子命令
+  it('version 子命令应返回 version 分支', () => {
+    expect(parseArgv(['version'])).toEqual({ kind: 'version' });
+  });
+});
+
+/**
  * unknown 分支(其他未识别命令)
  */
 describe('parseArgv - unknown', () => {

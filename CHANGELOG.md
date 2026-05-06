@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-05-06
+
+### Added
+- 单工具注册时跳过「选工具」步骤，`/switch` 直接进入模型选择
+- 模型选择菜单显示工具名后缀 `[idx] 模型名 [提供商] (工具名)`，提升辨识
+- `cmrm` 无参数快捷方式支持 `--version` / `-v` 查看版本号
+
+### Changed
+- `test-handler.ts` 选模型列表同步显示工具名后缀，保持体验一致
+
+### Fixed
+- 首次运行 `~/.cmrm/settings.json` 不存在时 Fatal error，改为降级到默认中文
+- 模块级 `t()` 调用时机早于 `i18n.initialize()`，改为运行时解析 key
+- `set-lang.ts` `Locale` 类型引用路径错误 (`../manager` → `../types`)
+
+### Test
+- 新增 i18n 模块 key 验证测试（8 个 key × 3 语言 = 24 个用例）
+- 补全 `settings.json` 缺失场景的 i18n 降级测试
+
 ## [0.2.1] - 2026-05-06
 
 ### Added
