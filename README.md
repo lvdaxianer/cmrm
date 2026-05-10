@@ -1,28 +1,28 @@
-# AI Tool Model Registry Manager (cmrm)
+# AI Tool Config Registry Manager (cmrm)
 
 [中文文档](README.zh-CN.md) | English
 
-A CLI tool that manages AI tool model configurations, allowing you to quickly switch between different models for Claude CLI tool.
+A CLI tool that manages AI tool configurations, allowing you to quickly switch between saved Claude model configs and Codex provider/model profiles.
 
 ## Purpose
 
-This tool provides a convenient way to **manage Claude CLI model configurations**. It allows you to save multiple model configurations, switch between them seamlessly, and view detailed model information - all without manually editing configuration files.
+This tool provides a convenient way to manage CLI configurations for multiple AI tools. It lets you save multiple Claude model configs and Codex profiles, switch between them, test connectivity, and inspect details without manually editing config files.
 
 ## Features
 
-- 🔄 **Claude support** - Full support for Claude CLI model configuration
+- 🔄 **Multi-tool support** - Manage both Claude CLI configs and Codex profiles
 - 🌏 **Multi-language support** - Chinese (zh), English (en), Japanese (ja) with auto geo-detection
 - 🌍 **Language switching** - Use `/set-lang` command to switch language manually
-- 📝 **Model templates** - 9 built-in provider templates, auto-fill model/baseUrl, only API Key needed
+- 📝 **Provider templates** - 9 built-in OpenAI-compatible templates, auto-fill model/baseUrl, only API Key needed
 - 📦 **Backup mechanism** - Automatic backup before each config write
 - 🔀 **Merge strategy** - Preserve existing config fields, only update model-related fields
 - 🔢 **Index-based selection** - Input numbers to select, Enter to confirm
 - ↩️ **Navigation options** - Return to previous level or exit directly
-- ➕ **Add models** - Template-based or custom field-by-field input with validation
+- ➕ **Add configs** - Template-based or custom field-by-field input with validation
 - 📋 **View all configurations** - Grouped display by tool
-- ℹ️ **View model details** - Display full config in JSON format
-- 🔍 **Current model status** - Show active model
-- 🧪 **Connection testing** - Verify model configuration via real HTTP request with retry
+- ℹ️ **View config details** - Display full config in JSON format
+- 🔍 **Current config status** - Show active config/profile per tool
+- 🧪 **Connection testing** - Verify config via real HTTP request with retry
 - 🌐 **Multi-protocol support** - Compatible with both Anthropic Messages and OpenAI Chat Completions
 - 💡 **Smart suggestions** - Recommend similar commands for unknown inputs
 
@@ -38,7 +38,7 @@ npm link
 
 The first time you run `cmrm`, it will automatically create a configuration file at `~/.cmrm/settings.json`.
 
-To add model configurations, use the `/add` command (see Usage section below).
+To add configurations, use the `/add` command (see Usage section below).
 
 ## Usage
 
@@ -52,14 +52,14 @@ cmrm
 
 | Command | Description |
 |---------|-------------|
-| `/switch` | Switch to a saved model configuration |
-| `/add` | Add a new model configuration interactively (auto-tests before saving) |
-| `/remove` | Remove a saved model configuration |
-| `/info` | View detailed model configuration in JSON format |
-| `/test` | Test if a model configuration works (saved or custom, with retry) |
-| `/alias` | Manage model aliases (add/remove/list) |
-| `/list` | Display all saved model configurations |
-| `/current` | Display the currently configured model |
+| `/switch` | Switch to a saved Claude model config or Codex profile |
+| `/add` | Add a new configuration interactively (auto-tests before saving) |
+| `/remove` | Remove a saved configuration |
+| `/info` | View detailed configuration in JSON format |
+| `/test` | Test if a configuration works (saved or custom, with retry) |
+| `/alias` | Manage configuration aliases (add/remove/list) |
+| `/list` | Display all saved configurations |
+| `/current` | Display the currently configured config/profile |
 | `/set-lang` | Switch interface language (zh/en/ja) |
 | `/exit` | Exit the CLI |
 
@@ -69,13 +69,14 @@ For one-line workflows, the following arguments are accepted directly without en
 
 | Shortcut | Description |
 |----------|-------------|
-| `cmrm switch <name>` | Quickly switch to a saved model |
-| `cmrm test <name>` | Quickly test a saved model's connectivity |
-| `cmrm alias <model> <new-alias>` | Add a globally-unique alias to a model |
+| `cmrm switch <name>` | Quickly switch to a saved config/profile |
+| `cmrm test <name>` | Quickly test a saved config/profile |
+| `cmrm alias <name> <new-alias>` | Add a globally-unique alias to a config/profile |
+| `cmrm <tool> import <file>` | Import a config from a file into Claude or Codex storage |
 | `cmrm set-lang <zh/en/ja>` | Set interface language directly |
 | `cmrm --help` / `-h` | Show help |
 
-`<name>` is matched in three tiers: `name` → `aliases` → `model` (first hit wins). Aliases are globally unique across all models and tools — conflicts are rejected with a clear error.
+`<name>` is globally unique across all tools. Its canonical form is `model` for Claude and `provider/model` for Codex. Shortcut matching follows: canonical `name` → legacy custom name (old data only) → `aliases` → `model`. Aliases are also globally unique across all configs and tools.
 
 ### Interactive Selection
 
@@ -89,25 +90,25 @@ All selections use **index-based input**:
 
 Example:
 ```
-=== 选择命令 ===
-(输入索引号按 Enter 确认)
+=== Select Command ===
+(Enter index number to confirm)
 
-[0] /switch        切换模型配置
-[1] /add           添加新模型配置
-[2] /remove         删除模型配置
-[3] /info           查看模型详细信息
-[4] /test           测试模型配置是否可用
-[5] /list           显示所有模型配置
-[6] /current        显示当前模型
-[7] /exit           退出程序
-请输入命令索引: 0
+[0] /switch        Switch saved config/profile
+[1] /add           Add new config
+[2] /remove        Remove saved config
+[3] /info          View config details
+[4] /test          Test configuration
+[5] /list          Show all configs
+[6] /current       Show current config
+[7] /exit          Exit
+Enter command index: 0
 ```
 
-### Adding New Models
+### Adding New Configurations
 
 Use `/add` command. You'll first choose between two modes:
 
-1. **Template-based** (recommended) - Select from 9 built-in provider templates:
+1. **Template-based** (recommended, Claude) - Select from 9 built-in provider templates:
    - DeepSeek, Zhipu AI (bigmodel/Z.AI), Kimi, Minimax (CN/Intl), OpenRouter, Xiaomi MiMo, Alibaba Qwen
    - Template pre-fills `model`, `baseUrl`, `apiType`, and optional models
    - You only need to enter your **API Key**
@@ -120,6 +121,13 @@ Use `/add` command. You'll first choose between two modes:
    - **Base URL** (required)
    - **Haiku/Sonnet/Opus model** (optional)
 
+For Codex custom add:
+
+- `provider` is required and becomes part of the canonical profile identity
+- The primary saved `name` is always canonical: Claude uses `model`, Codex uses `provider/model`
+- The optional add prompt stores an extra alias, not a replacement primary name
+- Example default name: `uino/gpt-5.4`
+
 > 💡 After entering the configuration, cmrm will send a ping request to verify it. If the test fails, you'll be asked whether to save it anyway.
 
 ### Model Templates
@@ -130,13 +138,13 @@ Templates are stored in `~/.cmrm/templates.json` and support **hot-reload** - ed
 - **Custom templates**: Edit `~/.cmrm/templates.json` to add your own providers
 - **Refresh**: Delete `~/.cmrm/templates.json` and restart to re-fetch from remote
 
-### Testing Model Configurations
+### Testing Configurations
 
 Use `/test` command to verify a configuration:
 
-1. Select a tool (e.g., Claude)
+1. Select a tool (e.g., Claude or Codex)
 2. Choose a test scenario:
-   - **Test saved model** - Pick from existing configurations
+   - **Test saved config/profile** - Pick from existing configurations
    - **Custom parameters** - Enter parameters ad-hoc without saving
 
 Error classifications:
@@ -165,19 +173,27 @@ cmrm supports two API protocol formats:
   - Auth header: `Authorization: Bearer <key>`
   - For OpenRouter, DeepSeek, Together, and other OpenAI-compatible proxies
 
-### Switching Models
+### Switching Configurations
 
 Use `/switch` command:
-1. Select a tool (e.g., Claude)
-2. Enter the index number of the model to switch to
-3. The configuration will be merged into Claude's config file
+1. Select a tool (e.g., Claude or Codex)
+2. Enter the index number of the config/profile to switch to
+3. cmrm writes the corresponding tool config files
 
-### Viewing Model Details
+Codex note:
+
+- Codex entries are treated as profiles, not just raw model names
+- The effective identity is `provider + model`
+- Example saved profile names:
+  - `openrouter/gpt-5.4`
+  - `uino/gpt-5.4`
+
+### Viewing Configuration Details
 
 Use `/info` command:
 1. Select a tool
-2. Select a model
-3. View the complete model configuration in JSON format
+2. Select a config/profile
+3. View the complete configuration in JSON format
 
 Example output:
 ```json
@@ -196,9 +212,11 @@ Example output:
 
 | Tool | Config Path | Format | Description |
 |------|-------------|--------|-------------|
-| Claude | `~/.claude/settings.json` | JSON | Settings and model config |
-| cmrm storage | `~/.cmrm/settings.json` | JSON | Saved model configurations |
-| cmrm templates | `~/.cmrm/templates.json` | JSON | Model provider templates (hot-reloadable) |
+| Claude | `~/.claude/settings.json` | JSON | Settings and active model config |
+| Codex | `~/.codex/config.toml` | TOML | Active provider/model profile |
+| Codex auth | `~/.codex/auth.json` | JSON | API key storage for Codex |
+| cmrm storage | `~/.cmrm/settings.json` | JSON | Saved Claude configs and Codex profiles |
+| cmrm templates | `~/.cmrm/templates.json` | JSON | Provider templates (hot-reloadable) |
 
 ### Claude Configuration
 
@@ -206,11 +224,24 @@ Example output:
 - Configuration is persisted in `settings.json`
 - Switched model becomes the default for new sessions
 
+### Codex Configuration
+
+- ✅ Full support for provider/model profile switching
+- Active profile is written to `~/.codex/config.toml`
+- API key is synced to `~/.codex/auth.json`
+- Default saved identity is always canonical `provider/model`
+- `/add` only stores profiles in `~/.cmrm/settings.json`
+- `/switch` does not change the existing runtime provider in Codex when one already exists
+- Switching updates `model`, `model_reasoning_effort`, top-level `openai_base_url`, that provider's `base_url`, and `auth.json`
+- Only when Codex has no provider configured yet will cmrm create an `openai` provider and set `openai_base_url`
+
 ## Backup Files
 
-Backups are stored in `~/.claude/.cmrm/` directory:
-- Backup naming: `{filename}_{YYYYMMDD}{seq}`
-  - Example: `settings.json_2026042700`, `settings.json_2026042701`
+Backups are created automatically before writes:
+
+- Claude config backups are stored under `~/.claude/.cmrm/`
+- cmrm storage backups use `settings.json.backup.YYYYMMDDNN` beside `~/.cmrm/settings.json`
+- Codex config writes also create backups when `config.toml` already exists
 
 ## Development
 
@@ -232,6 +263,14 @@ npm start
 ```
 
 ## Changelog
+
+### 0.2.3
+- 🆕 Add full Codex support: save/switch/test/import Codex profiles
+- 🆕 Add `cmrm <tool> import <file>` shortcut for Claude/Codex config import
+- 🆕 Canonical name system: Claude uses `model`, Codex uses `provider/model`
+- 🐛 Fix Codex runtime switching semantics: keep existing provider, sync `openai_base_url`, provider `base_url`, and `auth.json`
+- 🐛 Clarify `/current` for Codex with runtime vs saved identity display
+- 🐛 Fix Windows configuration compatibility issues
 
 ### 0.2.2
 - 🆕 `cmrm set-lang <zh|en/ja>` shortcut to set language without interactive menu

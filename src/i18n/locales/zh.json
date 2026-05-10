@@ -74,7 +74,10 @@
     "modelDeleted": "模型配置已删除",
     "deleteFailed": "删除失败",
     "configNotExists": "配置不存在",
-    "modelDetails": "模型详细信息"
+    "modelDetails": "模型详细信息",
+    "envVarUpdated": "Shell 环境变量已更新",
+    "envVarPath": "配置文件",
+    "envVarUpdateFailed": "环境变量更新失败"
   },
   "alias": {
     "selectModel": "选择 {tool} 模型(管理别名)",
@@ -126,13 +129,16 @@
     "testing": "正在测试连接...",
     "testFailStillSave": "测试失败，是否仍保存此配置？",
     "modelAdded": "模型配置已添加",
-    "configName": "配置名称（可选，不填则使用模型名称）",
+    "configName": "别名（可选，会额外添加一个快捷名称）",
     "modelName": "模型名称（必填）",
     "apiKey": "API Key（必填）",
     "baseUrl": "Base URL（必填）",
     "haikuModel": "Haiku 模型（可选）",
     "sonnetModel": "Sonnet 模型（可选）",
     "opusModel": "Opus 模型（可选）",
+    "provider": "Provider（模型提供商，如 custom/openai）",
+    "modelReasoningEffort": "Model Reasoning Effort（推理强度 low/medium/high/xhigh，默认 high）",
+    "disableResponseStorage": "Disable Response Storage（禁用响应存储）",
     "apiTypeAnthropic": "Anthropic",
     "apiTypeOpenAI": "OpenAI",
     "apiTypeAnthropicDesc": "Claude Messages 格式",
@@ -155,10 +161,12 @@
     "selectModel": "选择 {tool} 模型",
     "selectModelHint": "输入索引号按 Enter 确认，或按 Esc 取消",
     "enterIndex": "请输入索引号",
-    "allModels": "所有模型配置",
+    "allModels": "所有配置",
     "noModels": "(无模型配置)",
-    "currentModels": "当前生效模型",
+    "currentModels": "当前生效配置",
     "current": "当前",
+    "runtimeLabel": "运行态",
+    "savedLabel": "已保存身份",
     "notConfigured": "(未配置)",
     "detail": "详情"
   },
@@ -168,11 +176,13 @@
     "usageSwitch": "快速切换 claude 工具的模型",
     "usageTest": "快速测试已保存模型的连通性",
     "usageAlias": "为模型添加全局唯一别名",
+    "usageImport": "从文件导入模型配置",
     "usageHelp": "显示本帮助",
     "usageVersion": "显示版本号",
     "exampleSwitchComment": "切换到名为 sonnet-4 的模型(默认工具=claude)",
     "exampleTestComment": "测试 gpt-4o-mini 模型的连通性",
     "exampleAliasComment": "为 sonnet-4 模型添加 fast 别名,之后可 cmrm switch fast",
+    "exampleImportComment": "从 config.json 文件导入 Claude 模型配置",
     "noteMatchRule": "模型名按 name → aliases → model 三级匹配,首项命中即返回",
     "noteAliasUnique": "别名全局唯一,跨模型/跨工具不可重复",
     "noteNotFound": "找不到模型时会列出所有可用名称,退出码为 1",
@@ -184,5 +194,11 @@
     "modelNotFound": "未找到模型: {name}",
     "availableModels": "可用模型:",
     "noModelsHint": "当前没有保存的模型,使用 `cmrm` 进入交互菜单后选 /add 添加"
+  },
+  "import": {
+    "fileNotFound": "文件不存在: {file}",
+    "parseFailed": "文件解析失败: {message}",
+    "imported": "已成功导入 [{tool}] {name}",
+    "testFailed": "连通性测试失败，配置未保存"
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "cmrm",
-  "version": "0.2.2",
-  "description": "CLI tool to manage and switch Claude CLI model configurations",
+  "version": "0.2.3",
+  "description": "CLI tool to manage and switch Claude and Codex CLI configurations",
   "main": "dist/cli.js",
   "bin": {
     "cmrm": "./dist/cli.js"
@@ -32,12 +32,15 @@
     "switch",
     "cli",
     "claude",
+    "codex",
     "registry",
-    "config"
+    "config",
+    "openai"
   ],
   "author": "lvdaxianer",
   "license": "MIT",
   "devDependencies": {
+    "@types/iarna__toml": "^2.0.5",
     "@types/node": "^20.10.0",
     "@types/prompts": "^2.4.9",
     "@vitest/coverage-v8": "^4.1.5",
@@ -47,6 +50,7 @@
     "vitest": "^4.1.5"
   },
   "dependencies": {
+    "@iarna/toml": "^2.2.5",
     "@types/inquirer": "^9.0.9",
     "chalk": "^4.1.2",
     "inquirer": "^13.4.2"

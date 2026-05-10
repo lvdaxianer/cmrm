@@ -74,7 +74,10 @@
     "modelDeleted": "モデル構成が削除されました",
     "deleteFailed": "削除に失敗しました",
     "configNotExists": "設定が存在しません",
-    "modelDetails": "モデル詳細"
+    "modelDetails": "モデル詳細",
+    "envVarUpdated": "シェル環境変数が更新されました",
+    "envVarPath": "設定ファイル",
+    "envVarUpdateFailed": "環境変数の更新に失敗しました"
   },
   "alias": {
     "selectModel": "{tool} モデルを選択(エイリアス管理)",
@@ -126,13 +129,16 @@
     "testing": "接続をテスト中...",
     "testFailStillSave": "テストに失敗しました。この設定を保存しますか？",
     "modelAdded": "モデル構成が追加されました",
-    "configName": "設定名（オプション、空欄の場合はモデル名を使用）",
+    "configName": "エイリアス（任意、追加のショートカット名を保存）",
     "modelName": "モデル名（必須）",
     "apiKey": "API Key（必須）",
     "baseUrl": "Base URL（必須）",
     "haikuModel": "Haiku モデル（オプション）",
     "sonnetModel": "Sonnet モデル（オプション）",
     "opusModel": "Opus モデル（オプション）",
+    "provider": "Provider（custom/openai など）",
+    "modelReasoningEffort": "Model Reasoning Effort（low/medium/high/xhigh、デフォルト high）",
+    "disableResponseStorage": "Disable Response Storage（応答ストレージを無効化）",
     "apiTypeAnthropic": "Anthropic",
     "apiTypeOpenAI": "OpenAI",
     "apiTypeAnthropicDesc": "Claude Messages 形式",
@@ -155,10 +161,12 @@
     "selectModel": "{tool} モデルを選択",
     "selectModelHint": "インデックス番号を入力してEnterで確定、Escでキャンセル",
     "enterIndex": "インデックス番号を入力",
-    "allModels": "すべてのモデル構成",
+    "allModels": "すべての構成",
     "noModels": "(モデル構成なし)",
-    "currentModels": "現在のアクティブモデル",
+    "currentModels": "現在のアクティブ構成",
     "current": "現在",
+    "runtimeLabel": "実行時",
+    "savedLabel": "保存済みID",
     "notConfigured": "(未設定)",
     "detail": "詳細"
   },
@@ -168,11 +176,13 @@
     "usageSwitch": "claude ツールのモデルを高速切り替え",
     "usageTest": "保存済みモデルの接続性を高速テスト",
     "usageAlias": "モデルにグローバルな別名を追加",
+    "usageImport": "ファイルからモデル設定をインポート",
     "usageHelp": "このヘルプを表示",
     "usageVersion": "バージョン番号を表示",
     "exampleSwitchComment": "sonnet-4 というモデルに切り替え(デフォルトツール=claude)",
     "exampleTestComment": "gpt-4o-mini モデルの接続性をテスト",
     "exampleAliasComment": "sonnet-4 モデルに fast という別名を追加、cmrm switch fast 可能に",
+    "exampleImportComment": "config.json から Claude モデル設定をインポート",
     "noteMatchRule": "モデル名は name → aliases → model の優先順位でマッチング",
     "noteAliasUnique": "別名はグローバルに一意、モデル間/ツール間で重複不可",
     "noteNotFound": "モデルが見つからない場合、利用可能な名前をすべて列出、終了コード 1",
@@ -184,5 +194,11 @@
     "modelNotFound": "モデルが見つかりません: {name}",
     "availableModels": "利用可能なモデル:",
     "noModelsHint": "保存されたモデルがありません。`cmrm` でインタラクティブメニューに入り、/add を選択して追加してください"
+  },
+  "import": {
+    "fileNotFound": "ファイルが見つかりません: {file}",
+    "parseFailed": "ファイルの解析に失敗しました: {message}",
+    "imported": "[{tool}] {name} をインポートしました",
+    "testFailed": "接続テストに失敗しました。設定は保存されません"
   }
 }

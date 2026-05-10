@@ -74,7 +74,10 @@
     "modelDeleted": "Model config deleted",
     "deleteFailed": "Delete failed",
     "configNotExists": "Config does not exist",
-    "modelDetails": "Model Details"
+    "modelDetails": "Model Details",
+    "envVarUpdated": "Shell environment variables updated",
+    "envVarPath": "Config file",
+    "envVarUpdateFailed": "Failed to update environment variables"
   },
   "alias": {
     "selectModel": "Select {tool} Model (Manage Aliases)",
@@ -126,13 +129,16 @@
     "testing": "Testing connection...",
     "testFailStillSave": "Test failed. Still save this config?",
     "modelAdded": "Model config added",
-    "configName": "Config name (optional, uses model name if empty)",
+    "configName": "Alias name (optional, adds an extra shortcut)",
     "modelName": "Model name (required)",
     "apiKey": "API Key (required)",
     "baseUrl": "Base URL (required)",
     "haikuModel": "Haiku model (optional)",
     "sonnetModel": "Sonnet model (optional)",
     "opusModel": "Opus model (optional)",
+    "provider": "Provider (e.g. custom/openai)",
+    "modelReasoningEffort": "Model Reasoning Effort (low/medium/high/xhigh, default high)",
+    "disableResponseStorage": "Disable Response Storage",
     "apiTypeAnthropic": "Anthropic",
     "apiTypeOpenAI": "OpenAI",
     "apiTypeAnthropicDesc": "Claude Messages format",
@@ -155,10 +161,12 @@
     "selectModel": "Select {tool} Model",
     "selectModelHint": "Enter index number to confirm, or Esc to cancel",
     "enterIndex": "Enter index number",
-    "allModels": "All Model Configs",
+    "allModels": "All Configs",
     "noModels": "(no model configs)",
-    "currentModels": "Current Active Models",
+    "currentModels": "Current Active Configs",
     "current": "Current",
+    "runtimeLabel": "runtime",
+    "savedLabel": "saved",
     "notConfigured": "(not configured)",
     "detail": "Detail"
   },
@@ -168,11 +176,13 @@
     "usageSwitch": "Quick switch claude tool model",
     "usageTest": "Quick test saved model connectivity",
     "usageAlias": "Add global unique alias for model",
+    "usageImport": "Import model config from file",
     "usageHelp": "Show this help",
     "usageVersion": "Show version number",
     "exampleSwitchComment": "Switch to sonnet-4 model (default tool=claude)",
     "exampleTestComment": "Test gpt-4o-mini model connectivity",
     "exampleAliasComment": "Add fast alias for sonnet-4, then cmrm switch fast",
+    "exampleImportComment": "Import Claude model config from config.json",
     "noteMatchRule": "Model name matches by name → aliases → model, first match returns",
     "noteAliasUnique": "Aliases are globally unique, cannot repeat across models/tools",
     "noteNotFound": "When model not found, lists all available names, exit code 1",
@@ -184,5 +194,11 @@
     "modelNotFound": "Model not found: {name}",
     "availableModels": "Available models:",
     "noModelsHint": "No saved models. Run `cmrm` to enter interactive menu and select /add to add one"
+  },
+  "import": {
+    "fileNotFound": "File not found: {file}",
+    "parseFailed": "Failed to parse file: {message}",
+    "imported": "Imported [{tool}] {name} successfully",
+    "testFailed": "Connectivity test failed, config not saved"
   }
 }

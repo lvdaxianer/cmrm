@@ -1,28 +1,28 @@
-# AI 工具模型注册管理器 (cmrm)
+# AI 工具配置注册管理器 (cmrm)
 
 中文 | [English](README.md)
 
-一个用于管理 AI 工具模型配置的命令行工具，可以快速切换 Claude CLI 工具的模型配置。
+一个用于管理 AI 工具配置的命令行工具，可以快速切换 Claude CLI 的模型配置，以及 Codex 的 `provider/model` profile。
 
 ## 项目意图
 
-这个工具提供了一种便捷的方式来**管理 Claude CLI 的模型配置**。它允许你保存多个模型配置、在它们之间快速切换、查看详细的模型信息——无需手动编辑配置文件。
+这个工具提供了一种便捷的方式来管理多种 AI CLI 工具的配置。你可以保存多个 Claude 模型配置和 Codex profile，在它们之间快速切换、测试连通性、查看详细信息，而无需手动编辑配置文件。
 
 ## 功能特性
 
-- 🔄 **Claude 支持** - 完全支持 Claude CLI 模型配置
+- 🔄 **多工具支持** - 同时管理 Claude CLI 配置与 Codex profile
 - 🌏 **多语言支持** - 中文（zh）、英文（en）、日文（ja），自动地理位置检测切换
 - 🌍 **语言切换** - 使用 `/set-lang` 命令手动切换界面语言
-- 📝 **模型模板** - 9 个内置提供商模板，自动填充 model/baseUrl，仅需输入 API Key
+- 📝 **提供商模板** - 9 个内置 OpenAI 兼容提供商模板，自动填充 model/baseUrl，仅需输入 API Key
 - 📦 **备份机制** - 每次配置写入前自动备份
 - 🔀 **合并策略** - 保留现有配置字段，仅更新模型相关字段
 - 🔢 **索引选择** - 输入数字进行选择，Enter 确认
 - ↩️ **导航选项** - 可返回上一级或直接退出
-- ➕ **添加模型** - 支持基于模板添加或自定义逐字段输入，自动验证
+- ➕ **添加配置** - 支持基于模板添加或自定义逐字段输入，自动验证
 - 📋 **查看所有配置** - 按工具分组显示
-- ℹ️ **查看模型详情** - 以 JSON 格式显示完整配置
-- 🔍 **当前模型状态** - 显示当前生效的模型
-- 🧪 **连接测试** - 通过实际 HTTP 请求验证模型配置，支持重试机制
+- ℹ️ **查看配置详情** - 以 JSON 格式显示完整配置
+- 🔍 **当前配置状态** - 按工具显示当前生效配置/profile
+- 🧪 **连接测试** - 通过实际 HTTP 请求验证配置，支持重试机制
 - 🌐 **多协议兼容** - 同时支持 Anthropic Messages 与 OpenAI Chat Completions API
 - 💡 **智能提示** - 未知命令时推荐相似命令
 
@@ -38,7 +38,7 @@ npm link
 
 首次运行 `cmrm` 时，它会自动在 `~/.cmrm/settings.json` 创建配置文件。
 
-要添加模型配置，请使用 `/add` 命令（详见下方使用方法）。
+要添加配置，请使用 `/add` 命令（详见下方使用方法）。
 
 ## 使用方法
 
@@ -52,14 +52,14 @@ cmrm
 
 | 命令 | 功能 |
 |------|------|
-| `/switch` | 切换到已保存的模型配置 |
-| `/add` | 交互式添加新模型配置（保存前自动测试） |
-| `/remove` | 删除已保存的模型配置 |
-| `/info` | 以 JSON 格式查看模型详细信息 |
-| `/test` | 测试模型配置是否可用（已保存或自定义，支持重试） |
-| `/alias` | 管理模型别名（添加 / 删除 / 列出） |
-| `/list` | 显示所有已保存的模型配置 |
-| `/current` | 显示当前生效的模型 |
+| `/switch` | 切换到已保存的 Claude 配置或 Codex profile |
+| `/add` | 交互式添加新配置（保存前自动测试） |
+| `/remove` | 删除已保存的配置 |
+| `/info` | 以 JSON 格式查看配置详情 |
+| `/test` | 测试配置是否可用（已保存或自定义，支持重试） |
+| `/alias` | 管理配置别名（添加 / 删除 / 列出） |
+| `/list` | 显示所有已保存的配置 |
+| `/current` | 显示当前生效的配置/profile |
 | `/set-lang` | 切换界面语言（zh/en/ja） |
 | `/exit` | 退出程序 |
 
@@ -69,13 +69,14 @@ cmrm
 
 | 快捷方式 | 功能 |
 |---------|------|
-| `cmrm switch <name>` | 快速切换到已保存的模型 |
-| `cmrm test <name>` | 快速测试已保存模型的连通性 |
-| `cmrm alias <model> <new-alias>` | 为模型添加全局唯一的别名 |
+| `cmrm switch <name>` | 快速切换到已保存配置/profile |
+| `cmrm test <name>` | 快速测试已保存配置/profile 的连通性 |
+| `cmrm alias <name> <new-alias>` | 为配置/profile 添加全局唯一别名 |
+| `cmrm <tool> import <file>` | 从文件导入 Claude 或 Codex 配置 |
 | `cmrm set-lang <zh/en/ja>` | 直接设置界面语言 |
 | `cmrm --help` / `-h` | 查看帮助 |
 
-`<name>` 按三级优先级匹配: `name` → `aliases` → `model`(首项命中即返回)。别名跨模型 / 跨工具全局唯一,冲突时直接拒绝并提示原因。
+`<name>` 在所有工具里都是整体唯一的。其规范形式为：Claude 使用 `model`，Codex 使用 `provider/model`。快捷命令的匹配顺序为：规范 `name` → 历史自定义名称（仅旧数据兼容）→ `aliases` → `model`。别名同样跨配置 / 跨工具全局唯一。
 
 ### 交互式选择
 
@@ -92,22 +93,22 @@ cmrm
 === 选择命令 ===
 (输入索引号按 Enter 确认)
 
-[0] /switch        切换模型配置
-[1] /add           添加新模型配置
-[2] /remove         删除模型配置
-[3] /info           查看模型详细信息
-[4] /test           测试模型配置是否可用
-[5] /list           显示所有模型配置
-[6] /current        显示当前模型
+[0] /switch        切换配置/profile
+[1] /add           添加新配置
+[2] /remove        删除配置
+[3] /info          查看配置详情
+[4] /test          测试配置是否可用
+[5] /list          显示所有配置
+[6] /current       显示当前配置
 [7] /exit           退出程序
 请输入命令索引: 0
 ```
 
-### 添加新模型
+### 添加新配置
 
 使用 `/add` 命令，首先选择添加方式：
 
-1. **基于模板添加**（推荐）- 从 9 个内置提供商模板中选择：
+1. **基于模板添加**（推荐，主要用于 Claude / OpenAI 兼容配置）- 从 9 个内置提供商模板中选择：
    - DeepSeek、智谱 AI（bigmodel/Z.AI）、Kimi、Minimax（国内/国际）、OpenRouter、小米 MiMo、通义千问
    - 模板自动预填 `model`、`baseUrl`、`apiType` 及可选模型
    - 仅需输入你的 **API Key**
@@ -120,6 +121,13 @@ cmrm
    - **Base URL**（必填）
    - **Haiku/Sonnet/Opus 模型**（可选）
 
+对于 Codex 自定义添加：
+
+- `provider` 为必填，并参与规范 profile 标识
+- 主 `name` 始终保存为规范名：Claude 为 `model`，Codex 为 `provider/model`
+- 添加时输入的可选“配置名称”现在会保存为额外 alias，而不是覆盖主 `name`
+- 例如：`uino/gpt-5.4`
+
 > 💡 配置完成后，cmrm 会自动发起 ping 请求验证配置可用性。如果测试失败，会询问是否仍然保存。
 
 ### 模型模板
@@ -130,13 +138,13 @@ cmrm
 - **自定义模板**：编辑 `~/.cmrm/templates.json` 添加你自己的提供商
 - **刷新模板**：删除 `~/.cmrm/templates.json` 后重启即可重新从远程拉取
 
-### 测试模型配置
+### 测试配置
 
 使用 `/test` 命令验证配置是否可用：
 
-1. 选择工具（如 Claude）
+1. 选择工具（如 Claude 或 Codex）
 2. 选择测试场景：
-   - **测试已保存的模型** - 选择已存在的配置进行测试
+   - **测试已保存配置/profile** - 选择已存在的配置进行测试
    - **自定义参数测试** - 临时输入参数测试，无需保存
 
 测试结果分类：
@@ -165,19 +173,27 @@ cmrm 支持两种 API 协议格式：
   - 认证：`Authorization: Bearer <key>`
   - 适用于 OpenRouter、DeepSeek、Together 等 OpenAI 兼容代理
 
-### 切换模型
+### 切换配置
 
 使用 `/switch` 命令：
-1. 选择工具（如 Claude）
-2. 输入要切换的模型索引号
-3. 配置将合并写入 Claude 的配置文件
+1. 选择工具（如 Claude 或 Codex）
+2. 输入要切换的配置/profile 索引号
+3. cmrm 会写入对应工具的配置文件
 
-### 查看模型详情
+Codex 补充说明：
+
+- Codex 保存和切换的是 profile，而不是单独的裸模型名
+- 其有效身份是 `provider + model`
+- 例如：
+  - `openrouter/gpt-5.4`
+  - `uino/gpt-5.4`
+
+### 查看配置详情
 
 使用 `/info` 命令：
 1. 选择工具
-2. 选择模型
-3. 以 JSON 格式查看完整的模型配置
+2. 选择配置/profile
+3. 以 JSON 格式查看完整配置
 
 示例输出：
 ```json
@@ -196,9 +212,11 @@ cmrm 支持两种 API 协议格式：
 
 | 工具 | 配置路径 | 格式 | 说明 |
 |------|----------|------|------|
-| Claude | `~/.claude/settings.json` | JSON | 设置和模型配置 |
-| cmrm 存储 | `~/.cmrm/settings.json` | JSON | 保存的模型配置 |
-| cmrm 模板 | `~/.cmrm/templates.json` | JSON | 模型提供商模板（支持热更新） |
+| Claude | `~/.claude/settings.json` | JSON | 设置和当前模型配置 |
+| Codex | `~/.codex/config.toml` | TOML | 当前 provider/model profile |
+| Codex 密钥 | `~/.codex/auth.json` | JSON | Codex API Key 存储 |
+| cmrm 存储 | `~/.cmrm/settings.json` | JSON | 保存的 Claude 配置和 Codex profile |
+| cmrm 模板 | `~/.cmrm/templates.json` | JSON | 提供商模板（支持热更新） |
 
 ### Claude 配置说明
 
@@ -206,11 +224,24 @@ cmrm 支持两种 API 协议格式：
 - 配置持久化保存在 `settings.json`
 - 切换后的模型将成为新会话的默认模型
 
+### Codex 配置说明
+
+- ✅ 完全支持 provider/model profile 切换
+- 当前 profile 写入 `~/.codex/config.toml`
+- API Key 同步写入 `~/.codex/auth.json`
+- 默认保存身份始终是规范的 `provider/model`
+- `/add` 只会把 profile 保存到 `~/.cmrm/settings.json`
+- `/switch` 在 Codex 已存在 provider 时，不会主动修改这个运行时 provider
+- 切换时会更新 `model`、`model_reasoning_effort`、顶级 `openai_base_url`、该 provider 对应的 `base_url`，以及 `auth.json`
+- 只有当 Codex 还没有任何 provider 时，cmrm 才会补一个 `openai` provider，并写入 `openai_base_url`
+
 ## 备份文件
 
-备份文件存储在 `~/.claude/.cmrm/` 目录：
-- 备份命名：`{文件名}_{YYYYMMDD}{序号}`
-  - 示例：`settings.json_2026042700`、`settings.json_2026042701`
+写入配置前会自动创建备份：
+
+- Claude 配置备份位于 `~/.claude/.cmrm/`
+- cmrm 存储会在 `~/.cmrm/settings.json` 同目录生成 `settings.json.backup.YYYYMMDDNN`
+- Codex 在 `config.toml` 已存在时也会创建备份
 
 ## 开发
 
@@ -232,6 +263,14 @@ npm start
 ```
 
 ## 更新日志
+
+### 0.2.3
+- 🆕 完整支持 Codex：可保存 / 切换 / 测试 / 导入 Codex profile
+- 🆕 新增 `cmrm <tool> import <file>` 快捷方式，支持 Claude / Codex 配置导入
+- 🆕 统一规范名体系：Claude 使用 `model`，Codex 使用 `provider/model`
+- 🐛 修复 Codex 运行态切换语义：保留现有 provider，同步 `openai_base_url`、provider `base_url` 与 `auth.json`
+- 🐛 `/current` 对 Codex 区分运行态与已保存身份，避免混淆
+- 🐛 修复 Windows 下配置不适配的问题
 
 ### 0.2.2
 - 🆕 `cmrm set-lang <zh|en|ja>` 快捷方式，直接设置语言

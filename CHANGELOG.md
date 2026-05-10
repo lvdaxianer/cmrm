@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- 添加 import 命令、model-identity 与 CLI 增强 (7a3e9c4)
+
+- 添加 Codex 工具适配器核心实现与运行时支持 (5724a53)
+
+## [0.2.3] - 2026-05-11
+
+### Added
+- Codex 工具适配器，支持保存、切换、测试与导入 Codex profile
+- `cmrm <tool> import <file>` 快捷命令，支持从 Claude/Codex 原生配置导入到 cmrm
+- `model-identity` 统一身份层，规范 Claude 使用 `model`、Codex 使用 `provider/model`
+- Codex 运行时 `switch` 同步更新 `model`、`model_reasoning_effort`、顶层 `openai_base_url`、当前 provider 的 `base_url` 与 `auth.json`
+- `/current` 对 Codex 增强显示，区分运行态信息与已保存身份
+
+### Changed
+- `switch/test/alias <name>` 的全局名称解析统一收敛到规范名优先
+- `/add` 中用户填写的可选配置名改为保存为 alias，不再覆盖主 `name`
+- Codex `config.toml` 写入逻辑改为沿用现有 provider，缺失时才补 `openai`
+- README / README.zh-CN` 同步更新为 Claude + Codex 双工具语义
+
+### Fixed
+- 修复 Codex 选择/显示中 provider 与 `provider/model` 身份混淆的问题
+- 修复 Codex 导入时未优先读取顶层 `openai_base_url` 的问题
+- 修复 Codex 运行时切换遗漏顶层 `openai_base_url` 的问题
+- 修复 Windows 下配置路径与配置写入不兼容的问题
+
+### Test
+- 新增 Codex 配置、导入、显示、identity 相关单测
+- 全量测试通过：366 passed, 1 skipped
+
 ## [0.2.2] - 2026-05-06
 
 ### Added
