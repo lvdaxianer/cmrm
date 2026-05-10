@@ -11,6 +11,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { ToolAdapter, UnifiedModelConfig } from './types';
 import { backupConfig, mergeJsonConfig } from '../utils/backup';
+import { getPrimaryModelName, normalizeModelIdentity } from '../cli/model-identity';
 
 /**
  * Claude 工具适配器类
@@ -135,8 +136,14 @@ export class ClaudeAdapter implements ToolAdapter {
   private readOriginalConfig(): any {
     // 配置文件存在 - 读取内容
     if (fs.existsSync(this.configPath)) {
-      const content = fs.readFileSync(this.configPath, 'utf-8');
-      return JSON.parse(content);
+      try {
+        const content = fs.readFileSync(this.configPath, 'utf-8');
+        return JSON.parse(content);
+      }
+      // 配置为空/格式错误：回退为空对象，允许修复写入
+      catch {
+        return {};
+      }
     }
     // 配置文件不存在 - 返回空对象
     else {
@@ -173,7 +180,7 @@ export class ClaudeAdapter implements ToolAdapter {
    * @author lvdaxianerplus
    * @date 2026-04-27
    */
-  writeModelConfig(config: UnifiedModelConfig): string {
+  writeModelConfig(config: UnifiedModelConfig): string | null {
     // 备份当前配置
     const backupFileName = backupConfig(this.configPath);
 
@@ -228,7 +235,7 @@ export class ClaudeAdapter implements ToolAdapter {
    * @date 2026-04-27
    */
   private convertOldToNew(oldConfig: any): UnifiedModelConfig {
-    return {
+    return normalizeModelIdentity({
       name: oldConfig.name || oldConfig.ANTHROPIC_MODEL,
       model: oldConfig.ANTHROPIC_MODEL,
       apiKey: oldConfig.ANTHROPIC_AUTH_TOKEN,
@@ -236,7 +243,8 @@ export class ClaudeAdapter implements ToolAdapter {
       haikuModel: oldConfig.ANTHROPIC_DEFAULT_HAIKU_MODEL,
       sonnetModel: oldConfig.ANTHROPIC_DEFAULT_SONNET_MODEL,
       opusModel: oldConfig.ANTHROPIC_DEFAULT_OPUS_MODEL,
-    };
+      aliases: oldConfig.aliases,
+    });
   }
 
   /**
@@ -356,7 +364,8 @@ export class ClaudeAdapter implements ToolAdapter {
    * @date 2026-04-27
    */
   private findExistingIndex(modes: UnifiedModelConfig[], config: UnifiedModelConfig): number {
-    return modes.findIndex((m: UnifiedModelConfig) => m.name === config.name);
+    const targetKey = getPrimaryModelName(config);
+    return modes.findIndex((m: UnifiedModelConfig) => getPrimaryModelName(m) === targetKey);
   }
 
   /**
@@ -370,8 +379,14 @@ export class ClaudeAdapter implements ToolAdapter {
   private loadOrCreateSettings(): any {
     // 配置文件存在 - 读取内容
     if (fs.existsSync(this.cmrmSettingsPath)) {
-      const content = fs.readFileSync(this.cmrmSettingsPath, 'utf-8');
-      return JSON.parse(content);
+      try {
+        const content = fs.readFileSync(this.cmrmSettingsPath, 'utf-8');
+        return JSON.parse(content);
+      }
+      // 配置为空/格式错误：回退为空对象，允许后续重建结构
+      catch {
+        return {};
+      }
     }
     // 配置文件不存在 - 返回空对象
     else {
@@ -388,6 +403,8 @@ export class ClaudeAdapter implements ToolAdapter {
    * @date 2026-04-27
    */
   saveModel(config: UnifiedModelConfig): void {
+    const normalizedConfig = normalizeModelIdentity(config);
+
     // 确保 cmrm 配置目录存在
     this.ensureCmrmDir();
 
@@ -398,15 +415,15 @@ export class ClaudeAdapter implements ToolAdapter {
     settings = this.ensureSettingsStructure(settings);
 
     // 查找已存在的配置索引
-    const existingIndex = this.findExistingIndex(settings.tools.claude.modes, config);
+    const existingIndex = this.findExistingIndex(settings.tools.claude.modes, normalizedConfig);
 
     // 配置已存在 - 替换更新
     if (existingIndex >= 0) {
-      settings.tools.claude.modes[existingIndex] = config;
+      settings.tools.claude.modes[existingIndex] = normalizedConfig;
     }
     // 配置不存在 - 添加新配置
     else {
-      settings.tools.claude.modes.push(config);
+      settings.tools.claude.modes.push(normalizedConfig);
     }
 
     // 写入配置文件
@@ -438,7 +455,7 @@ export class ClaudeAdapter implements ToolAdapter {
 
     // 查找要删除的配置索引
     const index = settings.tools.claude.modes.findIndex(
-      (m: UnifiedModelConfig) => m.name === configName
+      (m: UnifiedModelConfig) => getPrimaryModelName(m) === configName
     );
 
     // 配置不存在 - 返回 false

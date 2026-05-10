@@ -27,7 +27,7 @@ export interface UnifiedModelConfig {
   baseUrl: string;
 
   // === 可选字段（工具特有）===
-  /** 配置名称（用户命名） */
+  /** 规范名称：Claude 为 model，Codex 为 provider/model */
   name?: string;
   /** 提供商（openai, anthropic, openrouter 等） */
   provider?: string;
@@ -43,6 +43,12 @@ export interface UnifiedModelConfig {
   sonnetModel?: string;
   /** Opus 模型名称 */
   opusModel?: string;
+
+  // === Codex 特有字段 ===
+  /** 推理强度 (low/medium/high/xhigh)，Codex 必填 */
+  modelReasoningEffort?: string;
+  /** 禁用响应存储，默认 false */
+  disableResponseStorage?: boolean;
 
   // === 工具特有扩展字段 ===
   [key: string]: any;
@@ -75,9 +81,9 @@ export interface ToolAdapter {
   /**
    * 写入模型配置（备份 → Merge → 写入）
    * @param config - 要写入的模型配置
-   * @return 备份文件名（用于显示）
+   * @return 备份文件名（用于显示），无变化返回 null
    */
-  writeModelConfig(config: UnifiedModelConfig): string;
+  writeModelConfig(config: UnifiedModelConfig): string | null;
 
   /**
    * 获取用户保存的模型列表

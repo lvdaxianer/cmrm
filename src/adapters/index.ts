@@ -8,6 +8,7 @@
 
 import { ToolAdapter, AdapterRegistryInterface } from './types';
 import { ClaudeAdapter } from './claude';
+import { CodexAdapter } from './codex';
 
 /**
  * 适配器注册表类
@@ -74,3 +75,4 @@ export const registry = new AdapterRegistry();
 // 导出类型和适配器类
 export * from './types';
 export { ClaudeAdapter } from './claude';
+export { CodexAdapter } from './codex';
