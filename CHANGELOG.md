@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- 更新 README、CHANGELOG、i18n 并发布 0.2.3 (c8c7ede)
 - 添加 import 命令、model-identity 与 CLI 增强 (7a3e9c4)
-
 - 添加 Codex 工具适配器核心实现与运行时支持 (5724a53)
 
 ## [0.2.3] - 2026-05-11
