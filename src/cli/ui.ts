@@ -13,6 +13,11 @@ import { UnifiedModelConfig } from '../types';
 import { ToolAdapter, registry } from '../adapters';
 import { TestResult } from '../utils/tester';
 import { t } from '../i18n';
+import { getCodexProfileName, getPrimaryModelName } from './model-identity';
+
+function getEntityLabel(adapter: ToolAdapter): string {
+  return adapter.name === 'codex' ? 'Profile' : 'Model';
+}
 
 /**
  * ANSI 转义序列常量
@@ -178,14 +183,16 @@ export class UIRenderer {
   renderModelList(adapter: ToolAdapter, models: UnifiedModelConfig[], currentSelection: number, isFirstRender: boolean = false): void {
     // 渲染标题
     if (isFirstRender) {
-      console.log(chalk.cyan(`\n=== ${t('ui.selectModel', { tool: adapter.displayName })} ===`));
+      console.log(chalk.cyan(`\n=== Select ${adapter.displayName} ${getEntityLabel(adapter)} ===`));
       console.log(chalk.gray(`(${t('ui.selectModelHint')})\n`));
     }
 
     // 渲染每个模型选项
     models.forEach((model, index) => {
-      const displayName = model.name || model.model;
-      const providerInfo = model.provider ? chalk.gray(`[${model.provider}]`) : '';
+      const displayName = getPrimaryModelName(model);
+      const providerInfo = this.shouldShowProviderBadge(model, displayName)
+        ? chalk.gray(`[${model.provider}]`)
+        : '';
 
       // 选中项高亮显示
       if (index === currentSelection) {
@@ -201,6 +208,20 @@ export class UIRenderer {
     if (isFirstRender) {
       console.log(chalk.gray(`\n${t('ui.enterIndex')}:`));
     }
+  }
+
+  /**
+   * 判断是否需要额外显示 provider 徽标
+   * 当主显示名已是 provider/model 时，不重复显示 [provider]
+   *
+   * @param model - 模型配置
+   * @param displayName - 当前主显示名
+   * @return 需要显示返回 true
+   * @author lvdaxianerplus
+   * @date 2026-05-10
+   */
+  private shouldShowProviderBadge(model: UnifiedModelConfig, displayName: string): boolean {
+    return !!model.provider && !displayName.startsWith(`${model.provider}/`);
   }
 
   /**
@@ -224,7 +245,7 @@ export class UIRenderer {
       }
       // 有模型时显示列表
       else {
-        const modelNames = models.map(m => m.name || m.model).join(', ');
+        const modelNames = models.map(m => getPrimaryModelName(m)).join(', ');
         console.log(chalk.green(`[${adapter.displayName}] ${modelNames}`));
       }
     });
@@ -249,7 +270,7 @@ export class UIRenderer {
 
       // 有配置时显示当前模型
       if (currentModel) {
-        console.log(chalk.green(`[${adapter.displayName}] ${t('ui.current')}: ${currentModel.model}`));
+        this.showCurrentModel(adapter, currentModel);
       }
       // 无配置时显示未配置
       else {
@@ -258,6 +279,50 @@ export class UIRenderer {
     });
 
     console.log('');
+  }
+
+  private showCurrentModel(adapter: ToolAdapter, currentModel: UnifiedModelConfig): void {
+    if (adapter.name === 'codex' && currentModel.provider) {
+      this.showCurrentCodexModel(adapter, currentModel);
+    }
+    else {
+      const currentDisplay = currentModel.provider
+        ? getCodexProfileName(currentModel)
+        : currentModel.model;
+      console.log(chalk.green(`[${adapter.displayName}] ${t('ui.current')}: ${currentDisplay}`));
+    }
+  }
+
+  private showCurrentCodexModel(adapter: ToolAdapter, currentModel: UnifiedModelConfig): void {
+    const runtimeDisplay = getCodexProfileName(currentModel);
+    const savedProfile = this.findMatchingSavedCodexProfile(adapter, currentModel);
+
+    console.log(
+      chalk.green(`[${adapter.displayName}] ${t('ui.current')}: ${runtimeDisplay}`) +
+      chalk.gray(` (${t('ui.runtimeLabel')}: ${currentModel.baseUrl})`)
+    );
+
+    if (savedProfile && getPrimaryModelName(savedProfile) !== runtimeDisplay) {
+      console.log(chalk.gray(`  ${t('ui.savedLabel')}: ${getPrimaryModelName(savedProfile)}`));
+    }
+  }
+
+  private findMatchingSavedCodexProfile(
+    adapter: ToolAdapter,
+    currentModel: UnifiedModelConfig
+  ): UnifiedModelConfig | null {
+    const models = adapter.getSavedModels();
+    const exactMatch = models.find(model =>
+      model.model === currentModel.model &&
+      model.baseUrl === currentModel.baseUrl
+    );
+
+    if (exactMatch) {
+      return exactMatch;
+    }
+
+    const modelOnlyMatch = models.find(model => model.model === currentModel.model);
+    return modelOnlyMatch || null;
   }
 
   /**

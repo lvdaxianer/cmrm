@@ -52,34 +52,45 @@ function buildModel(fields: Partial<UnifiedModelConfig>): UnifiedModelConfig {
 describe('findModelByName - 命中匹配', () => {
   // 优先按 name 字段匹配
   it('应优先匹配 name 字段', () => {
-    const target = buildModel({ name: 'my-sonnet', model: 'claude-sonnet-4-6' });
+    const target = buildModel({ name: 'claude-sonnet-4-6', model: 'claude-sonnet-4-6' });
     const adapter = buildMockAdapter([
-      buildModel({ name: 'my-haiku', model: 'claude-haiku-4-5' }),
+      buildModel({ name: 'claude-haiku-4-5', model: 'claude-haiku-4-5' }),
       target,
     ]);
 
-    const result = findModelByName(adapter, 'my-sonnet');
+    const result = findModelByName(adapter, 'claude-sonnet-4-6');
 
     expect(result).toBe(target);
   });
 
-  // name 未命中时退化按 model 字段匹配
-  it('name 未命中时应退化匹配 model 字段', () => {
+  it('旧数据的自定义 name 仍应可命中', () => {
     const target = buildModel({ name: 'custom-name', model: 'claude-opus-4-7' });
     const adapter = buildMockAdapter([target]);
 
-    const result = findModelByName(adapter, 'claude-opus-4-7');
+    const result = findModelByName(adapter, 'custom-name');
+
+    expect(result).toBe(target);
+  });
+
+  it('Codex 配置应支持按 provider/model 命中', () => {
+    const target = buildModel({
+      model: 'gpt-5.4',
+      provider: 'openrouter',
+    });
+    const adapter = buildMockAdapter([target]);
+
+    const result = findModelByName(adapter, 'openrouter/gpt-5.4');
 
     expect(result).toBe(target);
   });
 
   // name 字段在多个模型中存在时仅命中第一个
-  it('多个同 name 时返回首个', () => {
-    const first = buildModel({ name: 'dup', model: 'a' });
-    const second = buildModel({ name: 'dup', model: 'b' });
+  it('多个同规范名时返回首个', () => {
+    const first = buildModel({ name: 'a', model: 'a' });
+    const second = buildModel({ name: 'a', model: 'a' });
     const adapter = buildMockAdapter([first, second]);
 
-    const result = findModelByName(adapter, 'dup');
+    const result = findModelByName(adapter, 'a');
 
     expect(result).toBe(first);
   });
@@ -89,7 +100,7 @@ describe('findModelByName - 未命中', () => {
   // 完全未命中:返回 null
   it('未命中时应返回 null', () => {
     const adapter = buildMockAdapter([
-      buildModel({ name: 'one', model: 'm1' }),
+      buildModel({ name: 'm1', model: 'm1' }),
     ]);
 
     const result = findModelByName(adapter, 'nonexistent');
@@ -109,13 +120,21 @@ describe('findModelByName - 未命中', () => {
 
 describe('listAvailableNames', () => {
   // 名称优先 name 字段,缺失时退化 model
-  it('应优先输出 name,缺失时回退 model', () => {
+  it('应输出规范名称', () => {
     const adapter = buildMockAdapter([
-      buildModel({ name: 'sonnet', model: 'claude-sonnet-4-6' }),
+      buildModel({ name: 'custom-sonnet', model: 'claude-sonnet-4-6' }),
       buildModel({ model: 'gpt-4o' }),
     ]);
 
-    expect(listAvailableNames(adapter)).toEqual(['sonnet', 'gpt-4o']);
+    expect(listAvailableNames(adapter)).toEqual(['claude-sonnet-4-6', 'gpt-4o']);
+  });
+
+  it('Codex 缺失 name 时应输出 provider/model', () => {
+    const adapter = buildMockAdapter([
+      buildModel({ model: 'gpt-5.4', provider: 'openrouter' }),
+    ]);
+
+    expect(listAvailableNames(adapter)).toEqual(['openrouter/gpt-5.4']);
   });
 
   // 空列表:返回空数组
@@ -130,12 +149,12 @@ describe('findModelByName - aliases 命中', () => {
   // name 未命中,aliases 命中:返回模型
   it('name 未命中但 aliases 命中应返回对应模型', () => {
     const target = buildModel({
-      name: 'my-sonnet',
+      name: 'claude-sonnet',
       model: 'claude-sonnet',
       aliases: ['s4', 'fast'],
     });
     const adapter = buildMockAdapter([
-      buildModel({ name: 'my-haiku', model: 'claude-haiku' }),
+      buildModel({ name: 'claude-haiku', model: 'claude-haiku' }),
       target,
     ]);
 
@@ -147,7 +166,7 @@ describe('findModelByName - aliases 命中', () => {
   // aliases 中首个命中:返回模型
   it('aliases 数组首个命中也应返回对应模型', () => {
     const target = buildModel({
-      name: 'sonnet',
+      name: 'claude-sonnet',
       model: 'claude-sonnet',
       aliases: ['s4', 'fast'],
     });
@@ -159,12 +178,11 @@ describe('findModelByName - aliases 命中', () => {
   });
 });
 
-describe('findModelByName - 优先级 name > aliases > model', () => {
-  // 同名情况下应优先返回 name 命中
-  it('当某模型 name 与另一模型 aliases 同名时应返回 name 命中者', () => {
-    const byNameOwner = buildModel({ name: 'fast', model: 'm-name-owner' });
+describe('findModelByName - 优先级 canonical > aliases > model', () => {
+  it('当某模型规范名与另一模型 aliases 同名时应返回规范名命中者', () => {
+    const byNameOwner = buildModel({ name: 'fast', model: 'fast' });
     const byAliasOwner = buildModel({
-      name: 'sonnet',
+      name: 'm-alias-owner',
       model: 'm-alias-owner',
       aliases: ['fast'],
     });
@@ -175,26 +193,25 @@ describe('findModelByName - 优先级 name > aliases > model', () => {
     expect(result).toBe(byNameOwner);
   });
 
-  // aliases 优先于 model 字段:同名时返回 aliases 命中
-  it('当 aliases 与 model 字段同名时应返回 aliases 命中者', () => {
+  it('当某模型规范名与另一模型 aliases 同名时应优先返回规范名命中者', () => {
     const byAliasOwner = buildModel({
-      name: 'sonnet',
+      name: 'claude-sonnet',
       model: 'claude-sonnet',
       aliases: ['my-key'],
     });
-    const byModelOwner = buildModel({ name: 'opus', model: 'my-key' });
+    const byModelOwner = buildModel({ name: 'my-key-2', model: 'my-key' });
     const adapter = buildMockAdapter([byModelOwner, byAliasOwner]);
 
     const result = findModelByName(adapter, 'my-key');
 
-    expect(result).toBe(byAliasOwner);
+    expect(result).toBe(byModelOwner);
   });
 
   // aliases 缺失字段不影响其他模型 model 命中
   it('aliases 缺失时仍应正常退化 model 匹配', () => {
-    const target = buildModel({ name: 'opus', model: 'claude-opus-4-7' });
+    const target = buildModel({ name: 'claude-opus-4-7', model: 'claude-opus-4-7' });
     const adapter = buildMockAdapter([
-      buildModel({ name: 'haiku', model: 'claude-haiku' }),
+      buildModel({ name: 'claude-haiku', model: 'claude-haiku' }),
       target,
     ]);
 

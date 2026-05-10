@@ -23,6 +23,15 @@ vi.mock('../src/adapters', () => ({
         ]),
         readCurrentModel: vi.fn(() => ({ model: 'claude-sonnet', apiKey: 'k', baseUrl: 'u' })),
       },
+      {
+        name: 'codex',
+        displayName: 'Codex',
+        getSavedModels: vi.fn(() => [
+          { model: 'gpt-5.4', provider: 'openrouter', apiKey: 'k', baseUrl: 'u' },
+          { model: 'gpt-5.4', provider: 'uino', apiKey: 'k', baseUrl: 'u2' },
+        ]),
+        readCurrentModel: vi.fn(() => ({ model: 'gpt-5.4', provider: 'openrouter', apiKey: 'k', baseUrl: 'u' })),
+      },
     ]),
     getAdapter: vi.fn(() => ({
       displayName: 'Claude',
@@ -76,6 +85,32 @@ describe('UIRenderer', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     ui.showCurrentModels();
     expect(consoleSpy).toHaveBeenCalled();
+    const joined = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+    expect(joined).toContain('openrouter/gpt-5.4');
+    expect(joined).toContain('运行态');
+    expect(joined).toContain('(运行态: u)');
+    consoleSpy.mockRestore();
+  });
+
+  it('showCurrentModels 对 Codex 命中不同保存身份时应显示 saved 提示', () => {
+    vi.mocked(registry.getAllAdapters).mockReturnValue([
+      {
+        name: 'codex',
+        displayName: 'Codex',
+        getSavedModels: vi.fn(() => [
+          { model: 'gpt-5.4', provider: 'uino', apiKey: 'k', baseUrl: 'u' },
+        ]),
+        readCurrentModel: vi.fn(() => ({ model: 'gpt-5.4', provider: 'openrouter', apiKey: 'k', baseUrl: 'u' })),
+      },
+    ] as any);
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    ui.showCurrentModels();
+
+    const joined = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+    expect(joined).toContain('openrouter/gpt-5.4');
+    expect(joined).toContain('已保存身份');
+    expect(joined).toContain('uino/gpt-5.4');
     consoleSpy.mockRestore();
   });
 
@@ -147,6 +182,23 @@ describe('UIRenderer', () => {
     } as any;
     ui.renderModelList(mockAdapter, [{ name: 'sonnet', model: 'claude-sonnet', apiKey: 'k', baseUrl: 'u' }], 0, true);
     expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it('renderModelList 对 provider/model 不应重复显示 provider 徽标', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const mockAdapter = { displayName: 'Codex' } as any;
+
+    ui.renderModelList(
+      mockAdapter,
+      [{ model: 'gpt-5.4', provider: 'uino', apiKey: 'k', baseUrl: 'u' }],
+      0,
+      true
+    );
+
+    const joined = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+    expect(joined).toContain('uino/gpt-5.4');
+    expect(joined).not.toContain('[uino]');
     consoleSpy.mockRestore();
   });
 });

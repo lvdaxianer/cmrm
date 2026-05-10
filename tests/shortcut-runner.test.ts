@@ -21,6 +21,11 @@ import { ParsedArgs } from '../src/cli/argv-parser';
 import { UIRenderer } from '../src/cli/ui';
 import { registry, ToolAdapter, UnifiedModelConfig } from '../src/adapters';
 
+vi.mock('fs', () => ({
+  existsSync: vi.fn(),
+  readFileSync: vi.fn(),
+}));
+
 /**
  * Mock 模型操作模块:避免真实切换写文件
  */
@@ -37,6 +42,7 @@ vi.mock('../src/utils/tester', () => ({
 
 import { runSwitchAction } from '../src/cli/model-actions';
 import { testModelConfig } from '../src/utils/tester';
+import * as fs from 'fs';
 
 /**
  * 构造一个 mock ToolAdapter,name='claude' 以便覆盖真实 ClaudeAdapter
@@ -218,5 +224,17 @@ describe('runShortcut - unknown', () => {
 
     expect(code).toBe(1);
     expect(ui.showError).toHaveBeenCalled();
+  });
+});
+
+describe('runShortcut - import', () => {
+  it('import 分支应先注册适配器，再进入文件检查流程', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+    const ui = buildSilentUi();
+
+    const code = await runShortcut({ kind: 'import', tool: 'claude', file: 'missing.json' }, ui);
+
+    expect(code).toBe(1);
+    expect(fs.existsSync).toHaveBeenCalledWith('missing.json');
   });
 });

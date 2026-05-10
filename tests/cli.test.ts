@@ -36,11 +36,14 @@ vi.mock('inquirer', () => ({
 }));
 
 let mockHasSettingsFile = true;
+let mockEnsureSettingsCreated = false;
+const mockEnsureSettingsFile = vi.fn(() => mockEnsureSettingsCreated);
 
 vi.mock('../src/config', () => ({
   ConfigManager: class MockConfigManager {
     hasSettingsFile() { return mockHasSettingsFile; }
     initializeSettings() {}
+    ensureSettingsFile() { return mockEnsureSettingsFile(); }
     getSettingsPath() { return '/home/test/.cmrm/settings.json'; }
     readSettings() { return {}; }
     saveToolModel() {}
@@ -93,6 +96,12 @@ vi.mock('../src/adapters', () => ({
       displayName: 'Claude',
     };
   }),
+  CodexAdapter: vi.fn().mockImplementation(function () {
+    return {
+      name: 'codex',
+      displayName: 'Codex',
+    };
+  }),
 }));
 
 let mockTemplateInitResult: string | Promise<string> = 'remote';
@@ -121,6 +130,7 @@ let exitSpy: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   vi.clearAllMocks();
   mockHasSettingsFile = true;
+  mockEnsureSettingsCreated = false;
   mockTemplateInitResult = 'remote';
   exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
 });
@@ -153,7 +163,7 @@ describe('CLI - start', () => {
 
   it('无配置文件时应初始化', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    mockHasSettingsFile = false;
+    mockEnsureSettingsCreated = true;
 
     const inquirer = await import('inquirer');
     vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
@@ -162,8 +172,8 @@ describe('CLI - start', () => {
     await cli.start();
 
     expect(consoleSpy).toHaveBeenCalled();
+    expect(mockEnsureSettingsFile).toHaveBeenCalled();
     consoleSpy.mockRestore();
-    mockHasSettingsFile = true;
   });
 });
 
@@ -291,46 +301,40 @@ describe('CLI - ensureConfigFile', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const cli = new CLI();
 
-    await (cli as any).ensureConfigFile();
+    const created = await (cli as any).ensureConfigFile();
 
+    expect(created).toBe(false);
+    expect(mockEnsureSettingsFile).toHaveBeenCalled();
     consoleSpy.mockRestore();
+  });
+
+  it('首启时应返回 created=true', async () => {
+    const cli = new CLI();
+    mockEnsureSettingsCreated = true;
+
+    const created = await (cli as any).ensureConfigFile();
+
+    expect(created).toBe(true);
+    expect(mockEnsureSettingsFile).toHaveBeenCalled();
   });
 });
 
-describe('CLI - initializeConfigFile', () => {
-  it('应初始化配置文件', () => {
+describe('CLI - showConfigInitializedMessage', () => {
+  it('应输出配置初始化提示', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const cli = new CLI();
 
-    (cli as any).initializeConfigFile();
+    (cli as any).showConfigInitializedMessage();
 
+    expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
-  });
-
-  it('初始化失败时应退出进程', () => {
-    mockHasSettingsFile = false;
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    const { ConfigManager } = vi.mocked('../src/config') as any;
-    const cli = new CLI();
-
-    // 强制 initializeSettings 抛异常
-    const original = (cli as any).configManager.initializeSettings;
-    (cli as any).configManager.initializeSettings = () => {
-      throw new Error('init failed');
-    };
-
-    (cli as any).initializeConfigFile();
-
-    expect(exitSpy).toHaveBeenCalledWith(1);
-    consoleSpy.mockRestore();
-    mockHasSettingsFile = true;
   });
 });
 
 describe('CLI - start with builtin template', () => {
   it('模板远程拉取失败时应提示使用内置模板', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    mockHasSettingsFile = false;
+    mockEnsureSettingsCreated = true;
     mockTemplateInitResult = 'builtin';
 
     const cli = new CLI();
@@ -341,7 +345,6 @@ describe('CLI - start with builtin template', () => {
 
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
-    mockHasSettingsFile = true;
     mockTemplateInitResult = 'remote';
   });
 });

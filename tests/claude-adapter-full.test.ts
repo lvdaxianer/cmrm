@@ -135,6 +135,21 @@ describe('ClaudeAdapter - writeModelConfig', () => {
     expect(fs.writeFileSync).toHaveBeenCalled();
   });
 
+  it('配置文件为空或格式错误时应回退为空对象并继续写入', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readFileSync).mockReturnValue('invalid json');
+    const adapter = buildAdapter();
+
+    const backupName = adapter.writeModelConfig({
+      model: 'claude-sonnet',
+      apiKey: 'sk-test',
+      baseUrl: 'https://api.anthropic.com',
+    });
+
+    expect(backupName).toBe('backup_2026010100');
+    expect(fs.writeFileSync).toHaveBeenCalled();
+  });
+
   it('目录不存在时应创建目录', () => {
     const configDir = path.dirname(CLAUDE_CONFIG_PATH);
     vi.mocked(fs.existsSync).mockImplementation((p) => {
@@ -244,14 +259,15 @@ describe('ClaudeAdapter - saveModel', () => {
 
     expect(fs.writeFileSync).toHaveBeenCalled();
     const written = JSON.parse(vi.mocked(fs.writeFileSync).mock.calls[0][1] as string);
-    expect(written.tools.claude.modes[0].name).toBe('test');
+    expect(written.tools.claude.modes[0].name).toBe('claude-sonnet');
+    expect(written.tools.claude.modes[0].aliases).toEqual(['test']);
   });
 
   it('应更新已存在的模型', () => {
     const settings = {
       tools: {
         claude: {
-          modes: [{ name: 'test', model: 'old', apiKey: 'k', baseUrl: 'u' }],
+          modes: [{ name: 'new-model', model: 'new-model', apiKey: 'k', baseUrl: 'u' }],
         },
       },
     };
@@ -269,6 +285,24 @@ describe('ClaudeAdapter - saveModel', () => {
     const written = JSON.parse(vi.mocked(fs.writeFileSync).mock.calls[0][1] as string);
     expect(written.tools.claude.modes[0].model).toBe('new-model');
     expect(written.tools.claude.modes).toHaveLength(1);
+    expect(written.tools.claude.modes[0].aliases).toEqual(['test']);
+  });
+
+  it('cmrm settings 为空或格式错误时应重建结构后保存', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readFileSync).mockReturnValue('invalid json');
+    const adapter = buildAdapter();
+
+    adapter.saveModel({
+      name: 'rebuilt',
+      model: 'claude-sonnet',
+      apiKey: 'sk-test',
+      baseUrl: 'https://api.anthropic.com',
+    });
+
+    const written = JSON.parse(vi.mocked(fs.writeFileSync).mock.calls[0][1] as string);
+    expect(written.tools.claude.modes[0].name).toBe('claude-sonnet');
+    expect(written.tools.claude.modes[0].aliases).toEqual(['rebuilt']);
   });
 });
 
@@ -280,7 +314,7 @@ describe('ClaudeAdapter - removeModel', () => {
     const settings = {
       tools: {
         claude: {
-          modes: [{ name: 'test', model: 'm', apiKey: 'k', baseUrl: 'u' }],
+          modes: [{ name: 'legacy-name', model: 'm', apiKey: 'k', baseUrl: 'u' }],
         },
       },
     };
@@ -288,7 +322,7 @@ describe('ClaudeAdapter - removeModel', () => {
     vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(settings));
     const adapter = buildAdapter();
 
-    const result = adapter.removeModel('test');
+    const result = adapter.removeModel('m');
 
     expect(result).toBe(true);
     const written = JSON.parse(vi.mocked(fs.writeFileSync).mock.calls[0][1] as string);
@@ -314,12 +348,20 @@ describe('ClaudeAdapter - removeModel', () => {
     vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(settings));
     const adapter = buildAdapter();
 
-    expect(adapter.removeModel('test')).toBe(false);
+    expect(adapter.removeModel('nonexistent')).toBe(false);
   });
 
   it('结构不完整时应返回 false', () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({ tools: { claude: {} } }));
+    const adapter = buildAdapter();
+
+    expect(adapter.removeModel('test')).toBe(false);
+  });
+
+  it('cmrm settings 为空或格式错误时应返回 false 而不是抛错', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readFileSync).mockReturnValue('invalid json');
     const adapter = buildAdapter();
 
     expect(adapter.removeModel('test')).toBe(false);

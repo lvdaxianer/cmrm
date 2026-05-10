@@ -239,3 +239,82 @@ describe('parseArgv - setLang', () => {
     });
   });
 });
+
+/**
+ * import 分支(cmrm <tool> import <file>)
+ */
+describe('parseArgv - import', () => {
+  // 完整 import 命令 (claude)
+  it('claude import <file> 应返回 import 分支并携带 tool 与 file', () => {
+    expect(parseArgv(['claude', 'import', 'config.json'])).toEqual({
+      kind: 'import',
+      tool: 'claude',
+      file: 'config.json',
+    });
+  });
+
+  // 完整 import 命令 (codex)
+  it('codex import <file> 应返回 import 分支并携带 tool 与 file', () => {
+    expect(parseArgv(['codex', 'import', 'config.toml'])).toEqual({
+      kind: 'import',
+      tool: 'codex',
+      file: 'config.toml',
+    });
+  });
+
+  // 缺失文件路径:降级 unknown
+  it('import 缺少文件路径时应降级为 unknown', () => {
+    const result = parseArgv(['claude', 'import']);
+
+    expect(result.kind).toBe('unknown');
+    if (result.kind === 'unknown') {
+      expect(result.input).toContain('import');
+    }
+  });
+
+  // 工具名有效但子命令不是 import:降级 unknown
+  it('claude 未知子命令时应降级为 unknown', () => {
+    const result = parseArgv(['claude', 'switch']);
+
+    expect(result.kind).toBe('unknown');
+    if (result.kind === 'unknown') {
+      expect(result.input).toContain('claude');
+    }
+  });
+
+  // 文件路径两端有空白:trim 处理
+  it('import 应自动 trim 文件路径', () => {
+    expect(parseArgv(['claude', 'import', '  config.json  '])).toEqual({
+      kind: 'import',
+      tool: 'claude',
+      file: 'config.json',
+    });
+  });
+
+  // 双引号包裹:自动去除
+  it('import 应支持双引号包裹的路径', () => {
+    expect(parseArgv(['claude', 'import', '"config.json"'])).toEqual({
+      kind: 'import',
+      tool: 'claude',
+      file: 'config.json',
+    });
+  });
+
+  // 单引号包裹:自动去除
+  it('import 应支持单引号包裹的路径', () => {
+    expect(parseArgv(['codex', 'import', "'config.toml'"])).toEqual({
+      kind: 'import',
+      tool: 'codex',
+      file: 'config.toml',
+    });
+  });
+
+  // 引号包裹且含空格:正确解析
+  it('import 应支持带空格的路径', () => {
+    expect(parseArgv(['claude', 'import', '"/path/my config.json"'])).toEqual({
+      kind: 'import',
+      tool: 'claude',
+      file: '/path/my config.json',
+    });
+  });
+});

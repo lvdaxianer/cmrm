@@ -6,42 +6,72 @@
  * - 问题列表与配置组装属于纯数据处理，不依赖 readline 状态
  * - 与 add-handler 解耦后便于单元测试
  * - 每个问题字段独立构建函数，符合单一职责原则
+ * - 支持多工具适配器（Claude / Codex）的差异化问题
  *
  * @author lvdaxianerplus
  * @date 2026-05-03
+ * @date 2026-05-09 修改: 支持 Codex 适配器差异化问题
  */
 
 import { Question } from 'inquirer';
 import { UnifiedModelConfig } from '../types';
 import { ApiType } from '../adapters/types';
-
-/**
- * 构建添加模型的 inquirer 问题列表
- * 顺序：configName → model → apiKey → baseUrl → 三类可选模型
- * 注：apiType 改用统一的索引输入菜单 askApiType，不再放在 list 问题里
- *
- * @return inquirer 问题数组
- * @author lvdaxianerplus
- * @date 2026-05-03
- */
-export function buildAddModelQuestions(): Question[] {
-  // 无默认值：调用带默认值版本，传入空对象
-  return buildAddModelQuestionsWithDefaults({});
-}
+import { normalizeModelIdentity } from './model-identity';
 
 // 导入 t 函数用于翻译（需要在运行时获取翻译）
 import { t } from '../i18n';
 
 /**
+ * 构建添加模型的 inquirer 问题列表
+ * 根据适配器类型返回对应的问题列表
+ *
+ * @param adapterName - 适配器名称（'claude' | 'codex'）
+ * @return inquirer 问题数组
+ * @author lvdaxianerplus
+ * @date 2026-05-09
+ */
+export function buildAddModelQuestions(adapterName: string = 'claude'): Question[] {
+  // 无默认值：调用带默认值版本，传入空对象
+  return buildAddModelQuestionsWithDefaults(adapterName, {});
+}
+
+/**
  * 构建带默认值的添加模型问题列表
  * 用于模板添加场景，模板字段已预填充，用户可直接 Enter 跳过
  *
+ * @param adapterName - 适配器名称（'claude' | 'codex'）
  * @param defaults - 模板预填充的默认值
  * @return inquirer 问题数组
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-09
  */
-export function buildAddModelQuestionsWithDefaults(defaults: Partial<UnifiedModelConfig>): Question[] {
+export function buildAddModelQuestionsWithDefaults(
+  adapterName: string,
+  defaults: Partial<UnifiedModelConfig>
+): Question[] {
+  // Claude 适配器:使用 Claude 特有字段
+  if (adapterName === 'claude') {
+    return buildClaudeQuestions(defaults);
+  }
+  // Codex 适配器:使用 Codex 特有字段
+  else if (adapterName === 'codex') {
+    return buildCodexQuestions(defaults);
+  }
+  // 未知适配器:默认使用 Claude 问题列表
+  else {
+    return buildClaudeQuestions(defaults);
+  }
+}
+
+/**
+ * 构建 Claude 适配器的添加问题列表
+ *
+ * @param defaults - 模板默认值
+ * @return inquirer 问题数组
+ * @author lvdaxianerplus
+ * @date 2026-05-09
+ */
+function buildClaudeQuestions(defaults: Partial<UnifiedModelConfig>): Question[] {
   // 按固定顺序组装所有问题字段
   return [
     buildConfigNameQuestion(defaults),
@@ -51,6 +81,36 @@ export function buildAddModelQuestionsWithDefaults(defaults: Partial<UnifiedMode
     buildHaikuQuestion(defaults),
     buildSonnetQuestion(defaults),
     buildOpusQuestion(defaults),
+  ];
+}
+
+/**
+ * 构建 Codex 适配器的添加问题列表
+ *
+ * @param defaults - 模板默认值
+ * @return inquirer 问题数组
+ * @author lvdaxianerplus
+ * @date 2026-05-09
+ */
+function buildCodexQuestions(defaults: Partial<UnifiedModelConfig>): Question[] {
+  // Codex 固定默认值
+  const codexDefaults: Partial<UnifiedModelConfig> = {
+    ...defaults,
+    model: defaults.model || 'gpt-5.4',
+    provider: 'codex',
+    modelReasoningEffort: defaults.modelReasoningEffort || 'high',
+    disableResponseStorage: defaults.disableResponseStorage ?? true,
+  };
+
+  // Codex 问题列表:基础字段 + provider + 可选高级字段
+  return [
+    buildConfigNameQuestion(codexDefaults),
+    buildModelQuestion(codexDefaults),
+    buildApiKeyQuestion(),
+    buildBaseUrlQuestionForCodex(codexDefaults),
+    buildProviderQuestion(codexDefaults),
+    buildModelReasoningEffortQuestion(codexDefaults),
+    buildDisableResponseStorageQuestion(codexDefaults),
   ];
 }
 
@@ -109,7 +169,7 @@ function buildApiKeyQuestion(): Question {
 }
 
 /**
- * 构建 Base URL 问题
+ * 构建 Base URL 问题（Claude 默认）
  * 必填字段，提供兜底默认值 https://api.anthropic.com
  *
  * @param defaults - 模板默认值
@@ -124,6 +184,81 @@ function buildBaseUrlQuestion(defaults: Partial<UnifiedModelConfig>): Question {
     message: buildMessage(t('add.baseUrl'), defaults.baseUrl, 'https://api.anthropic.com'),
     default: defaults.baseUrl || 'https://api.anthropic.com',
     validate: (value: string) => value.trim() !== '' || t('add.baseUrl') + ' is required',
+  };
+}
+
+/**
+ * 构建 Base URL 问题（Codex）
+ * 必填字段，提供兜底默认值 https://api.openai.com
+ *
+ * @param defaults - 模板默认值
+ * @return baseUrl 问题对象
+ * @author lvdaxianerplus
+ * @date 2026-05-09
+ */
+function buildBaseUrlQuestionForCodex(defaults: Partial<UnifiedModelConfig>): Question {
+  return {
+    type: 'input',
+    name: 'baseUrl',
+    message: buildMessage(t('add.baseUrl'), defaults.baseUrl, 'https://api.openai.com'),
+    default: defaults.baseUrl || 'https://api.openai.com',
+    validate: (value: string) => value.trim() !== '' || t('add.baseUrl') + ' is required',
+  };
+}
+
+/**
+ * 构建 Provider 问题（Codex）
+ * 必填字段，用于指定模型提供商
+ *
+ * @param defaults - 模板默认值
+ * @return provider 问题对象
+ * @author lvdaxianerplus
+ * @date 2026-05-09
+ */
+function buildProviderQuestion(defaults: Partial<UnifiedModelConfig>): Question {
+  return {
+    type: 'input',
+    name: 'provider',
+    message: buildMessage(t('add.provider'), defaults.provider, 'custom'),
+    default: defaults.provider || 'custom',
+    validate: (value: string) => value.trim() !== '' || t('add.provider') + ' is required',
+  };
+}
+
+/**
+ * 构建 Model Reasoning Effort 问题（Codex 必填）
+ * 必填字段，指定推理强度
+ *
+ * @param defaults - 模板默认值
+ * @return modelReasoningEffort 问题对象
+ * @author lvdaxianerplus
+ * @date 2026-05-09
+ */
+function buildModelReasoningEffortQuestion(defaults: Partial<UnifiedModelConfig>): Question {
+  return {
+    type: 'input',
+    name: 'modelReasoningEffort',
+    message: buildMessage(t('add.modelReasoningEffort'), defaults.modelReasoningEffort),
+    default: defaults.modelReasoningEffort || 'high',
+    validate: (value: string) => value.trim() !== '' || t('add.modelReasoningEffort') + ' is required',
+  };
+}
+
+/**
+ * 构建 Disable Response Storage 问题（Codex 可选）
+ * 可选字段，布尔值
+ *
+ * @param defaults - 模板默认值
+ * @return disableResponseStorage 问题对象
+ * @author lvdaxianerplus
+ * @date 2026-05-09
+ */
+function buildDisableResponseStorageQuestion(defaults: Partial<UnifiedModelConfig>): Question {
+  return {
+    type: 'confirm',
+    name: 'disableResponseStorage',
+    message: t('add.disableResponseStorage'),
+    default: defaults.disableResponseStorage || false,
   };
 }
 
@@ -206,15 +341,39 @@ function buildMessage(label: string, defaultValue?: string, fallbackDefault?: st
 }
 
 /**
- * 根据 inquirer 响应构建模型配置对象
+ * 根据适配器类型和 inquirer 响应构建模型配置对象
  * 必填字段 trim 后填入，可选字段为空时不写入对象
  *
+ * @param adapterName - 适配器名称（'claude' | 'codex'）
  * @param response - inquirer prompt 返回的字段映射
  * @return 标准化的 UnifiedModelConfig
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-09
  */
-export function buildModelConfig(response: Record<string, any>): UnifiedModelConfig {
+export function buildModelConfig(adapterName: string, response: Record<string, any>): UnifiedModelConfig {
+  // Claude 适配器:使用 Claude 配置组装逻辑
+  if (adapterName === 'claude') {
+    return buildClaudeModelConfig(response);
+  }
+  // Codex 适配器:使用 Codex 配置组装逻辑
+  else if (adapterName === 'codex') {
+    return buildCodexModelConfig(response);
+  }
+  // 未知适配器:默认使用 Claude 逻辑
+  else {
+    return buildClaudeModelConfig(response);
+  }
+}
+
+/**
+ * 构建 Claude 模型配置对象
+ *
+ * @param response - inquirer 响应
+ * @return 模型配置对象
+ * @author lvdaxianerplus
+ * @date 2026-05-09
+ */
+function buildClaudeModelConfig(response: Record<string, any>): UnifiedModelConfig {
   // 基础字段（必填）：trim 后组装
   const config: UnifiedModelConfig = {
     name: response.configName?.trim() || response.model.trim(),
@@ -231,7 +390,39 @@ export function buildModelConfig(response: Record<string, any>): UnifiedModelCon
   // 可选字段：Opus 模型
   attachOptional(config, 'opusModel', response.opusModel);
 
-  return config;
+  return normalizeModelIdentity(config);
+}
+
+/**
+ * 构建 Codex 模型配置对象
+ *
+ * @param response - inquirer 响应
+ * @return 模型配置对象
+ * @author lvdaxianerplus
+ * @date 2026-05-09
+ */
+function buildCodexModelConfig(response: Record<string, any>): UnifiedModelConfig {
+  const provider = response.provider?.trim() || 'custom';
+  const model = response.model.trim();
+  const explicitName = response.configName?.trim();
+  // 基础字段（必填）：trim 后组装
+  const config: UnifiedModelConfig = {
+    name: explicitName || `${provider}/${model}`,
+    model: model,
+    apiKey: response.apiKey.trim(),
+    baseUrl: response.baseUrl.trim(),
+    provider: provider,
+    apiType: (response.apiType as ApiType) ?? 'openai',
+  };
+
+  // 可选字段：Model Reasoning Effort
+  attachOptional(config, 'modelReasoningEffort', response.modelReasoningEffort);
+  // 可选字段：Disable Response Storage（布尔值）
+  if (typeof response.disableResponseStorage === 'boolean') {
+    (config as any).disableResponseStorage = response.disableResponseStorage;
+  }
+
+  return normalizeModelIdentity(config);
 }
 
 /**
@@ -245,9 +436,13 @@ export function buildModelConfig(response: Record<string, any>): UnifiedModelCon
  * @date 2026-05-03
  */
 function attachOptional(config: UnifiedModelConfig, key: keyof UnifiedModelConfig, value: any): void {
-  // 输入存在且 trim 后非空：写入配置对象
-  if (value?.trim()) {
+  // 字符串类型：trim 后非空才写入
+  if (typeof value === 'string' && value.trim()) {
     (config as any)[key] = value.trim();
+  }
+  // 其他类型：直接写入（如布尔值）
+  else if (typeof value !== 'string' && value !== undefined && value !== null) {
+    (config as any)[key] = value;
   }
   // 输入为空或仅空白：不写入，保持配置对象整洁
   else {

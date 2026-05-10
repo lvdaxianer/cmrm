@@ -68,7 +68,7 @@ async function collectTemplateResponse(
 ): Promise<Record<string, any> | null> {
   // 使用模板默认值构建 inquirer 问题列表
   const response = await inquirer.prompt(
-    buildAddModelQuestionsWithDefaults(templateToDefaults(template)) as any
+    buildAddModelQuestionsWithDefaults(adapter.name, templateToDefaults(template)) as any
   );
 
   // 用户取消（Ctrl+C 等）

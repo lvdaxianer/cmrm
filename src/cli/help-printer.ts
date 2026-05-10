@@ -50,6 +50,7 @@ function printUsage(): void {
   console.log('  ' + chalk.green('cmrm switch <model-name>') + chalk.gray(`             ${t('help.usageSwitch')}`));
   console.log('  ' + chalk.green('cmrm test <model-name>') + chalk.gray(`               ${t('help.usageTest')}`));
   console.log('  ' + chalk.green('cmrm alias <model-name> <new-alias>') + chalk.gray(`  ${t('help.usageAlias')}`));
+  console.log('  ' + chalk.green('cmrm <tool> import <file>') + chalk.gray(`            ${t('help.usageImport')}`));
   console.log('  ' + chalk.green('cmrm --help, -h') + chalk.gray(`                      ${t('help.usageHelp')}`));
   console.log('  ' + chalk.green('cmrm --version, -v') + chalk.gray(`                   ${t('help.usageVersion')}`));
   console.log('');
@@ -69,6 +70,8 @@ function printExamples(): void {
   console.log('  ' + chalk.green('cmrm test gpt-4o-mini'));
   console.log('  ' + chalk.gray(`# ${t('help.exampleAliasComment')}`));
   console.log('  ' + chalk.green('cmrm alias sonnet-4 fast'));
+  console.log('  ' + chalk.gray(`# ${t('help.exampleImportComment')}`));
+  console.log('  ' + chalk.green('cmrm claude import config.json'));
   console.log('');
 }
 

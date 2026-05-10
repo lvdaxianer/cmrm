@@ -11,6 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { Settings, OldSettings, ToolConfig, UnifiedModelConfig, ModelConfig } from './types';
+import { getPrimaryModelName, normalizeModelIdentity } from './cli/model-identity';
 
 /**
  * 配置管理类
@@ -28,7 +29,13 @@ export class ConfigManager {
    * @date 2026-04-27
    */
   constructor() {
-    this.settingsPath = path.join(os.homedir(), '.cmrm', 'settings.json');
+    const home = os.homedir();
+    // Windows 防御性处理：确保路径正确拼接
+    if (process.platform === 'win32' && !home.endsWith('\\') && !home.endsWith('/')) {
+      this.settingsPath = home + '\\.cmrm\\settings.json';
+    } else {
+      this.settingsPath = path.join(home, '.cmrm', 'settings.json');
+    }
   }
 
   /**
@@ -97,7 +104,7 @@ export class ConfigManager {
     const newSettings: Settings = {
       tools: {
         claude: {
-          modes: oldSettings.modes.map((mode: ModelConfig) => ({
+          modes: oldSettings.modes.map((mode: ModelConfig) => normalizeModelIdentity({
             name: mode.ANTHROPIC_MODEL,
             model: mode.ANTHROPIC_MODEL,
             apiKey: mode.ANTHROPIC_AUTH_TOKEN,
@@ -107,7 +114,7 @@ export class ConfigManager {
             opusModel: mode.ANTHROPIC_DEFAULT_OPUS_MODEL,
           })),
         },
-        opencode: {
+        codex: {
           modes: [],
         },
       },
@@ -214,7 +221,7 @@ export class ConfigManager {
       const defaultSettings: Settings = {
         tools: {
           claude: { modes: [] },
-          opencode: { modes: [] },
+          codex: { modes: [] },
         },
       };
 
@@ -274,7 +281,8 @@ export class ConfigManager {
    * @date 2026-04-27
    */
   private findExistingIndex(modes: UnifiedModelConfig[], config: UnifiedModelConfig): number {
-    return modes.findIndex((m: UnifiedModelConfig) => m.name === config.name);
+    const targetKey = getPrimaryModelName(config);
+    return modes.findIndex((m: UnifiedModelConfig) => getPrimaryModelName(m) === targetKey);
   }
 
   /**
@@ -314,6 +322,7 @@ export class ConfigManager {
    */
   saveToolModel(toolName: string, config: UnifiedModelConfig): void {
     try {
+      const normalizedConfig = normalizeModelIdentity(config);
       // 读取或创建配置
       let settings = this.loadOrCreateSettings();
 
@@ -321,7 +330,7 @@ export class ConfigManager {
       settings = this.ensureToolStructure(settings, toolName);
 
       // 更新模型配置列表
-      settings = this.updateToolModes(settings, toolName, config);
+      settings = this.updateToolModes(settings, toolName, normalizedConfig);
 
       // 保存配置(自动备份)
       this.saveSettings(settings);
@@ -343,7 +352,7 @@ export class ConfigManager {
    */
   private createDefaultClaudeMode(): UnifiedModelConfig {
     return {
-      name: 'claude-sonnet-4-5',
+      name: 'claude-sonnet-4-5-20250514',
       model: 'claude-sonnet-4-5-20250514',
       apiKey: 'sk-ant-xxx',
       baseUrl: 'https://api.anthropic.com',
@@ -380,7 +389,7 @@ export class ConfigManager {
           claude: {
             modes: [this.createDefaultClaudeMode()],
           },
-          opencode: {
+          codex: {
             modes: [],
           },
         },
@@ -393,6 +402,24 @@ export class ConfigManager {
     catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to initialize settings: ${message}`);
+    }
+  }
+
+  /**
+   * 确保 settings.json 存在
+   * 首次启动时自动初始化默认配置，已存在时保持不变
+   *
+   * @return true 表示本次调用创建了新文件，false 表示文件原本已存在
+   * @author lvdaxianerplus
+   * @date 2026-05-10
+   */
+  ensureSettingsFile(): boolean {
+    if (this.hasSettingsFile()) {
+      return false;
+    }
+    else {
+      this.initializeSettings();
+      return true;
     }
   }
 

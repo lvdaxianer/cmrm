@@ -20,6 +20,7 @@
  */
 
 import { UnifiedModelConfig } from '../adapters/types';
+import { getModelReferenceNames, getPrimaryModelName } from './model-identity';
 
 /**
  * 别名校验结果
@@ -41,7 +42,7 @@ export interface AliasValidationResult {
  * @date 2026-05-03
  */
 export function getModelKey(model: UnifiedModelConfig): string {
-  return model.name || model.model;
+  return getPrimaryModelName(model);
 }
 
 /**
@@ -55,18 +56,7 @@ export function getModelKey(model: UnifiedModelConfig): string {
  * @date 2026-05-03
  */
 function isSameModel(target: UnifiedModelConfig, currentKey: string): boolean {
-  // name 命中:同一个模型
-  if (target.name && target.name === currentKey) {
-    return true;
-  }
-  // model 命中:同一个模型(用户没设 name 的退化情况)
-  else if (!target.name && target.model === currentKey) {
-    return true;
-  }
-  // 都未命中:不同模型
-  else {
-    return false;
-  }
+  return getModelKey(target) === currentKey;
 }
 
 /**
@@ -221,11 +211,16 @@ function checkOtherModelConflict(
  * @date 2026-05-03
  */
 function findConflictReason(alias: string, other: UnifiedModelConfig): string | null {
-  const otherKey = other.name || other.model;
+  const otherKey = getModelKey(other);
+  const referenceNames = getModelReferenceNames(other);
 
   // 与他模型 name 冲突
   if (other.name === alias) {
     return `别名与模型 "${otherKey}" 的 name 字段冲突`;
+  }
+  // 与他模型 provider/model 冲突
+  else if (other.provider && getPrimaryModelName(other) === alias) {
+    return `别名与模型 "${otherKey}" 的 profile 标识冲突`;
   }
   // 与他模型 model 冲突
   else if (other.model === alias) {
@@ -233,6 +228,10 @@ function findConflictReason(alias: string, other: UnifiedModelConfig): string | 
   }
   // 与他模型 aliases 中某项冲突
   else if ((other.aliases ?? []).includes(alias)) {
+    return `别名已被模型 "${otherKey}" 占用`;
+  }
+  // 兜底：任何引用名冲突都视为占用
+  else if (referenceNames.includes(alias)) {
     return `别名已被模型 "${otherKey}" 占用`;
   }
   // 无冲突

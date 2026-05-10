@@ -30,6 +30,10 @@ export type NextOperation = 'switch' | 'add' | 'remove' | 'info' | 'test' | 'ali
 /** 子流程类型(switch/remove/info 共享同一选择菜单) */
 type ModelActionMode = 'switch' | 'remove' | 'info';
 
+function getSelectionLabel(adapter: ToolAdapter): string {
+  return adapter.name === 'codex' ? 'Profile' : 'Model';
+}
+
 /**
  * 编排层依赖上下文
  * 由 CLI 类注入，使外部函数也能驱动 UI 与状态恢复
@@ -172,9 +176,10 @@ async function handleSwitchOrRemove(
   adapter: ToolAdapter,
   mode: 'switch' | 'remove'
 ): Promise<void> {
+  const label = getSelectionLabel(adapter);
   const titleMap = {
-    switch: { title: t('tools.selectModel', { tool: adapter.displayName }), prompt: t('tools.enterIndex') },
-    remove: { title: t('tools.removeModel', { tool: adapter.displayName }), prompt: t('tools.enterIndexToRemove') },
+    switch: { title: `Select ${adapter.displayName} ${label}`, prompt: t('tools.enterIndex') },
+    remove: { title: `Remove ${adapter.displayName} ${label}`, prompt: t('tools.enterIndexToRemove') },
   };
   const result = await pickModel(adapter, ctx.rl, {
     title: titleMap[mode].title,
@@ -193,8 +198,9 @@ async function handleSwitchOrRemove(
  * @date 2026-05-03
  */
 async function handleInfo(ctx: OrchestratorContext, adapter: ToolAdapter): Promise<void> {
+  const label = getSelectionLabel(adapter);
   const result = await pickModel(adapter, ctx.rl, {
-    title: t('tools.viewModelInfo', { tool: adapter.displayName }),
+    title: `View ${adapter.displayName} ${label} Info`,
     prompt: t('tools.enterIndex'),
     hint: t('tools.confirmHint'),
   });
@@ -220,6 +226,14 @@ async function dispatchModelResult(
   // 无任何已保存模型
   if (result.kind === 'empty') {
     ctx.ui.showWarning(`\n${adapter.displayName} ${t('tools.noModels')}`);
+
+    // 检测是否有当前生效但未保存的配置
+    const current = adapter.readCurrentModel();
+    if (current) {
+      ctx.ui.showInfo(`  ${t('ui.current')}: ${current.model} (${current.baseUrl})`);
+      ctx.ui.showInfo(`  (${t('ui.notConfigured')})`);
+    }
+
     ctx.ui.showInfo(t('tools.addModelHint'));
     await finalizeAndReturn(ctx);
   }

@@ -92,7 +92,7 @@ describe('validateAlias - 与自身冲突', () => {
   // 与自身 name 冲突
   it('应拒绝与自身 name 相同的别名', () => {
     const self = buildModel({ name: 'sonnet', model: 'claude-sonnet' });
-    const result = validateAlias('sonnet', [self], 'sonnet');
+    const result = validateAlias('sonnet', [self], 'claude-sonnet');
 
     expect(result.valid).toBe(false);
     expect(result.error).toContain('name');
@@ -101,7 +101,7 @@ describe('validateAlias - 与自身冲突', () => {
   // 与自身 model 冲突
   it('应拒绝与自身 model 相同的别名', () => {
     const self = buildModel({ name: 'sonnet', model: 'claude-sonnet' });
-    const result = validateAlias('claude-sonnet', [self], 'sonnet');
+    const result = validateAlias('claude-sonnet', [self], 'claude-sonnet');
 
     expect(result.valid).toBe(false);
     expect(result.error).toContain('model');
@@ -110,10 +110,10 @@ describe('validateAlias - 与自身冲突', () => {
   // 与自身已有 alias 冲突
   it('应拒绝与自身已有 alias 重复', () => {
     const self = buildModel({ name: 'sonnet', model: 'claude-sonnet', aliases: ['s4'] });
-    const result = validateAlias('s4', [self], 'sonnet');
+    const result = validateAlias('s4', [self], 'claude-sonnet');
 
     expect(result.valid).toBe(false);
-    expect(result.error).toContain('s4');
+    expect(result.error).toContain('当前模型');
   });
 });
 
@@ -122,7 +122,7 @@ describe('validateAlias - 合法别名', () => {
   it('应放行全新合法别名', () => {
     const self = buildModel({ name: 'sonnet', model: 'claude-sonnet', aliases: ['s4'] });
     const other = buildModel({ name: 'haiku', model: 'claude-haiku', aliases: ['h4'] });
-    const result = validateAlias('fast', [self, other], 'sonnet');
+    const result = validateAlias('fast', [self, other], 'claude-sonnet');
 
     expect(result.valid).toBe(true);
   });
@@ -130,7 +130,7 @@ describe('validateAlias - 合法别名', () => {
   // 输入两端含空白但 trim 后合法:通过
   it('应在 trim 后判断合法性', () => {
     const self = buildModel({ name: 'sonnet', model: 'claude-sonnet' });
-    const result = validateAlias('  fast  ', [self], 'sonnet');
+    const result = validateAlias('  fast  ', [self], 'claude-sonnet');
 
     expect(result.valid).toBe(true);
   });
@@ -168,9 +168,9 @@ describe('findModelByAlias', () => {
 describe('getModelKey', () => {
   // 有 name:返回 name
   it('应优先返回 name 字段', () => {
-    const m = buildModel({ name: 'my-name', model: 'm1' });
+    const m = buildModel({ name: 'legacy-name', model: 'm1' });
 
-    expect(getModelKey(m)).toBe('my-name');
+    expect(getModelKey(m)).toBe('m1');
   });
 
   // 无 name:回退 model
@@ -178,5 +178,32 @@ describe('getModelKey', () => {
     const m = buildModel({ model: 'fallback-model' });
 
     expect(getModelKey(m)).toBe('fallback-model');
+  });
+
+  it('Codex 缺失 name 时应返回 provider/model', () => {
+    const m = buildModel({ model: 'gpt-5.4', provider: 'openrouter' });
+
+    expect(getModelKey(m)).toBe('openrouter/gpt-5.4');
+  });
+});
+
+describe('validateAlias - Codex profile 冲突', () => {
+  it('应拒绝与其他 Codex profile 标识相同的别名', () => {
+    const self = buildModel({ name: 'claude-main', model: 'claude-sonnet' });
+    const other = buildModel({ model: 'gpt-5.4', provider: 'openrouter' });
+
+    const result = validateAlias('openrouter/gpt-5.4', [self, other], 'claude-main');
+
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('profile');
+  });
+
+  it('应拒绝与其他模型规范名相同的别名', () => {
+    const self = buildModel({ name: 'claude-haiku', model: 'claude-haiku' });
+    const other = buildModel({ name: 'claude-sonnet-4-5-20250514', model: 'claude-sonnet-4-5-20250514' });
+
+    const result = validateAlias('claude-sonnet-4-5-20250514', [self, other], 'claude-haiku');
+
+    expect(result.valid).toBe(false);
   });
 });

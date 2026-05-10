@@ -15,7 +15,7 @@ import * as readline from 'readline';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { ConfigManager } from './config';
-import { registry, ClaudeAdapter } from './adapters';
+import { registry, ClaudeAdapter, CodexAdapter } from './adapters';
 import { AVAILABLE_COMMANDS } from './cli/commands';
 import { UIRenderer } from './cli/ui';
 import { createReadlineInterface, prepareForInquirer } from './cli/readline-helper';
@@ -68,6 +68,7 @@ export class CLI {
     this.uiRenderer = new UIRenderer();
 
     registry.register(new ClaudeAdapter());
+    registry.register(new CodexAdapter());
 
     this.rl = createReadlineInterface(
       this.completer.bind(this),
@@ -105,10 +106,14 @@ export class CLI {
    * @date 2026-05-03
    */
   async start(): Promise<void> {
-    // 初始化 i18n（优先于任何 UI 输出）
+    const created = await this.ensureConfigFile();
+
+    // 初始化 i18n（在配置文件准备好之后执行，避免首启读取未创建的 settings）
     await this.i18n.initialize();
 
-    await this.ensureConfigFile();
+    if (created) {
+      this.showConfigInitializedMessage();
+    }
 
     console.log(chalk.cyan(this.i18n.t('app.welcome')));
     console.log(chalk.gray('\n' + this.i18n.t('commands.selectHint') + '\n'));
@@ -122,15 +127,8 @@ export class CLI {
    * @author lvdaxianerplus
    * @date 2026-05-03
    */
-  private async ensureConfigFile(): Promise<void> {
-    // 已存在：直接返回
-    if (this.configManager.hasSettingsFile()) {
-      return;
-    }
-    // 不存在：尝试初始化
-    else {
-      this.initializeConfigFile();
-    }
+  private async ensureConfigFile(): Promise<boolean> {
+    const created = this.configManager.ensureSettingsFile();
 
     // 确保模板配置文件存在（优先远程拉取，失败则用内置默认）
     const templateInitResult = await templateManager.initializeDefaults();
@@ -146,29 +144,21 @@ export class CLI {
     else {
       // 不输出任何提示，避免干扰用户正常操作流程
     }
+
+    return created;
   }
 
   /**
-   * 初始化配置文件并提示用户编辑
+   * 显示配置文件初始化成功提示
    *
    * @author lvdaxianerplus
-   * @date 2026-05-03
+   * @date 2026-05-10
    */
-  private initializeConfigFile(): void {
+  private showConfigInitializedMessage(): void {
+    const path = this.configManager.getSettingsPath();
     console.log(chalk.yellow(this.i18n.t('errors.configNotFound') + '. Initializing...'));
-
-    try {
-      this.configManager.initializeSettings();
-      const path = this.configManager.getSettingsPath();
-      console.log(chalk.green(this.i18n.t('messages.configCreated', { path: path })));
-      console.log(chalk.gray(this.i18n.t('messages.editApiKey') + '\n'));
-    }
-    // 初始化失败：直接退出（无法继续运行）
-    catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.log(chalk.red(this.i18n.t('errors.initFailed') + `: ${message}`));
-      process.exit(1);
-    }
+    console.log(chalk.green(this.i18n.t('messages.configCreated', { path: path })));
+    console.log(chalk.gray(this.i18n.t('messages.editApiKey') + '\n'));
   }
 
   /**

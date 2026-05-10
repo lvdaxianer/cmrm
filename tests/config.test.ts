@@ -207,7 +207,8 @@ describe('ConfigManager - saveToolModel', () => {
 
     expect(fs.writeFileSync).toHaveBeenCalled();
     const written = JSON.parse(vi.mocked(fs.writeFileSync).mock.calls[0][1] as string);
-    expect(written.tools.claude.modes[0].name).toBe('new-model');
+    expect(written.tools.claude.modes[0].name).toBe('claude-sonnet');
+    expect(written.tools.claude.modes[0].aliases).toEqual(['new-model']);
   });
 
   // 更新已存在模型
@@ -215,7 +216,7 @@ describe('ConfigManager - saveToolModel', () => {
     const settings = {
       tools: {
         claude: {
-          modes: [{ name: 'existing', model: 'old', apiKey: 'k', baseUrl: 'u' }],
+          modes: [{ name: 'new-model', model: 'new-model', apiKey: 'k', baseUrl: 'u' }],
         },
       },
     };
@@ -233,6 +234,7 @@ describe('ConfigManager - saveToolModel', () => {
     const written = JSON.parse(vi.mocked(fs.writeFileSync).mock.calls[0][1] as string);
     expect(written.tools.claude.modes[0].model).toBe('new-model');
     expect(written.tools.claude.modes).toHaveLength(1);
+    expect(written.tools.claude.modes[0].aliases).toEqual(['existing']);
   });
 
   // 添加新模型到已有工具
@@ -273,7 +275,8 @@ describe('ConfigManager - saveToolModel', () => {
     });
 
     const written = JSON.parse(vi.mocked(fs.writeFileSync).mock.calls[0][1] as string);
-    expect(written.tools.claude.modes[0].name).toBe('test');
+    expect(written.tools.claude.modes[0].name).toBe('m');
+    expect(written.tools.claude.modes[0].aliases).toEqual(['test']);
   });
 
   // 创建工具结构当工具不存在时
@@ -290,7 +293,8 @@ describe('ConfigManager - saveToolModel', () => {
     });
 
     const written = JSON.parse(vi.mocked(fs.writeFileSync).mock.calls[0][1] as string);
-    expect(written.tools.claude.modes[0].name).toBe('test');
+    expect(written.tools.claude.modes[0].name).toBe('m');
+    expect(written.tools.claude.modes[0].aliases).toEqual(['test']);
   });
 
   // 工具存在但 modes 不存在时应自动创建 modes
@@ -307,7 +311,8 @@ describe('ConfigManager - saveToolModel', () => {
     });
 
     const written = JSON.parse(vi.mocked(fs.writeFileSync).mock.calls[0][1] as string);
-    expect(written.tools.claude.modes[0].name).toBe('test');
+    expect(written.tools.claude.modes[0].name).toBe('m');
+    expect(written.tools.claude.modes[0].aliases).toEqual(['test']);
   });
 
   // 保存失败时应抛出错误
@@ -346,8 +351,8 @@ describe('ConfigManager - initializeSettings', () => {
     expect(fs.mkdirSync).toHaveBeenCalled();
     expect(fs.writeFileSync).toHaveBeenCalled();
     const written = JSON.parse(vi.mocked(fs.writeFileSync).mock.calls[0][1] as string);
-    expect(written.tools.claude.modes[0].name).toBe('claude-sonnet-4-5');
-    expect(written.tools.opencode.modes).toEqual([]);
+    expect(written.tools.claude.modes[0].name).toBe('claude-sonnet-4-5-20250514');
+    expect(written.tools.codex.modes).toEqual([]);
   });
 
   // 目录已存在也能正常初始化

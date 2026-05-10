@@ -22,6 +22,9 @@ import { printIndexMenu, askIndex } from './index-prompt';
 import { templateManager } from './template-manager';
 import { selectTemplateAndSave } from './template-add-handler';
 import { t } from '../i18n';
+import { collectAllModels } from './model-finder';
+import { validateAlias } from './alias-validator';
+import { getPrimaryModelName, validateModelIdentity } from './model-identity';
 
 /**
  * 添加方式选项
@@ -63,16 +66,23 @@ export async function runAddFlow(
   console.log(chalk.cyan(`\n=== ${t('add.title', { tool: adapter.displayName })} ===\n`));
 
   try {
-    // 先选择添加方式
-    const method = await askAddMethod();
-
-    // 用户取消选择
-    if (!method) {
-      ui.showWarning('\n' + t('add.cancel'));
+    // Codex 工具没有预设模板，直接走自定义添加
+    if (adapter.name === 'codex') {
+      console.log(chalk.gray(t('add.hintOptional') + '\n'));
+      await collectAndSave(adapter, ui);
     }
-    // 用户选择了添加方式：分发到对应子流程
+    // Claude 工具：先选择添加方式(模板/自定义)
     else {
-      await dispatchAddMethod(method, adapter, ui);
+      const method = await askAddMethod();
+
+      // 用户取消选择
+      if (!method) {
+        ui.showWarning('\n' + t('add.cancel'));
+      }
+      // 用户选择了添加方式：分发到对应子流程
+      else {
+        await dispatchAddMethod(method, adapter, ui);
+      }
     }
   }
   // 添加流程异常：友好提示错误信息
@@ -182,10 +192,10 @@ async function runTemplateAddFlow(adapter: ToolAdapter, ui: UIRenderer): Promise
  * @date 2026-05-03
  */
 async function collectAndSave(adapter: ToolAdapter, ui: UIRenderer): Promise<void> {
-  // 先以索引菜单选择 API 类型(与其他菜单一致)
-  const apiType = await askApiType();
+  // Codex 固定使用 OpenAI 格式，跳过选择
+  const apiType = adapter.name === 'codex' ? 'openai' : await askApiType();
   // 收集其他字段
-  const response = await inquirer.prompt(buildAddModelQuestions() as any);
+  const response = await inquirer.prompt(buildAddModelQuestions(adapter.name) as any);
 
   // 用户取消（Ctrl+C 等）
   if (Object.keys(response).length === 0) {
@@ -212,16 +222,39 @@ async function validateAndPersist(
   response: Record<string, any>
 ): Promise<void> {
   // 将 inquirer 响应组装为标准配置对象
-  const config = buildModelConfig(response);
+  const config = buildModelConfig(adapter.name, response);
 
   // 验证失败：终止流程，提示用户检查必填字段
   if (!adapter.validateConfig(config)) {
     ui.showError('\n' + t('add.validateFailed'));
   }
+  else if (!validateConfigIdentity(config, ui)) {
+    return;
+  }
   // 验证通过：测试连通性后决定是否保存
   else {
     await testThenSave(adapter, ui, config);
   }
+}
+
+function validateConfigIdentity(config: UnifiedModelConfig, ui: UIRenderer): boolean {
+  const allModels = collectAllModels();
+  const identityResult = validateModelIdentity(config, allModels);
+
+  if (!identityResult.valid) {
+    ui.showError(identityResult.error || t('add.validateFailed'));
+    return false;
+  }
+
+  for (const alias of config.aliases ?? []) {
+    const aliasResult = validateAlias(alias, allModels, getPrimaryModelName(config));
+    if (!aliasResult.valid) {
+      ui.showError(aliasResult.error || t('add.validateFailed'));
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /**

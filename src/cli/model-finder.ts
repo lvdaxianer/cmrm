@@ -19,6 +19,7 @@
 import { ToolAdapter, registry } from '../adapters';
 import { UnifiedModelConfig } from '../types';
 import { findModelByAlias } from './alias-validator';
+import { getExplicitModelName, getPrimaryModelName } from './model-identity';
 
 /**
  * 按名称查找已保存模型
@@ -37,9 +38,13 @@ export function findModelByName(
   const models = adapter.getSavedModels();
 
   // 优先按 name 字段匹配
-  const byName = models.find(m => m.name === name);
-  if (byName) {
-    return byName;
+  const byCanonical = models.find(m => getPrimaryModelName(m) === name);
+  if (byCanonical) {
+    return byCanonical;
+  }
+  const byLegacyName = models.find(m => getExplicitModelName(m) === name);
+  if (byLegacyName) {
+    return byLegacyName;
   }
   // name 未命中:进入次级查找(aliases / model)
   else {
@@ -61,7 +66,6 @@ function findByAliasOrModel(
   models: UnifiedModelConfig[],
   name: string
 ): UnifiedModelConfig | null {
-  // 次优先:按 aliases 中某项匹配
   const byAlias = findModelByAlias(models, name);
   if (byAlias) {
     return byAlias;
@@ -108,7 +112,7 @@ function findByModelField(
  * @date 2026-05-03
  */
 export function listAvailableNames(adapter: ToolAdapter): string[] {
-  return adapter.getSavedModels().map(m => m.name || m.model);
+  return adapter.getSavedModels().map(m => getPrimaryModelName(m));
 }
 
 /**

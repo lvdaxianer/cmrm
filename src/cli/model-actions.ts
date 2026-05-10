@@ -15,6 +15,8 @@ import { ToolAdapter } from '../adapters';
 import { UnifiedModelConfig } from '../types';
 import { UIRenderer } from './ui';
 import { t } from '../i18n';
+import { writeEnvVars, getRestartHint } from '../utils/shell-env-writer';
+import { getPrimaryModelName } from './model-identity';
 
 /**
  * 切换工具的当前模型配置
@@ -41,6 +43,11 @@ export async function runSwitchAction(
     else {
       const backupFileName = adapter.writeModelConfig(config);
       showSwitchResult(adapter, config, backupFileName, ui);
+
+      // Codex 工具：额外写入 shell 环境变量
+      if (adapter.name === 'codex') {
+        await updateShellEnvForCodex(config, ui);
+      }
     }
   }
   // 切换异常：友好提示
@@ -51,11 +58,36 @@ export async function runSwitchAction(
 }
 
 /**
+ * 更新 Codex 的 shell 环境变量
+ * 将 OPENAI_API_KEY 写入 shell 配置文件，使 Codex CLI 能读取到
+ *
+ * @param config - 模型配置
+ * @param ui - UI 渲染器
+ * @author lvdaxianerplus
+ * @date 2026-05-10
+ */
+async function updateShellEnvForCodex(
+  config: UnifiedModelConfig,
+  ui: UIRenderer
+): Promise<void> {
+  try {
+    const result = writeEnvVars({ OPENAI_API_KEY: config.apiKey });
+
+    ui.showInfo('\n' + t('actions.envVarUpdated'));
+    ui.showInfo(`  ${t('actions.envVarPath')}: ${result.path}`);
+    ui.showWarning(`  ${getRestartHint(result.path)}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    ui.showWarning(`${t('actions.envVarUpdateFailed')}: ${message}`);
+  }
+}
+
+/**
  * 显示切换成功后的摘要
  *
  * @param adapter - 工具适配器
  * @param config - 切换后的配置
- * @param backupFileName - 备份文件名（无备份时为空字符串）
+ * @param backupFileName - 备份文件名（无备份时为 null）
  * @param ui - UI 渲染器
  * @author lvdaxianerplus
  * @date 2026-05-03
@@ -63,7 +95,7 @@ export async function runSwitchAction(
 function showSwitchResult(
   adapter: ToolAdapter,
   config: UnifiedModelConfig,
-  backupFileName: string,
+  backupFileName: string | null,
   ui: UIRenderer
 ): void {
   ui.showSuccess('\n' + t('actions.modelSwitched'));
@@ -94,7 +126,7 @@ export async function runRemoveAction(
   config: UnifiedModelConfig,
   ui: UIRenderer
 ): Promise<void> {
-  const configName = config.name || config.model;
+  const configName = getPrimaryModelName(config);
 
   try {
     const success = adapter.removeModel(configName);

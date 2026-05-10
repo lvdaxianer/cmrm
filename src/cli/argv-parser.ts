@@ -13,6 +13,7 @@
  *   cmrm switch <model-name>                  → { kind: 'switch', model }
  *   cmrm test <model-name>                    → { kind: 'test', model }
  *   cmrm alias <model-name> <new-alias>       → { kind: 'alias', model, alias }
+ *   cmrm <tool> import <file>                 → { kind: 'import', tool, file }
  *   cmrm <other>                              → { kind: 'unknown', input }
  *
  * @author lvdaxianerplus
@@ -30,6 +31,7 @@ export type ParsedArgs =
   | { kind: 'test'; model: string }
   | { kind: 'alias'; model: string; alias: string }
   | { kind: 'setLang'; locale: string }
+  | { kind: 'import'; tool: string; file: string }
   | { kind: 'unknown'; input: string }
   | { kind: 'interactive' };
 
@@ -94,6 +96,10 @@ function parseFirstToken(args: string[]): ParsedArgs {
   // set-lang 子命令
   else if (first === 'set-lang') {
     return parseSetLang(rest);
+  }
+  // 工具子命令 (claude/codex import <file>)
+  else if (first === 'claude' || first === 'codex') {
+    return parseToolCommand(first, rest);
   }
   // 其他:未知命令
   else {
@@ -194,5 +200,73 @@ function parseAlias(rest: string[]): ParsedArgs {
   // 输入完整:返回 alias 分支
   else {
     return { kind: 'alias', model, alias };
+  }
+}
+
+/** 支持的工具名称集合 */
+const VALID_TOOLS = new Set(['claude', 'codex']);
+
+/**
+ * 解析工具子命令
+ * 当前支持: <tool> import <file>
+ * 未来可扩展其他工具级快捷命令
+ *
+ * @param tool - 工具名称(claude/codex)
+ * @param rest - 工具名之后的剩余参数
+ * @return 解析结果
+ * @author lvdaxianerplus
+ * @date 2026-05-09
+ */
+function parseToolCommand(tool: string, rest: string[]): ParsedArgs {
+  const sub = rest[0]?.trim();
+
+  // import 子命令:解析文件路径
+  if (sub === 'import') {
+    return parseImport(tool, rest.slice(1));
+  }
+  // 其他工具子命令:视为 unknown
+  else {
+    return { kind: 'unknown', input: `${tool} ${sub || ''}` };
+  }
+}
+
+/**
+ * 去除字符串首尾引号("或')
+ * 兼容 shell 传参时保留引号的场景
+ *
+ * @param s - 原始字符串
+ * @return 去引号后的字符串
+ * @author lvdaxianerplus
+ * @date 2026-05-09
+ */
+function stripQuotes(s: string): string {
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    return s.slice(1, -1);
+  }
+  return s;
+}
+
+/**
+ * 解析 import <file>
+ * 缺失文件路径时降级为 unknown
+ * 支持引号包裹的路径: cmrm claude import "config.json"
+ *
+ * @param tool - 工具名称
+ * @param rest - 'import' 之后的剩余参数
+ * @return 解析结果
+ * @author lvdaxianerplus
+ * @date 2026-05-09
+ */
+function parseImport(tool: string, rest: string[]): ParsedArgs {
+  const raw = rest[0]?.trim();
+  const file = raw ? stripQuotes(raw) : '';
+
+  // 缺失文件路径:作为未知命令处理
+  if (!file) {
+    return { kind: 'unknown', input: `${tool} import (missing file path)` };
+  }
+  // 输入完整:返回 import 分支
+  else {
+    return { kind: 'import', tool, file };
   }
 }

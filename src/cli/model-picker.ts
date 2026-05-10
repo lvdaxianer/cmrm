@@ -20,6 +20,7 @@ import { ToolAdapter } from '../adapters';
 import { UnifiedModelConfig } from '../types';
 import { prepareForInquirer, validateIndexInput } from './readline-helper';
 import { t } from '../i18n';
+import { getPrimaryModelName } from './model-identity';
 
 /**
  * 模型选择结果（Union Type）
@@ -131,8 +132,10 @@ function renderMenu(
   // 模型行(显示模型名 + 提供商 + 工具名后缀)
   const toolSuffix = chalk.gray(`(${adapter.displayName})`);
   models.forEach((model, index) => {
-    const displayName = model.name || model.model;
-    const providerInfo = model.provider ? chalk.gray(`[${model.provider}]`) : '';
+    const displayName = getPrimaryModelName(model);
+    const providerInfo = shouldShowProviderBadge(model, displayName)
+      ? chalk.gray(`[${model.provider}]`)
+      : '';
     const providerSegment = providerInfo ? ` ${providerInfo}` : '';
     console.log(chalk.gray(`[${index}] `) + displayName + providerSegment + ` ${toolSuffix}`);
   });
@@ -140,6 +143,20 @@ function renderMenu(
   // 控制选项行
   console.log(chalk.gray(`[${backIndex}] ` + t('tools.back')));
   console.log(chalk.gray(`[${exitIndex}] ` + t('tools.exit')));
+}
+
+/**
+ * 判断是否需要额外显示 provider 徽标
+ * 当 displayName 已是 provider/model 时，不重复显示 provider
+ *
+ * @param model - 模型配置
+ * @param displayName - 主显示名
+ * @return 需要显示返回 true
+ * @author lvdaxianerplus
+ * @date 2026-05-10
+ */
+function shouldShowProviderBadge(model: UnifiedModelConfig, displayName: string): boolean {
+  return !!model.provider && !displayName.startsWith(`${model.provider}/`);
 }
 
 /**
