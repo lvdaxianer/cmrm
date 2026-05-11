@@ -11,25 +11,34 @@ import * as readline from 'readline';
 /**
  * 键盘回调函数类型
  * 处理键盘输入的回调
+ *
+ * @author lvdaxianerplus
+ * @date 2026-04-27
  */
 export type KeyPressCallback = (action: KeyAction) => void;
 
 /**
  * 键盘动作类型
  * 表示用户执行的键盘操作
+ *
+ * @author lvdaxianerplus
+ * @date 2026-04-27
  */
 export type KeyAction = 'up' | 'down' | 'confirm' | 'cancel' | 'exit';
 
 /**
  * 键盘监听器类
  * 管理 stdin 的 raw mode 和键盘事件监听
+ *
+ * @author lvdaxianerplus
+ * @date 2026-04-27
  */
 export class KeyListener {
   /** stdin 是否处于 raw mode */
-  private isRawMode: boolean = false;
+  private rawModeEnabled: boolean = false;
 
   /** 当前keypress事件回调 */
-  private currentCallback: KeyPressCallback | null = null;
+  private currentCallback: KeyPressCallback | undefined = undefined;
 
   /** 绑定后的keypress处理函数（保持引用一致以便移除） */
   private boundHandleKeyPress: (str: string, key: readline.Key) => void;
@@ -66,7 +75,7 @@ export class KeyListener {
     stdin.setEncoding('utf8');
     stdin.resume();
 
-    this.isRawMode = true;
+    this.rawModeEnabled = true;
     this.currentCallback = callback;
 
     // 使用预绑定的函数作为监听器
@@ -90,8 +99,12 @@ export class KeyListener {
     if (stdin.isRaw) {
       stdin.setRawMode(false);
     }
-    this.isRawMode = false;
-    this.currentCallback = null;
+    // 已是普通模式：无需再次设置
+    else {
+      // 不进行任何操作
+    }
+    this.rawModeEnabled = false;
+    this.currentCallback = undefined;
 
     // 恢复 stdin 流（确保后续可以继续读取）
     stdin.resume();
@@ -147,6 +160,6 @@ export class KeyListener {
    * @date 2026-04-27
    */
   isListening(): boolean {
-    return this.isRawMode;
+    return this.rawModeEnabled;
   }
 }

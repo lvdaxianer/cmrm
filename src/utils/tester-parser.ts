@@ -11,6 +11,21 @@
 import { ApiType } from '../adapters/types';
 import { t } from '../i18n';
 
+/** HTTP 状态码：成功起始 */
+const HTTP_SUCCESS_START = 200;
+
+/** HTTP 状态码：成功结束 */
+const HTTP_SUCCESS_END = 300;
+
+/** HTTP 状态码：服务端错误起始 */
+const HTTP_SERVER_ERROR_START = 500;
+
+/** HTTP 状态码：服务端错误结束 */
+const HTTP_SERVER_ERROR_END = 600;
+
+/** 错误详情截断长度（避免响应体过大污染日志） */
+const MAX_ERROR_DETAIL_LENGTH = 200;
+
 /**
  * 错误类型分类
  * 用于精确定位测试失败原因，便于上层 UI 给出针对性提示
@@ -44,8 +59,28 @@ export interface TestResult {
   errorDetail?: string;
 }
 
-/** 错误详情截断长度（避免响应体过大污染日志） */
-const MAX_ERROR_DETAIL_LENGTH = 200;
+/** HTTP 状态码分类策略映射 */
+const STATUS_CLASSIFIERS: Array<{
+  match: (statusCode: number) => boolean;
+  kind: ErrorKind;
+}> = [
+  {
+    match: (code) => code === 401 || code === 403,
+    kind: 'auth',
+  },
+  {
+    match: (code) => code === 404,
+    kind: 'not_found',
+  },
+  {
+    match: (code) => code === 429,
+    kind: 'rate_limit',
+  },
+  {
+    match: (code) => code >= HTTP_SERVER_ERROR_START && code < HTTP_SERVER_ERROR_END,
+    kind: 'server',
+  },
+];
 
 /**
  * 解析 HTTP 响应结果
@@ -57,7 +92,7 @@ const MAX_ERROR_DETAIL_LENGTH = 200;
  * @param apiType - API 协议类型
  * @return 测试结果
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-11
  */
 export function parseResponse(
   statusCode: number,
@@ -65,11 +100,11 @@ export function parseResponse(
   durationMs: number,
   apiType: ApiType
 ): TestResult {
-  // 2xx 视为成功状态
-  if (statusCode >= 200 && statusCode < 300) {
+  // 条件：2xx 视为成功状态
+  if (statusCode >= HTTP_SUCCESS_START && statusCode < HTTP_SUCCESS_END) {
     return parseSuccessResponse(body, durationMs, statusCode, apiType);
   }
-  // 非 2xx 视为失败状态
+  // 替代：非 2xx 视为失败状态
   else {
     return parseFailureResponse(statusCode, body, durationMs);
   }
@@ -83,7 +118,7 @@ export function parseResponse(
  * @param durationMs - 请求耗时（毫秒）
  * @return 测试结果
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-11
  */
 export function buildErrorResult(error: unknown, durationMs: number): TestResult {
   // 分类错误类型并提取脱敏后的描述
@@ -109,7 +144,7 @@ export function buildErrorResult(error: unknown, durationMs: number): TestResult
  * @param apiType - API 协议类型
  * @return 测试结果
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-11
  */
 function parseSuccessResponse(
   body: string,
@@ -120,13 +155,13 @@ function parseSuccessResponse(
   try {
     // 尝试解析 JSON 并校验结构
     const json = JSON.parse(body);
-    const valid = validateResponseShape(json, apiType);
+    const isValid = validateResponseShape(json, apiType);
 
-    // 响应结构合法：测试通过
-    if (valid) {
+    // 条件：响应结构合法
+    if (isValid) {
       return { success: true, message: t('test.testPassed'), durationMs, statusCode };
     }
-    // 响应结构非法：返回 invalid_response 错误
+    // 替代：响应结构非法，返回 invalid_response 错误
     else {
       return buildInvalidResponseResult(durationMs, statusCode);
     }
@@ -145,14 +180,14 @@ function parseSuccessResponse(
  * @param apiType - API 协议类型
  * @return 合法返回 true，否则 false
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-11
  */
 function validateResponseShape(json: any, apiType: ApiType): boolean {
-  // Anthropic 协议：必须包含 content 数组
+  // 条件：Anthropic 协议
   if (apiType === 'anthropic') {
     return Array.isArray(json?.content);
   }
-  // OpenAI 协议：必须包含 choices 数组
+  // 替代：OpenAI 协议
   else {
     return Array.isArray(json?.choices);
   }
@@ -166,7 +201,7 @@ function validateResponseShape(json: any, apiType: ApiType): boolean {
  * @param statusCode - HTTP 状态码
  * @return 测试结果
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-11
  */
 function buildInvalidResponseResult(durationMs: number, statusCode: number): TestResult {
   return {
@@ -187,7 +222,7 @@ function buildInvalidResponseResult(durationMs: number, statusCode: number): Tes
  * @param durationMs - 请求耗时
  * @return 测试结果
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-11
  */
 function parseFailureResponse(
   statusCode: number,
@@ -209,34 +244,20 @@ function parseFailureResponse(
 
 /**
  * 根据 HTTP 状态码分类错误
- * 仅依据状态码区间，避免过度依赖供应商错误码
+ * 使用策略模式替代多分支 if-else，便于扩展新的状态码分类
  *
  * @param statusCode - HTTP 状态码
  * @return 错误类型
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-11
  */
 function classifyByStatus(statusCode: number): ErrorKind {
-  // 401/403 鉴权失败（API key 错误是最常见原因）
-  if (statusCode === 401 || statusCode === 403) {
-    return 'auth';
+  for (const classifier of STATUS_CLASSIFIERS) {
+    if (classifier.match(statusCode)) {
+      return classifier.kind;
+    }
   }
-  // 404 资源未找到（model 名称错误是最常见原因）
-  else if (statusCode === 404) {
-    return 'not_found';
-  }
-  // 429 限流
-  else if (statusCode === 429) {
-    return 'rate_limit';
-  }
-  // 5xx 服务端错误
-  else if (statusCode >= 500 && statusCode < 600) {
-    return 'server';
-  }
-  // 其他客户端错误统一归为 unknown
-  else {
-    return 'unknown';
-  }
+  return 'unknown';
 }
 
 /**
@@ -247,7 +268,7 @@ function classifyByStatus(statusCode: number): ErrorKind {
  * @param body - 响应体字符串
  * @return 错误详情（脱敏，已截断）
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-11
  */
 function extractErrorDetail(body: string): string {
   try {
@@ -255,11 +276,11 @@ function extractErrorDetail(body: string): string {
     // 优先取 error.message 或 message 字段
     const msg = json?.error?.message || json?.message;
 
-    // 找到合法的错误消息：截断后返回
+    // 条件：找到合法的错误消息
     if (typeof msg === 'string' && msg.length > 0) {
       return msg.slice(0, MAX_ERROR_DETAIL_LENGTH);
     }
-    // 未找到结构化错误消息：返回截断后的原文
+    // 替代：未找到结构化错误消息，返回截断后的原文
     else {
       return body.slice(0, MAX_ERROR_DETAIL_LENGTH);
     }
@@ -270,6 +291,9 @@ function extractErrorDetail(body: string): string {
   }
 }
 
+/** 网络错误 code 集合 */
+const NETWORK_ERROR_CODES = ['ECONNREFUSED', 'ENOTFOUND', 'ECONNRESET', 'EHOSTUNREACH'];
+
 /**
  * 根据 Node 错误对象分类
  * 使用 ErrnoException.code 字段做精确匹配
@@ -277,25 +301,20 @@ function extractErrorDetail(body: string): string {
  * @param error - 异常对象（unknown 类型，运行时类型守卫）
  * @return 错误类型
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-11
  */
 function classifyByError(error: unknown): ErrorKind {
   const code = (error as NodeJS.ErrnoException)?.code;
 
-  // 超时（由 sendRequest 自定义抛出）
+  // 条件：超时（由 sendRequest 自定义抛出）
   if (code === 'ETIMEDOUT') {
     return 'timeout';
   }
-  // 连接被拒/DNS 解析失败/连接重置/主机不可达：统一归为网络错误
-  else if (
-    code === 'ECONNREFUSED' ||
-    code === 'ENOTFOUND' ||
-    code === 'ECONNRESET' ||
-    code === 'EHOSTUNREACH'
-  ) {
+  // 条件：连接被拒/DNS 解析失败/连接重置/主机不可达
+  else if (code && NETWORK_ERROR_CODES.includes(code)) {
     return 'network';
   }
-  // 其他未知错误
+  // 替代：其他未知错误
   else {
     return 'unknown';
   }
@@ -308,15 +327,15 @@ function classifyByError(error: unknown): ErrorKind {
  * @param error - 异常对象（unknown 类型，运行时类型守卫）
  * @return 安全的错误描述字符串
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-11
  */
 function extractSafeMessage(error: unknown): string {
-  // Error 实例：取 code + message 组合
+  // 条件：Error 实例
   if (error instanceof Error) {
     const code = (error as NodeJS.ErrnoException).code;
     return code ? `${code}: ${error.message}` : error.message;
   }
-  // 非 Error 实例：返回固定字符串避免类型不安全
+  // 替代：非 Error 实例，返回固定字符串避免类型不安全
   else {
     return 'unknown error';
   }

@@ -13,16 +13,22 @@ export type Locale = 'zh' | 'en' | 'ja';
 
 /**
  * 语言配置接口
+ *
+ * @author lvdaxianerplus
+ * @date 2026-05-11
  */
 export interface LanguageConfig {
   /** 手动设置的语言代码，优先级高于地理位置检测 */
   manual?: Locale;
   /** 是否启用地理位置检测（默认 true） */
-  geoDetection?: boolean;
+  isGeoDetectionEnabled?: boolean;
 }
 
 /**
  * i18n 选项接口
+ *
+ * @author lvdaxianerplus
+ * @date 2026-05-11
  */
 export interface I18nOptions {
   /** 默认语言 */
@@ -33,6 +39,9 @@ export interface I18nOptions {
 
 /**
  * 可用语言信息
+ *
+ * @author lvdaxianerplus
+ * @date 2026-05-11
  */
 export interface LocaleInfo {
   /** 语言代码 */

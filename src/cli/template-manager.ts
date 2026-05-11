@@ -31,6 +31,18 @@ interface TemplatesConfig {
 /** 默认配置版本 */
 const DEFAULT_VERSION = 1;
 
+/** JSON 缩进空格数 */
+const JSON_INDENT = 2;
+
+/** 空数组长度 */
+const EMPTY_ARRAY_LENGTH = 0;
+
+/** 配置目录名 */
+const CONFIG_DIR_NAME = '.cmrm';
+
+/** 配置文件名 */
+const CONFIG_FILE_NAME = 'templates.json';
+
 /**
  * 模型模板管理器
  * 管理 ~/.cmrm/templates.json 的读写，支持热加载与远程拉取
@@ -50,7 +62,7 @@ export class TemplateManager {
    * @date 2026-05-04
    */
   constructor() {
-    this.templatesPath = path.join(os.homedir(), '.cmrm', 'templates.json');
+    this.templatesPath = path.join(os.homedir(), CONFIG_DIR_NAME, CONFIG_FILE_NAME);
   }
 
   /**
@@ -110,7 +122,7 @@ export class TemplateManager {
       const parsed = JSON.parse(raw) as TemplatesConfig;
 
       // 校验 templates 字段：必须为数组且非空
-      if (Array.isArray(parsed.templates) && parsed.templates.length > 0) {
+      if (Array.isArray(parsed.templates) && parsed.templates.length > EMPTY_ARRAY_LENGTH) {
         // 校验通过：返回文件中的模板列表
         return parsed.templates;
       }
@@ -152,7 +164,7 @@ export class TemplateManager {
     const json = await fetchRemoteTemplateJson();
 
     // 拉取失败：网络异常或请求超时
-    if (json === null) {
+    if (json === undefined) {
       return false;
     }
     // 拉取成功：解析 JSON 并保存到本地
@@ -176,7 +188,7 @@ export class TemplateManager {
       const parsed = JSON.parse(json) as TemplatesConfig;
 
       // 校验 templates 字段：必须为数组且非空
-      if (!Array.isArray(parsed.templates) || parsed.templates.length === 0) {
+      if (!Array.isArray(parsed.templates) || parsed.templates.length === EMPTY_ARRAY_LENGTH) {
         return false;
       }
       // 校验通过：保存到本地配置文件
@@ -304,7 +316,7 @@ export class TemplateManager {
     };
 
     // 序列化为格式化的 JSON 并写入文件
-    fs.writeFileSync(this.templatesPath, JSON.stringify(config, null, 2), 'utf-8');
+    fs.writeFileSync(this.templatesPath, JSON.stringify(config, null, JSON_INDENT), 'utf-8');
   }
 }
 

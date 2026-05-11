@@ -6,6 +6,7 @@
  * - 2026-04-27 初版聚合实现（>1300 行）
  * - 2026-05-03 第一阶段：拆分为多个子模块（≤350 行）
  * - 2026-05-03 第二阶段：进一步抽离工具/模型操作编排到 operation-orchestrator
+ * - 2026-05-11 第三阶段：抽离输入处理逻辑到 cli-input-handler
  *
  * @author lvdaxianerplus
  * @date 2026-05-03
@@ -20,11 +21,6 @@ import { AVAILABLE_COMMANDS } from './cli/commands';
 import { UIRenderer } from './cli/ui';
 import { createReadlineInterface, prepareForInquirer } from './cli/readline-helper';
 import {
-  isExitCommand,
-  showCommandSuggestions,
-  handleUnknownCommand,
-} from './cli/fuzzy-match';
-import {
   NextOperation,
   OrchestratorContext,
   showToolSelection,
@@ -33,7 +29,10 @@ import { bootstrap } from './cli/bootstrap';
 import { printShortcutBanner } from './cli/shortcut-banner';
 import { templateManager } from './cli/template-manager';
 import { createI18n, I18nManager } from './i18n';
-import { handleSetLang } from './i18n/commands/set-lang';
+import { CliInputHandler } from './cli-input-handler';
+
+/** 命令前缀字符 */
+const COMMAND_PREFIX = '/';
 
 /**
  * CLI 类
@@ -55,6 +54,9 @@ export class CLI {
   /** i18n 管理器（多语言支持） */
   private i18n: I18nManager;
 
+  /** 输入处理器 */
+  private inputHandler: CliInputHandler;
+
   /**
    * 构造函数
    * 注册适配器并创建初始 readline 接口
@@ -70,9 +72,18 @@ export class CLI {
     registry.register(new ClaudeAdapter());
     registry.register(new CodexAdapter());
 
+    this.inputHandler = new CliInputHandler(
+      this.uiRenderer,
+      this.i18n,
+      () => this.buildContext(),
+      () => this.showCommandSelection(),
+      () => this.exitProgram(),
+      () => this.recreateReadline(),
+    );
+
     this.rl = createReadlineInterface(
       this.completer.bind(this),
-      (input) => this.handleInput(input),
+      (input) => this.inputHandler.handleInput(input),
     );
   }
 
@@ -88,11 +99,11 @@ export class CLI {
   private completer(input: string): [string[], string] {
     const commands = AVAILABLE_COMMANDS.map(cmd => cmd.name);
 
-    // 命令前缀：返回前缀匹配
-    if (input.startsWith('/')) {
+    // 条件: 输入以命令前缀开头，返回前缀匹配结果
+    if (input.startsWith(COMMAND_PREFIX)) {
       return [commands.filter(cmd => cmd.startsWith(input)), input];
     }
-    // 非命令：返回全量
+    // 替代: 非命令输入，返回全量命令列表
     else {
       return [commands, input];
     }
@@ -106,13 +117,18 @@ export class CLI {
    * @date 2026-05-03
    */
   async start(): Promise<void> {
-    const created = await this.ensureConfigFile();
+    const isConfigCreated = await this.ensureConfigFile();
 
     // 初始化 i18n（在配置文件准备好之后执行，避免首启读取未创建的 settings）
     await this.i18n.initialize();
 
-    if (created) {
+    // 条件: 配置文件是本次启动新创建的，需要提示用户
+    if (isConfigCreated) {
       this.showConfigInitializedMessage();
+    }
+    // 替代: 配置文件已存在，跳过初始化提示
+    else {
+      // 配置文件已存在，无需初始化提示
     }
 
     console.log(chalk.cyan(this.i18n.t('app.welcome')));
@@ -124,28 +140,29 @@ export class CLI {
   /**
    * 确保配置文件存在，不存在则初始化
    *
+   * @return 是否本次创建了新配置文件
    * @author lvdaxianerplus
    * @date 2026-05-03
    */
   private async ensureConfigFile(): Promise<boolean> {
-    const created = this.configManager.ensureSettingsFile();
+    const isConfigCreated = this.configManager.ensureSettingsFile();
 
     // 确保模板配置文件存在（优先远程拉取，失败则用内置默认）
     const templateInitResult = await templateManager.initializeDefaults();
 
-    // 远程拉取失败：提示用户使用内置模板，并告知如何手动刷新
+    // 条件: 远程拉取失败，提示用户使用内置模板
     if (templateInitResult === 'builtin') {
       const templatesPath = templateManager.getTemplatesPath();
 
       console.log(chalk.yellow('\n' + this.i18n.t('messages.templateBuiltin')));
       console.log(chalk.gray(this.i18n.t('messages.templateHint', { path: templatesPath })));
     }
-    // 远程拉取成功或本地已存在：静默处理，无需额外提示
+    // 替代: 远程拉取成功或本地已存在，静默处理
     else {
       // 不输出任何提示，避免干扰用户正常操作流程
     }
 
-    return created;
+    return isConfigCreated;
   }
 
   /**
@@ -184,7 +201,7 @@ export class CLI {
     try {
       const selectedIndex = await this.promptCommandIndex();
       const selectedCommand = AVAILABLE_COMMANDS[selectedIndex].name;
-      await this.handleInput(selectedCommand);
+      await this.inputHandler.handleInput(selectedCommand);
     }
     // 选择异常：返回菜单重新选择
     catch (error) {
@@ -224,94 +241,6 @@ export class CLI {
   }
 
   /**
-   * 路由用户输入到对应的子流程
-   *
-   * @param input - 用户输入
-   * @author lvdaxianerplus
-   * @date 2026-05-03
-   */
-  private async handleInput(input: string): Promise<void> {
-    // 工具选择类命令：交由编排层处理
-    if (this.isToolSelectionCommand(input)) {
-      const op = input.slice(1) as NextOperation;
-      await showToolSelection(this.buildContext(), op);
-    }
-    // /list 直接展示所有模型
-    else if (input === '/list') {
-      this.uiRenderer.showAllModels();
-      await this.showCommandSelection();
-    }
-    // /current 直接展示当前模型
-    else if (input === '/current') {
-      this.uiRenderer.showCurrentModels();
-      await this.showCommandSelection();
-    }
-    // /set-lang 设置语言
-    else if (input === '/set-lang') {
-      await handleSetLang(this.i18n);
-      await this.showCommandSelection();
-    }
-    // 退出命令
-    else if (isExitCommand(input)) {
-      this.exitProgram();
-    }
-    // 空输入：返回菜单
-    else if (input === '/' || input === '') {
-      await this.showCommandSelection();
-    }
-    // 部分命令前缀：展示补全建议
-    else if (input.startsWith('/') && !this.isKnownCommand(input)) {
-      showCommandSuggestions(input, (msg) => this.uiRenderer.showError(msg));
-      await this.showCommandSelection();
-    }
-    // 其他未知输入
-    else {
-      this.printUnknownCommand(input);
-      await this.showCommandSelection();
-    }
-  }
-
-  /**
-   * 判断输入是否为需要选择工具的命令
-   *
-   * @param input - 用户输入
-   * @return true 表示需要走工具选择流程
-   * @author lvdaxianerplus
-   * @date 2026-05-03
-   */
-  private isToolSelectionCommand(input: string): boolean {
-    return ['/switch', '/add', '/remove', '/info', '/test', '/alias'].includes(input);
-  }
-
-  /**
-   * 判断输入是否为已注册命令
-   *
-   * @param input - 用户输入
-   * @return true 表示完全匹配
-   * @author lvdaxianerplus
-   * @date 2026-05-03
-   */
-  private isKnownCommand(input: string): boolean {
-    return AVAILABLE_COMMANDS.some(cmd => cmd.name === input);
-  }
-
-  /**
-   * 输出未知命令提示
-   *
-   * @param input - 用户输入
-   * @author lvdaxianerplus
-   * @date 2026-05-03
-   */
-  private printUnknownCommand(input: string): void {
-    handleUnknownCommand(
-      input,
-      (msg) => this.uiRenderer.showError(msg),
-      (msg) => this.uiRenderer.showWarning(msg),
-      (msg) => this.uiRenderer.showInfo(msg),
-    );
-  }
-
-  /**
    * 退出程序（关闭 readline 后 process.exit）
    *
    * @author lvdaxianerplus
@@ -333,7 +262,7 @@ export class CLI {
   private recreateReadline(): readline.Interface {
     this.rl = createReadlineInterface(
       this.completer.bind(this),
-      (input) => this.handleInput(input),
+      (input) => this.inputHandler.handleInput(input),
     );
     return this.rl;
   }

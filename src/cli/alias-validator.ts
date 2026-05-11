@@ -22,6 +22,7 @@
 import { UnifiedModelConfig } from '../adapters/types';
 import { getModelReferenceNames, getPrimaryModelName } from './model-identity';
 
+
 /**
  * 别名校验结果
  * valid=false 时通过 error 字段告知失败原因
@@ -120,7 +121,7 @@ function checkConflicts(
  * @param alias - 已 trim 别名
  * @param allModels - 全部模型
  * @param currentKey - 当前模型唯一标识
- * @return 冲突说明;无冲突返回 null
+ * @return 冲突说明;无冲突返回 undefined
  * @author lvdaxianerplus
  * @date 2026-05-03
  */
@@ -128,12 +129,12 @@ function checkSelfConflict(
   alias: string,
   allModels: UnifiedModelConfig[],
   currentKey: string
-): string | null {
+): string | undefined {
   const self = allModels.find(m => isSameModel(m, currentKey));
 
   // 自身不存在:跳过自身冲突检测(由调用方先确保模型存在)
   if (!self) {
-    return null;
+    return undefined;
   }
   // 自身存在:逐项比较
   else {
@@ -146,11 +147,11 @@ function checkSelfConflict(
  *
  * @param alias - 已 trim 别名
  * @param self - 当前模型
- * @return 冲突说明;无冲突返回 null
+ * @return 冲突说明;无冲突返回 undefined
  * @author lvdaxianerplus
  * @date 2026-05-03
  */
-function compareWithSelf(alias: string, self: UnifiedModelConfig): string | null {
+function compareWithSelf(alias: string, self: UnifiedModelConfig): string | undefined {
   // 与自身 name 冲突
   if (self.name === alias) {
     return `别名与当前模型的 name 字段相同: ${alias}`;
@@ -165,7 +166,7 @@ function compareWithSelf(alias: string, self: UnifiedModelConfig): string | null
   }
   // 无冲突
   else {
-    return null;
+    return undefined;
   }
 }
 
@@ -206,11 +207,11 @@ function checkOtherModelConflict(
  *
  * @param alias - 已 trim 别名
  * @param other - 其他模型
- * @return 冲突说明;无冲突返回 null
+ * @return 冲突说明;无冲突返回 undefined
  * @author lvdaxianerplus
  * @date 2026-05-03
  */
-function findConflictReason(alias: string, other: UnifiedModelConfig): string | null {
+function findConflictReason(alias: string, other: UnifiedModelConfig): string | undefined {
   const otherKey = getModelKey(other);
   const referenceNames = getModelReferenceNames(other);
 
@@ -236,7 +237,7 @@ function findConflictReason(alias: string, other: UnifiedModelConfig): string | 
   }
   // 无冲突
   else {
-    return null;
+    return undefined;
   }
 }
 
@@ -246,22 +247,22 @@ function findConflictReason(alias: string, other: UnifiedModelConfig): string | 
  *
  * @param models - 已保存模型列表
  * @param alias - 待查找别名(精确匹配,大小写敏感)
- * @return 命中的模型;未命中返回 null
+ * @return 命中的模型;未命中返回 undefined
  * @author lvdaxianerplus
  * @date 2026-05-03
  */
 export function findModelByAlias(
   models: UnifiedModelConfig[],
   alias: string
-): UnifiedModelConfig | null {
+): UnifiedModelConfig | undefined {
   const hit = models.find(m => (m.aliases ?? []).includes(alias));
 
   // 命中:返回该模型
   if (hit) {
     return hit;
   }
-  // 未命中:返回 null
+  // 未命中:返回 undefined
   else {
-    return null;
+    return undefined;
   }
 }

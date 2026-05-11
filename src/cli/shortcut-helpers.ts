@@ -14,6 +14,9 @@ import { t } from '../i18n';
 /** 退出码:失败 */
 const EXIT_FAIL = 1;
 
+/** 空数组长度 */
+const EMPTY_ARRAY_LENGTH = 0;
+
 /**
  * 输出未知命令提示
  * 用户可通过 `cmrm --help` 查看支持的命令列表
@@ -47,7 +50,7 @@ export function printModelNotFoundAllTools(name: string, ui: UIRenderer): void {
   // 遍历每个工具列出可用模型
   for (const adapter of adapters) {
     const available = listAvailableNames(adapter);
-    if (available.length > 0) {
+    if (available.length > EMPTY_ARRAY_LENGTH) {
       hasAnyModel = true;
       ui.showInfo(`[${adapter.displayName}] ${t('shortcut.availableModels')}`);
       available.forEach(n => ui.showInfo(`  - ${n}`));

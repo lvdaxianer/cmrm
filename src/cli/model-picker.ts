@@ -22,6 +22,15 @@ import { prepareForInquirer, validateIndexInput } from './readline-helper';
 import { t } from '../i18n';
 import { getPrimaryModelName } from './model-identity';
 
+/** 默认进制 */
+const DEFAULT_RADIX = 10;
+
+/** 返回选项偏移量 */
+const BACK_INDEX_OFFSET = 0;
+
+/** 退出选项偏移量 */
+const EXIT_INDEX_OFFSET = 1;
+
 /**
  * 模型选择结果（Union Type）
  * 由调用方根据 kind 字段分支处理
@@ -95,8 +104,8 @@ async function runIndexSelection(
   prepareForInquirer(rl);
 
   const totalOptions = models.length + 2;
-  const backIndex = models.length;
-  const exitIndex = models.length + 1;
+  const backIndex = models.length + BACK_INDEX_OFFSET;
+  const exitIndex = models.length + EXIT_INDEX_OFFSET;
 
   // 渲染菜单（标题+模型列表+返回/退出选项）
   renderMenu(adapter, models, options, backIndex, exitIndex);
@@ -178,7 +187,7 @@ async function promptIndex(prompt: string, totalOptions: number): Promise<number
     },
   ] as any);
 
-  return parseInt(response.index, 10);
+  return parseInt(response.index, DEFAULT_RADIX);
 }
 
 /**

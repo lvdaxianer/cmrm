@@ -35,6 +35,15 @@ const HEADER = 'Shortcuts: ';
 /** 命令列对齐宽度(取 SHORTCUTS 中最长命令长度 + 4 留白) */
 const CMD_COLUMN_WIDTH = 32;
 
+/** 空数组长度 */
+const EMPTY_ARRAY_LENGTH = 0;
+
+/** 首行索引 */
+const FIRST_ROW_INDEX = 0;
+
+/** 第二行索引起始 */
+const SECOND_ROW_START_INDEX = 1;
+
 /**
  * 打印主菜单顶部的快捷方式横幅
  * 输出 3 行命令清单 + 1 行尾部空行,首行带 "Shortcuts:" 前缀,后续行竖直对齐
@@ -44,7 +53,7 @@ const CMD_COLUMN_WIDTH = 32;
  */
 export function printShortcutBanner(): void {
   // 空数组保护:无快捷方式则不输出任何内容(理论不会触发)
-  if (SHORTCUTS.length === 0) {
+  if (SHORTCUTS.length === EMPTY_ARRAY_LENGTH) {
     return;
   }
   // 正常路径:首行加 "Shortcuts:" 前缀,后续行使用等宽留白
@@ -65,9 +74,9 @@ function printShortcutLines(): void {
   const indent = ' '.repeat(HEADER.length);
 
   // 首行:Shortcuts: 前缀
-  printShortcutLine(SHORTCUTS[0], chalk.cyan(HEADER));
+  printShortcutLine(SHORTCUTS[FIRST_ROW_INDEX], chalk.cyan(HEADER));
   // 后续行:用等宽空白前缀,保持竖直对齐
-  for (let i = 1; i < SHORTCUTS.length; i++) {
+  for (let i = SECOND_ROW_START_INDEX; i < SHORTCUTS.length; i++) {
     printShortcutLine(SHORTCUTS[i], indent);
   }
 }

@@ -8,8 +8,7 @@
 
 import { Locale } from './types';
 
-/**
- * 中国经纬度范围
+/** 中国经纬度范围
  * 纬度: ~3.86°N to ~53.55°N
  * 经度: ~73.5°E to ~135.05°E
  */
@@ -20,8 +19,7 @@ const CHINA_BOUNDS = {
   maxLon: 135.05,
 };
 
-/**
- * 日本经纬度范围
+/** 日本经纬度范围
  * 纬度: ~24.39°N to ~45.55°N
  * 经度: ~122.93°E to ~153.99°E
  */
@@ -32,9 +30,33 @@ const JAPAN_BOUNDS = {
   maxLon: 153.99,
 };
 
+/** 纬度最小值 */
+const LATITUDE_MIN = -90;
+
+/** 纬度最大值 */
+const LATITUDE_MAX = 90;
+
+/** 经度最小值 */
+const LONGITUDE_MIN = -180;
+
+/** 经度最大值 */
+const LONGITUDE_MAX = 180;
+
+/** 默认语言：英语 */
+const DEFAULT_LOCALE: Locale = 'en';
+
+/** 中国语言 */
+const CHINA_LOCALE: Locale = 'zh';
+
+/** 日本语言 */
+const JAPAN_LOCALE: Locale = 'ja';
+
 /**
  * 地理位置检测器类
  * 根据 GPS 坐标判断应使用何种语言
+ *
+ * @author lvdaxianerplus
+ * @date 2026-05-11
  */
 export class GeoDetector {
   /**
@@ -44,26 +66,35 @@ export class GeoDetector {
    * @param longitude - 经度
    * @returns 检测到的语言代码，检测失败默认返回 'en'
    * @author lvdaxianerplus
-   * @date 2026-05-05
+   * @date 2026-05-11
    */
   detectByCoordinates(latitude: number, longitude: number): Locale {
-    // 验证输入有效性
+    // 条件：坐标无效
     if (!this.isValidCoordinate(latitude, longitude)) {
-      return 'en';
+      return DEFAULT_LOCALE;
+    }
+    // 替代：坐标有效，继续检测
+    else {
+      // 继续检测国家范围
     }
 
-    // 中国范围
+    // 条件：在中国范围
     if (this.isInChina(latitude, longitude)) {
-      return 'zh';
+      return CHINA_LOCALE;
+    }
+    // 替代：不在中国范围
+    else {
+      // 继续检测日本范围
     }
 
-    // 日本范围
+    // 条件：在日本范围
     if (this.isInJapan(latitude, longitude)) {
-      return 'ja';
+      return JAPAN_LOCALE;
     }
-
-    // 其他地区默认英语
-    return 'en';
+    // 替代：不在日本范围，返回默认语言
+    else {
+      return DEFAULT_LOCALE;
+    }
   }
 
   /**
@@ -73,7 +104,7 @@ export class GeoDetector {
    * @param longitude - 经度
    * @returns 是否有效
    * @author lvdaxianerplus
-   * @date 2026-05-05
+   * @date 2026-05-11
    */
   private isValidCoordinate(latitude: number, longitude: number): boolean {
     return (
@@ -81,10 +112,10 @@ export class GeoDetector {
       typeof longitude === 'number' &&
       !isNaN(latitude) &&
       !isNaN(longitude) &&
-      latitude >= -90 &&
-      latitude <= 90 &&
-      longitude >= -180 &&
-      longitude <= 180
+      latitude >= LATITUDE_MIN &&
+      latitude <= LATITUDE_MAX &&
+      longitude >= LONGITUDE_MIN &&
+      longitude <= LONGITUDE_MAX
     );
   }
 
@@ -95,7 +126,7 @@ export class GeoDetector {
    * @param longitude - 经度
    * @returns 是否在中国
    * @author lvdaxianerplus
-   * @date 2026-05-05
+   * @date 2026-05-11
    */
   private isInChina(latitude: number, longitude: number): boolean {
     return (
@@ -113,7 +144,7 @@ export class GeoDetector {
    * @param longitude - 经度
    * @returns 是否在日本
    * @author lvdaxianerplus
-   * @date 2026-05-05
+   * @date 2026-05-11
    */
   private isInJapan(latitude: number, longitude: number): boolean {
     return (

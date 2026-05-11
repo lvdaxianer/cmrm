@@ -27,14 +27,14 @@ import { getExplicitModelName, getPrimaryModelName } from './model-identity';
  *
  * @param adapter - 工具适配器(必须已注册)
  * @param name - 用户输入的模型名(name / aliases / model 字段值)
- * @return 命中模型;未命中返回 null
+ * @return 命中模型;未命中返回 undefined
  * @author lvdaxianerplus
  * @date 2026-05-03
  */
 export function findModelByName(
   adapter: ToolAdapter,
   name: string
-): UnifiedModelConfig | null {
+): UnifiedModelConfig | undefined {
   const models = adapter.getSavedModels();
 
   // 优先按 name 字段匹配
@@ -58,14 +58,14 @@ export function findModelByName(
  *
  * @param models - 已保存模型列表
  * @param name - 用户输入的名称
- * @return 命中模型;未命中返回 null
+ * @return 命中模型;未命中返回 undefined
  * @author lvdaxianerplus
  * @date 2026-05-03
  */
 function findByAliasOrModel(
   models: UnifiedModelConfig[],
   name: string
-): UnifiedModelConfig | null {
+): UnifiedModelConfig | undefined {
   const byAlias = findModelByAlias(models, name);
   if (byAlias) {
     return byAlias;
@@ -82,23 +82,23 @@ function findByAliasOrModel(
  *
  * @param models - 已保存模型列表
  * @param name - 模型名(对应 UnifiedModelConfig.model)
- * @return 命中返回模型配置;未命中返回 null
+ * @return 命中返回模型配置;未命中返回 undefined
  * @author lvdaxianerplus
  * @date 2026-05-03
  */
 function findByModelField(
   models: UnifiedModelConfig[],
   name: string
-): UnifiedModelConfig | null {
+): UnifiedModelConfig | undefined {
   const byModel = models.find(m => m.model === name);
 
   // 命中:返回配置
   if (byModel) {
     return byModel;
   }
-  // 未命中:返回 null
+  // 未命中:返回 undefined
   else {
-    return null;
+    return undefined;
   }
 }
 

@@ -10,6 +10,42 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { UnifiedModelConfig } from '../adapters/types';
 
+/** 日期数字补零位数 */
+const DATE_DIGITS = 2;
+
+/** 日期字符串中年份起始位置 */
+const YEAR_START = 0;
+
+/** 日期字符串中年份结束位置 */
+const YEAR_END = 4;
+
+/** 日期字符串中月份起始位置 */
+const MONTH_START = 4;
+
+/** 日期字符串中月份结束位置 */
+const MONTH_END = 6;
+
+/** 日期字符串中日期起始位置 */
+const DAY_START = 6;
+
+/** 日期字符串中日期结束位置 */
+const DAY_END = 8;
+
+/** 备份序号补零位数 */
+const SEQ_DIGITS = 2;
+
+/** 备份序号正则匹配 */
+const SEQ_PATTERN = /^\d{2}$/;
+
+/** 十进制基数 */
+const DECIMAL_RADIX = 10;
+
+/** JSON 缩进空格数 */
+const JSON_INDENT = 2;
+
+/** 备份目录名 */
+const BACKUP_DIR_NAME = '.cmrm';
+
 /**
  * 格式化日期为 YYYYMMDD 格式
  * 用于生成备份文件名中的日期部分
@@ -17,17 +53,17 @@ import { UnifiedModelConfig } from '../adapters/types';
  * @param date - 日期对象
  * @return 格式化后的日期字符串（如 20260427）
  * @author lvdaxianerplus
- * @date 2026-04-27
+ * @date 2026-05-11
  */
 function formatDate(date: Date): string {
   // 获取年份
   const year = date.getFullYear();
 
   // 获取月份并补零
-  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(DATE_DIGITS, '0');
 
   // 获取日期并补零
-  const day = String(date.getDate()).padStart(2, '0');
+  const day = String(date.getDate()).padStart(DATE_DIGITS, '0');
 
   return `${year}${month}${day}`;
 }
@@ -39,24 +75,79 @@ function formatDate(date: Date): string {
  * @param configPath - 配置文件绝对路径
  * @return 备份目录路径
  * @author lvdaxianerplus
- * @date 2026-04-27
+ * @date 2026-05-11
  */
 export function createBackupDir(configPath: string): string {
-  // 获取配置文件所在目录
   const configDir = path.dirname(configPath);
+  const backupDir = path.join(configDir, BACKUP_DIR_NAME);
 
-  // 构建备份目录路径
-  const backupDir = path.join(configDir, '.cmrm');
-
-  // 备份目录已存在 - 直接返回路径
+  // 条件：备份目录已存在
   if (fs.existsSync(backupDir)) {
     return backupDir;
   }
-  // 备份目录不存在 - 创建目录
+  // 替代：备份目录不存在，创建目录
   else {
     fs.mkdirSync(backupDir, { recursive: true });
     return backupDir;
   }
+}
+
+/**
+ * 从文件名中提取备份序号
+ *
+ * @param file - 文件名
+ * @param prefix - 当天备份文件前缀
+ * @return 序号，不匹配返回 undefined
+ * @author lvdaxianerplus
+ * @date 2026-05-11
+ */
+function extractSequenceNumber(file: string, prefix: string): number | undefined {
+  // 文件名匹配当天前缀
+  if (file.startsWith(prefix)) {
+    // 文件名格式：{configFileName}_{YYYYMMDD}{seq}
+    // 需要提取日期后面的两位序号
+    const suffix = file.slice(prefix.length);
+
+    // 条件：匹配成功，提取并转换序号
+    if (suffix && SEQ_PATTERN.test(suffix)) {
+      return parseInt(suffix, DECIMAL_RADIX);
+    }
+    // 替代：匹配失败，返回 undefined
+    else {
+      return undefined;
+    }
+  }
+  // 替代：文件名不匹配，返回 undefined
+  else {
+    return undefined;
+  }
+}
+
+/**
+ * 提取备份文件序号列表
+ *
+ * @param files - 文件列表
+ * @param prefix - 当天备份文件前缀
+ * @return 序号数组
+ * @author lvdaxianerplus
+ * @date 2026-05-11
+ */
+function extractSequenceNumbers(files: string[], prefix: string): number[] {
+  const sequenceNumbers: number[] = [];
+
+  for (const file of files) {
+    const seq = extractSequenceNumber(file, prefix);
+    // 条件：提取到有效序号
+    if (seq !== undefined) {
+      sequenceNumbers.push(seq);
+    }
+    // 替代：无效序号，跳过
+    else {
+      continue;
+    }
+  }
+
+  return sequenceNumbers;
 }
 
 /**
@@ -68,47 +159,18 @@ export function createBackupDir(configPath: string): string {
  * @param today - 今天日期字符串（YYYYMMDD）
  * @return 备份文件序号数组（可能为空）
  * @author lvdaxianerplus
- * @date 2026-04-27
+ * @date 2026-05-11
  */
 function listTodayBackups(backupDir: string, configFileName: string, today: string): number[] {
-  // 备份目录不存在 - 返回空数组
+  // 条件：备份目录不存在
   if (!fs.existsSync(backupDir)) {
     return [];
   }
-  // 备份目录存在 - 扫描文件
+  // 替代：备份目录存在，扫描文件
   else {
     const prefix = `${configFileName}_${today}`;
-
-    // 列出备份目录中的所有文件
     const files = fs.readdirSync(backupDir);
-
-    // 过滤出当天的备份文件并提取序号
-    const sequenceNumbers: number[] = [];
-
-    for (const file of files) {
-      // 文件名匹配当天前缀 - 提取序号
-      if (file.startsWith(prefix)) {
-        // 文件名格式：{configFileName}_{YYYYMMDD}{seq}
-        // 需要提取日期后面的两位序号
-        const suffix = file.slice(prefix.length);
-
-        // 匹配成功 - 提取并转换序号（suffix应为两位数字）
-        if (suffix && /^\d{2}$/.test(suffix)) {
-          const seq = parseInt(suffix, 10);
-          sequenceNumbers.push(seq);
-        }
-        // 匹配失败 - 跳过该文件
-        else {
-          continue;
-        }
-      }
-      // 文件名不匹配 - 跳过
-      else {
-        continue;
-      }
-    }
-
-    return sequenceNumbers;
+    return extractSequenceNumbers(files, prefix);
   }
 }
 
@@ -120,7 +182,7 @@ function listTodayBackups(backupDir: string, configFileName: string, today: stri
  * @param configFileName - 配置文件名
  * @return 下一个备份序号（00-99）
  * @author lvdaxianerplus
- * @date 2026-04-27
+ * @date 2026-05-11
  */
 export function getNextBackupNumber(backupDir: string, configFileName: string): number {
   // 获取今天日期
@@ -129,12 +191,12 @@ export function getNextBackupNumber(backupDir: string, configFileName: string): 
   // 列出当天的备份文件序号
   const sequenceNumbers = listTodayBackups(backupDir, configFileName, today);
 
-  // 有备份文件 - 返回最大序号+1
+  // 条件：有备份文件
   if (sequenceNumbers.length > 0) {
     const maxNumber = Math.max(...sequenceNumbers);
     return maxNumber + 1;
   }
-  // 无备份文件 - 返回 0
+  // 替代：无备份文件，返回 0
   else {
     return 0;
   }
@@ -148,17 +210,36 @@ export function getNextBackupNumber(backupDir: string, configFileName: string): 
  * @param sequenceNumber - 备份序号
  * @return 备份文件名（不含路径）
  * @author lvdaxianerplus
- * @date 2026-04-27
+ * @date 2026-05-11
  */
 function generateBackupFileName(configFileName: string, sequenceNumber: number): string {
   // 获取今天日期
   const today = formatDate(new Date());
 
   // 序号补零到两位
-  const seq = String(sequenceNumber).padStart(2, '0');
+  const seq = String(sequenceNumber).padStart(SEQ_DIGITS, '0');
 
   // 组合生成备份文件名
   return `${configFileName}_${today}${seq}`;
+}
+
+/**
+ * 执行备份操作
+ *
+ * @param configPath - 配置文件绝对路径
+ * @return 备份文件名（不含路径）
+ * @author lvdaxianerplus
+ * @date 2026-05-11
+ */
+function performBackup(configPath: string): string {
+  const backupDir = createBackupDir(configPath);
+  const configFileName = path.basename(configPath);
+  const nextNumber = getNextBackupNumber(backupDir, configFileName);
+  const backupFileName = generateBackupFileName(configFileName, nextNumber);
+  const backupPath = path.join(backupDir, backupFileName);
+
+  fs.copyFileSync(configPath, backupPath);
+  return backupFileName;
 }
 
 /**
@@ -168,34 +249,36 @@ function generateBackupFileName(configFileName: string, sequenceNumber: number):
  * @param configPath - 配置文件绝对路径
  * @return 备份文件名（不含路径），文件不存在时返回空字符串
  * @author lvdaxianerplus
- * @date 2026-04-27
+ * @date 2026-05-11
  */
 export function backupConfig(configPath: string): string {
-  // 配置文件不存在 - 不需要备份
+  // 条件：配置文件不存在
   if (!fs.existsSync(configPath)) {
     return '';
   }
-  // 配置文件存在 - 执行备份
+  // 替代：配置文件存在，执行备份
   else {
-    // 创建备份目录
-    const backupDir = createBackupDir(configPath);
+    return performBackup(configPath);
+  }
+}
 
-    // 获取配置文件名
-    const configFileName = path.basename(configPath);
-
-    // 获取下一个备份序号
-    const nextNumber = getNextBackupNumber(backupDir, configFileName);
-
-    // 生成备份文件名
-    const backupFileName = generateBackupFileName(configFileName, nextNumber);
-
-    // 备份文件完整路径
-    const backupPath = path.join(backupDir, backupFileName);
-
-    // 复制配置文件到备份文件
-    fs.copyFileSync(configPath, backupPath);
-
-    return backupFileName;
+/**
+ * 更新单个可选字段
+ *
+ * @param env - Claude 配置的 env 对象
+ * @param fieldName - 字段名
+ * @param value - 字段值
+ * @author lvdaxianerplus
+ * @date 2026-05-11
+ */
+function updateOptionalField(env: any, fieldName: string, value: string | undefined): void {
+  // 条件：存在有效值
+  if (value) {
+    env[fieldName] = value;
+  }
+  // 替代：无有效值，不更新
+  else {
+    // 保持原有值或删除
   }
 }
 
@@ -206,7 +289,7 @@ export function backupConfig(configPath: string): string {
  * @param env - Claude 配置的 env 对象
  * @param config - 新模型配置
  * @author lvdaxianerplus
- * @date 2026-04-27
+ * @date 2026-05-11
  */
 function updateClaudeEnvFields(env: any, config: UnifiedModelConfig): void {
   // 更新必填字段
@@ -214,32 +297,10 @@ function updateClaudeEnvFields(env: any, config: UnifiedModelConfig): void {
   env.ANTHROPIC_AUTH_TOKEN = config.apiKey;
   env.ANTHROPIC_BASE_URL = config.baseUrl;
 
-  // 更新可选的 Haiku 模型字段
-  if (config.haikuModel) {
-    env.ANTHROPIC_DEFAULT_HAIKU_MODEL = config.haikuModel;
-  }
-  // 无 Haiku 模型配置 - 不更新该字段
-  else {
-    // 保持原有值或删除
-  }
-
-  // 更新可选的 Sonnet 模型字段
-  if (config.sonnetModel) {
-    env.ANTHROPIC_DEFAULT_SONNET_MODEL = config.sonnetModel;
-  }
-  // 无 Sonnet 模型配置 - 不更新该字段
-  else {
-    // 保持原有值或删除
-  }
-
-  // 更新可选的 Opus 模型字段
-  if (config.opusModel) {
-    env.ANTHROPIC_DEFAULT_OPUS_MODEL = config.opusModel;
-  }
-  // 无 Opus 模型配置 - 不更新该字段
-  else {
-    // 保持原有值或删除
-  }
+  // 更新可选字段
+  updateOptionalField(env, 'ANTHROPIC_DEFAULT_HAIKU_MODEL', config.haikuModel);
+  updateOptionalField(env, 'ANTHROPIC_DEFAULT_SONNET_MODEL', config.sonnetModel);
+  updateOptionalField(env, 'ANTHROPIC_DEFAULT_OPUS_MODEL', config.opusModel);
 }
 
 /**
@@ -250,17 +311,17 @@ function updateClaudeEnvFields(env: any, config: UnifiedModelConfig): void {
  * @param newConfig - 新模型配置
  * @return 合并后的配置对象
  * @author lvdaxianerplus
- * @date 2026-04-27
+ * @date 2026-05-11
  */
 export function mergeJsonConfig(original: any, newConfig: UnifiedModelConfig): any {
   // 深拷贝原配置，避免修改原对象
-  const merged = JSON.parse(JSON.stringify(original));
+  const merged = JSON.parse(JSON.stringify(original, null, JSON_INDENT));
 
-  // 确保 env 对象存在
+  // 条件：env 对象不存在
   if (!merged.env) {
     merged.env = {};
   }
-  // env 对象已存在 - 使用原有 env
+  // 替代：env 对象已存在，使用原有 env
   else {
     // 保持 env 对象
   }

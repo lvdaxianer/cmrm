@@ -9,6 +9,9 @@
 /**
  * 命令定义接口
  * 描述一个可执行的 CLI 命令
+ *
+ * @author lvdaxianerplus
+ * @date 2026-04-27
  */
 export interface CommandDefinition {
   /** 命令名称（如 /switch-model） */
@@ -22,6 +25,9 @@ export interface CommandDefinition {
 /**
  * 可用命令列表
  * 用户可输入的所有命令
+ *
+ * @author lvdaxianerplus
+ * @date 2026-04-27
  */
 export const AVAILABLE_COMMANDS: CommandDefinition[] = [
   { name: '/switch', description: 'Switch Model Config', descriptionKey: 'commands.desc.switch' },

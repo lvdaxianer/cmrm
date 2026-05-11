@@ -21,6 +21,9 @@ import { collectAllModels } from './model-finder';
 import { validateIndexInput } from './readline-helper';
 import { t } from '../i18n';
 
+/** 空别名数组长度 */
+const EMPTY_ALIAS_COUNT = 0;
+
 /**
  * 处理「添加别名」子操作
  *
@@ -115,7 +118,7 @@ export async function handleRemoveAlias(
   const aliases = model.aliases ?? [];
 
   // 无别名:直接提示
-  if (aliases.length === 0) {
+  if (aliases.length === EMPTY_ALIAS_COUNT) {
     ui.showWarning(t('alias.noAliasToRemove'));
     return model;
   }
@@ -201,7 +204,7 @@ export function handleListAliases(model: UnifiedModelConfig, ui: UIRenderer): vo
   const aliases = model.aliases ?? [];
 
   // 无别名:提示
-  if (aliases.length === 0) {
+  if (aliases.length === EMPTY_ALIAS_COUNT) {
     ui.showInfo('\n' + t('alias.noAlias'));
   }
   // 有别名:逐个列出

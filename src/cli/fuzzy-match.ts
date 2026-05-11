@@ -20,6 +20,12 @@ const LEVENSHTEIN_THRESHOLD = 3;
 /** 退出命令清单（不区分大小写） */
 const EXIT_COMMANDS = ['/exit', '/quit', 'exit', 'quit'];
 
+/** 命令前缀字符 */
+const COMMAND_PREFIX = '/';
+
+/** 字符串起始索引 */
+const STRING_START_INDEX = 0;
+
 /**
  * 检查输入是否为退出命令
  *
@@ -150,7 +156,7 @@ function isSimilar(lowerInput: string, cmdName: string): boolean {
     return true;
   }
   // 命令以斜杠开头，且包含输入串：作为部分匹配
-  else if (lowerInput.startsWith('/') && cmdName.includes(lowerInput)) {
+  else if (lowerInput.startsWith(COMMAND_PREFIX) && cmdName.includes(lowerInput)) {
     return true;
   }
   // 其他情况均不视为相似
@@ -200,6 +206,10 @@ function listCommands(commands: CommandDefinition[], showHint: boolean = false):
   // 仅在需要提示时显示
   if (showHint) {
     console.log(chalk.gray(`\n  (${t('fuzzy.pressEnterHint')})`));
+  }
+  // 不需要提示：保持简洁
+  else {
+    // 不输出提示行
   }
 }
 

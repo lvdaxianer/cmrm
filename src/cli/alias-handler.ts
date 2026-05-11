@@ -55,12 +55,12 @@ export async function runAliasFlow(
 
 /**
  * 选择待管理别名的模型
- * 包装 pickModel,无模型/返回/退出时统一返回 null
+ * 包装 pickModel,无模型/返回/退出时统一返回 undefined
  *
  * @param adapter - 工具适配器
  * @param rl - 当前 readline
  * @param ui - UI 渲染器
- * @return 选中的模型;放弃则返回 null
+ * @return 选中的模型;放弃则返回 undefined
  * @author lvdaxianerplus
  * @date 2026-05-03
  */
@@ -68,7 +68,7 @@ async function pickTargetModel(
   adapter: ToolAdapter,
   rl: readline.Interface,
   ui: UIRenderer
-): Promise<UnifiedModelConfig | null> {
+): Promise<UnifiedModelConfig | undefined> {
   const result = await pickModel(adapter, rl, {
     title: t('alias.selectModel', { tool: adapter.displayName }),
     prompt: t('tools.enterIndex'),
@@ -83,10 +83,10 @@ async function pickTargetModel(
   else if (result.kind === 'empty') {
     ui.showWarning(`\n${adapter.displayName} ${t('tools.noModels')}`);
     ui.showInfo(t('tools.addModelHint'));
-    return null;
+    return undefined;
   }
   // back / exit:放弃
   else {
-    return null;
+    return undefined;
   }
 }

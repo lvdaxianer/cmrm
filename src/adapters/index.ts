@@ -3,7 +3,7 @@
  * 管理所有可用的工具适配器
  *
  * @author lvdaxianerplus
- * @date 2026-04-27
+ * @date 2026-05-11
  */
 
 import { ToolAdapter, AdapterRegistryInterface } from './types';
@@ -13,6 +13,9 @@ import { CodexAdapter } from './codex';
 /**
  * 适配器注册表类
  * 管理所有可用的工具适配器，提供获取和注册功能
+ *
+ * @author lvdaxianerplus
+ * @date 2026-05-11
  */
 export class AdapterRegistry implements AdapterRegistryInterface {
   /** 适配器存储映射（工具名称 -> 适配器实例） */
@@ -23,7 +26,7 @@ export class AdapterRegistry implements AdapterRegistryInterface {
    *
    * @param adapter - 要注册的适配器实例
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-11
    */
   register(adapter: ToolAdapter): void {
     this.adapters.set(adapter.name, adapter);
@@ -36,14 +39,18 @@ export class AdapterRegistry implements AdapterRegistryInterface {
    * @return 适配器实例
    * @throws 工具不存在时抛出错误
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-11
    */
   getAdapter(name: string): ToolAdapter {
     const adapter = this.adapters.get(name);
-    if (!adapter) {
+    // 条件：适配器存在
+    if (adapter) {
+      return adapter;
+    }
+    // 替代：适配器不存在，抛出异常
+    else {
       throw new Error(`Tool adapter not found: ${name}`);
     }
-    return adapter;
   }
 
   /**
@@ -51,7 +58,7 @@ export class AdapterRegistry implements AdapterRegistryInterface {
    *
    * @return 所有注册的适配器数组
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-11
    */
   getAllAdapters(): ToolAdapter[] {
     return Array.from(this.adapters.values());
@@ -62,7 +69,7 @@ export class AdapterRegistry implements AdapterRegistryInterface {
    *
    * @return 所有注册的工具名称数组
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-11
    */
   getToolNames(): string[] {
     return Array.from(this.adapters.keys());

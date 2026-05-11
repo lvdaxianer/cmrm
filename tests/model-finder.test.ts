@@ -105,7 +105,7 @@ describe('findModelByName - 未命中', () => {
 
     const result = findModelByName(adapter, 'nonexistent');
 
-    expect(result).toBeNull();
+    expect(result).toBeUndefined();
   });
 
   // 空模型列表:返回 null
@@ -114,7 +114,7 @@ describe('findModelByName - 未命中', () => {
 
     const result = findModelByName(adapter, 'whatever');
 
-    expect(result).toBeNull();
+    expect(result).toBeUndefined();
   });
 });
 

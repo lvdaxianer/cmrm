@@ -12,6 +12,18 @@ import * as https from 'https';
 import * as http from 'http';
 import { URL } from 'url';
 
+/** HTTPS 默认端口 */
+const HTTPS_DEFAULT_PORT = 443;
+
+/** HTTP 默认端口 */
+const HTTP_DEFAULT_PORT = 80;
+
+/** HTTP 方法 POST */
+const HTTP_METHOD_POST = 'POST';
+
+/** 十进制基数 */
+const DECIMAL_RADIX = 10;
+
 /**
  * HTTP 响应数据结构
  * 仅保留测试场景下需要使用的最小字段
@@ -33,7 +45,7 @@ export interface HttpResponse {
  * @param timeoutMs - 超时毫秒数
  * @return Promise，resolve 时返回响应；reject 时返回 NodeJS.ErrnoException
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-11
  */
 export function sendRequest(
   url: URL,
@@ -79,7 +91,7 @@ export function sendRequest(
  * @param body - 请求体字符串
  * @return Node 原生 RequestOptions
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-11
  */
 function buildRequestOptions(
   url: URL,
@@ -87,10 +99,12 @@ function buildRequestOptions(
   body: string
 ): https.RequestOptions {
   // 端口规则：URL 显式指定优先；否则 https=443、http=80
-  const port = url.port || (url.protocol === 'https:' ? 443 : 80);
+  const port = url.port
+    ? parseInt(url.port, DECIMAL_RADIX)
+    : (url.protocol === 'https:' ? HTTPS_DEFAULT_PORT : HTTP_DEFAULT_PORT);
 
   return {
-    method: 'POST',
+    method: HTTP_METHOD_POST,
     hostname: url.hostname,
     port,
     // 路径必须包含 search，避免丢失查询参数
@@ -109,7 +123,7 @@ function buildRequestOptions(
  * @param res - Node 响应对象
  * @param resolve - Promise resolve 回调
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-11
  */
 function handleResponse(
   res: http.IncomingMessage,
@@ -135,7 +149,7 @@ function handleResponse(
  * @param req - 客户端请求对象
  * @param reject - Promise reject 回调
  * @author lvdaxianerplus
- * @date 2026-05-03
+ * @date 2026-05-11
  */
 function handleTimeout(
   req: http.ClientRequest,

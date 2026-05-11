@@ -14,7 +14,6 @@ import * as readline from 'readline';
 import { ToolAdapter } from '../adapters';
 import { UnifiedModelConfig } from '../types';
 import { UIRenderer } from './ui';
-import { testModelConfig } from '../utils/tester';
 import { prepareForInquirer } from './readline-helper';
 import { buildAddModelQuestions, buildModelConfig } from './add-questions';
 import { askApiType } from './api-type-prompt';
@@ -22,9 +21,16 @@ import { printIndexMenu, askIndex } from './index-prompt';
 import { templateManager } from './template-manager';
 import { selectTemplateAndSave } from './template-add-handler';
 import { t } from '../i18n';
-import { collectAllModels } from './model-finder';
-import { validateAlias } from './alias-validator';
-import { getPrimaryModelName, validateModelIdentity } from './model-identity';
+import { validateConfigIdentity, testThenSave } from './add-flow-helpers';
+
+/** Codex 适配器名称 */
+const ADAPTER_NAME_CODEX = 'codex';
+
+/** 空对象键数量 */
+const EMPTY_OBJECT_KEY_COUNT = 0;
+
+/** 默认 OpenAI API 类型 */
+const DEFAULT_OPENAI_API_TYPE = 'openai';
 
 /**
  * 添加方式选项
@@ -66,24 +72,7 @@ export async function runAddFlow(
   console.log(chalk.cyan(`\n=== ${t('add.title', { tool: adapter.displayName })} ===\n`));
 
   try {
-    // Codex 工具没有预设模板，直接走自定义添加
-    if (adapter.name === 'codex') {
-      console.log(chalk.gray(t('add.hintOptional') + '\n'));
-      await collectAndSave(adapter, ui);
-    }
-    // Claude 工具：先选择添加方式(模板/自定义)
-    else {
-      const method = await askAddMethod();
-
-      // 用户取消选择
-      if (!method) {
-        ui.showWarning('\n' + t('add.cancel'));
-      }
-      // 用户选择了添加方式：分发到对应子流程
-      else {
-        await dispatchAddMethod(method, adapter, ui);
-      }
-    }
+    await runAddFlowCore(adapter, ui);
   }
   // 添加流程异常：友好提示错误信息
   catch (error) {
@@ -93,14 +82,43 @@ export async function runAddFlow(
 }
 
 /**
+ * /add 主流程核心逻辑
+ *
+ * @param adapter - 已选中的工具适配器
+ * @param ui - UI 渲染器
+ * @author lvdaxianerplus
+ * @date 2026-05-11
+ */
+async function runAddFlowCore(adapter: ToolAdapter, ui: UIRenderer): Promise<void> {
+  // Codex 工具没有预设模板，直接走自定义添加
+  if (adapter.name === ADAPTER_NAME_CODEX) {
+    console.log(chalk.gray(t('add.hintOptional') + '\n'));
+    await collectAndSave(adapter, ui);
+  }
+  // Claude 工具：先选择添加方式(模板/自定义)
+  else {
+    const method = await askAddMethod();
+
+    // 用户取消选择
+    if (!method) {
+      ui.showWarning('\n' + t('add.cancel'));
+    }
+    // 用户选择了添加方式：分发到对应子流程
+    else {
+      await dispatchAddMethod(method, adapter, ui);
+    }
+  }
+}
+
+/**
  * 询问添加方式
  * 显示模板添加与自定义添加的索引菜单
  *
- * @return 'template' | 'custom' | null（取消）
+ * @return 'template' | 'custom' | undefined（取消）
  * @author lvdaxianerplus
  * @date 2026-05-03
  */
-async function askAddMethod(): Promise<'template' | 'custom' | null> {
+async function askAddMethod(): Promise<'template' | 'custom' | undefined> {
   // 打印添加方式选择菜单(运行时解析 i18n key)
   printIndexMenu(t('add.selectMethod'), ADD_METHOD_OPTIONS, (opt) => {
     const desc = chalk.gray(`(${t(opt.descriptionKey)})`);
@@ -114,12 +132,12 @@ async function askAddMethod(): Promise<'template' | 'custom' | null> {
   );
 
   // 用户取消或输入无效
-  if (idx === null) {
-    return null;
+  if (idx == null) {
+    return undefined;
   }
   // 返回对应选项的值
   else {
-    return ADD_METHOD_OPTIONS[idx - 1]?.value || null;
+    return ADD_METHOD_OPTIONS[idx - 1]?.value || undefined;
   }
 }
 
@@ -172,7 +190,7 @@ async function runTemplateAddFlow(adapter: ToolAdapter, ui: UIRenderer): Promise
     const response = await selectTemplateAndSave(adapter, ui, templates);
 
     // 用户取消模板选择或配置输入
-    if (response === null) {
+    if (response === undefined) {
       ui.showWarning('\n' + t('add.cancel'));
     }
     // 收集完成：进入验证保存流程
@@ -193,12 +211,12 @@ async function runTemplateAddFlow(adapter: ToolAdapter, ui: UIRenderer): Promise
  */
 async function collectAndSave(adapter: ToolAdapter, ui: UIRenderer): Promise<void> {
   // Codex 固定使用 OpenAI 格式，跳过选择
-  const apiType = adapter.name === 'codex' ? 'openai' : await askApiType();
+  const apiType = adapter.name === ADAPTER_NAME_CODEX ? DEFAULT_OPENAI_API_TYPE : await askApiType();
   // 收集其他字段
   const response = await inquirer.prompt(buildAddModelQuestions(adapter.name) as any);
 
   // 用户取消（Ctrl+C 等）
-  if (Object.keys(response).length === 0) {
+  if (Object.keys(response).length === EMPTY_OBJECT_KEY_COUNT) {
     ui.showWarning('\n' + t('add.cancel'));
   }
   // 输入完整：合并 apiType 后进入验证
@@ -228,6 +246,7 @@ async function validateAndPersist(
   if (!adapter.validateConfig(config)) {
     ui.showError('\n' + t('add.validateFailed'));
   }
+  // 标识与别名校验失败
   else if (!validateConfigIdentity(config, ui)) {
     return;
   }
@@ -235,124 +254,4 @@ async function validateAndPersist(
   else {
     await testThenSave(adapter, ui, config);
   }
-}
-
-function validateConfigIdentity(config: UnifiedModelConfig, ui: UIRenderer): boolean {
-  const allModels = collectAllModels();
-  const identityResult = validateModelIdentity(config, allModels);
-
-  if (!identityResult.valid) {
-    ui.showError(identityResult.error || t('add.validateFailed'));
-    return false;
-  }
-
-  for (const alias of config.aliases ?? []) {
-    const aliasResult = validateAlias(alias, allModels, getPrimaryModelName(config));
-    if (!aliasResult.valid) {
-      ui.showError(aliasResult.error || t('add.validateFailed'));
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
- * 测试配置并根据用户选择保存或放弃
- *
- * @param adapter - 工具适配器
- * @param ui - UI 渲染器
- * @param config - 标准化后的配置对象
- * @author lvdaxianerplus
- * @date 2026-05-03
- */
-async function testThenSave(
-  adapter: ToolAdapter,
-  ui: UIRenderer,
-  config: UnifiedModelConfig
-): Promise<void> {
-  // 测试配置连通性并询问保存意愿
-  const shouldSave = await testAndConfirmSave(config, ui);
-
-  // 用户同意保存：持久化配置并展示结果
-  if (shouldSave) {
-    adapter.saveModel(config);
-    showAddModelResult(config, ui);
-  }
-  // 用户放弃保存
-  else {
-    ui.showWarning('\n' + t('add.cancelSave'));
-  }
-}
-
-/**
- * 测试配置并询问是否保存（测试失败时）
- *
- * @param config - 待测试配置
- * @param ui - UI 渲染器
- * @return true 表示同意保存
- * @author lvdaxianerplus
- * @date 2026-05-03
- */
-async function testAndConfirmSave(config: UnifiedModelConfig, ui: UIRenderer): Promise<boolean> {
-  ui.showInfo('\n' + t('add.testing'));
-
-  // 发起模型连通性测试
-  const result = await testModelConfig(
-    config.model,
-    config.apiKey,
-    config.baseUrl,
-    config.apiType ?? 'anthropic'
-  );
-  ui.showTestResult(result);
-
-  // 测试通过：直接同意保存
-  if (result.success) {
-    return true;
-  }
-  // 测试失败：询问用户是否仍保存
-  else {
-    return confirmStillSave();
-  }
-}
-
-/**
- * 询问用户测试失败后是否仍保存配置
- *
- * @return 用户选择，默认 false
- * @author lvdaxianerplus
- * @date 2026-05-03
- */
-async function confirmStillSave(): Promise<boolean> {
-  // 弹出确认对话框
-  const response = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'stillSave',
-      message: t('add.testFailStillSave'),
-      default: false,
-    },
-  ] as any);
-
-  return Boolean(response.stillSave);
-}
-
-/**
- * 显示添加成功结果（API Key 截断脱敏）
- *
- * @param config - 已保存的配置对象
- * @param ui - UI 渲染器
- * @author lvdaxianerplus
- * @date 2026-05-03
- */
-function showAddModelResult(config: UnifiedModelConfig, ui: UIRenderer): void {
-  ui.showSuccess('\n' + t('add.modelAdded'));
-  ui.showInfo(`  ${t('actions.tool')}:     ${config.name}`);
-  ui.showInfo(`  ${t('actions.model')}:     ${config.model}`);
-
-  // API Key 脱敏（仅显示前 10 位，避免泄露完整密钥）
-  const truncatedApiKey = config.apiKey.substring(0, 10) + '...';
-  ui.showInfo(`  API Key:  ${truncatedApiKey}`);
-  ui.showInfo(`  Base URL: ${config.baseUrl}`);
-  ui.showInfo(`  API 类型: ${config.apiType ?? 'anthropic'}`);
 }

@@ -177,7 +177,7 @@ disable_response_storage = true
       disableResponseStorage: true,
     });
 
-    expect(result).toBeNull();
+    expect(result).toBeUndefined();
     expect(fs.writeFileSync).not.toHaveBeenCalled();
   });
 

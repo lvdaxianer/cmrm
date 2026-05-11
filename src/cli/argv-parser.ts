@@ -20,6 +20,27 @@
  * @date 2026-05-03
  */
 
+/** 空参数数组长度 */
+const EMPTY_ARG_COUNT = 0;
+
+/** 第一个剩余参数索引 */
+const FIRST_REST_INDEX = 0;
+
+/** 第二个剩余参数索引 */
+const SECOND_REST_INDEX = 1;
+
+/** 帮助标志集合(所有等价于 --help 的形式) */
+const HELP_FLAGS = new Set(['--help', '-h', 'help']);
+
+/** 版本标志集合(所有等价于 --version 的形式) */
+const VERSION_FLAGS = new Set(['--version', '-v', '-version', 'version']);
+
+/** 支持的语言代码集合 */
+const VALID_LOCALES = new Set(['zh', 'en', 'ja']);
+
+/** 支持的工具名称集合 */
+const VALID_TOOLS = new Set(['claude', 'codex']);
+
 /**
  * 解析后的命令行参数
  * 联合类型,每个分支表示一种执行路径
@@ -35,12 +56,6 @@ export type ParsedArgs =
   | { kind: 'unknown'; input: string }
   | { kind: 'interactive' };
 
-/** 帮助标志集合(所有等价于 --help 的形式) */
-const HELP_FLAGS = new Set(['--help', '-h', 'help']);
-
-/** 版本标志集合(所有等价于 --version 的形式) */
-const VERSION_FLAGS = new Set(['--version', '-v', '-version', 'version']);
-
 /**
  * 解析 process.argv.slice(2) 为结构化结果
  * 不依赖 IO,纯函数便于单测
@@ -52,7 +67,7 @@ const VERSION_FLAGS = new Set(['--version', '-v', '-version', 'version']);
  */
 export function parseArgv(args: string[]): ParsedArgs {
   // 无参数:保持现有交互模式
-  if (args.length === 0) {
+  if (args.length === EMPTY_ARG_COUNT) {
     return { kind: 'interactive' };
   }
   // 有参数:进入子分支判断
@@ -70,7 +85,7 @@ export function parseArgv(args: string[]): ParsedArgs {
  * @date 2026-05-03
  */
 function parseFirstToken(args: string[]): ParsedArgs {
-  const first = args[0];
+  const first = args[FIRST_REST_INDEX];
   const rest = args.slice(1);
 
   // help 标志(--help / -h / help)
@@ -98,7 +113,7 @@ function parseFirstToken(args: string[]): ParsedArgs {
     return parseSetLang(rest);
   }
   // 工具子命令 (claude/codex import <file>)
-  else if (first === 'claude' || first === 'codex') {
+  else if (VALID_TOOLS.has(first)) {
     return parseToolCommand(first, rest);
   }
   // 其他:未知命令
@@ -117,7 +132,7 @@ function parseFirstToken(args: string[]): ParsedArgs {
  * @date 2026-05-03
  */
 function parseSwitch(rest: string[]): ParsedArgs {
-  const model = rest[0]?.trim();
+  const model = rest[FIRST_REST_INDEX]?.trim();
 
   // 缺失模型名:作为未知命令处理(消费方会输出友好提示)
   if (!model) {
@@ -139,7 +154,7 @@ function parseSwitch(rest: string[]): ParsedArgs {
  * @date 2026-05-03
  */
 function parseTest(rest: string[]): ParsedArgs {
-  const model = rest[0]?.trim();
+  const model = rest[FIRST_REST_INDEX]?.trim();
 
   // 缺失模型名:作为未知命令处理
   if (!model) {
@@ -151,9 +166,6 @@ function parseTest(rest: string[]): ParsedArgs {
   }
 }
 
-/** 支持的语言代码集合 */
-const VALID_LOCALES = new Set(['zh', 'en', 'ja']);
-
 /**
  * 解析 set-lang <locale>
  * 缺失 locale 或无效时降级为 unknown
@@ -164,7 +176,7 @@ const VALID_LOCALES = new Set(['zh', 'en', 'ja']);
  * @date 2026-05-06
  */
 function parseSetLang(rest: string[]): ParsedArgs {
-  const locale = rest[0]?.trim();
+  const locale = rest[FIRST_REST_INDEX]?.trim();
 
   // 缺失语言代码:作为未知命令处理
   if (!locale) {
@@ -190,8 +202,8 @@ function parseSetLang(rest: string[]): ParsedArgs {
  * @date 2026-05-03
  */
 function parseAlias(rest: string[]): ParsedArgs {
-  const model = rest[0]?.trim();
-  const alias = rest[1]?.trim();
+  const model = rest[FIRST_REST_INDEX]?.trim();
+  const alias = rest[SECOND_REST_INDEX]?.trim();
 
   // 缺失模型名 / 别名:作为未知命令处理
   if (!model || !alias) {
@@ -202,9 +214,6 @@ function parseAlias(rest: string[]): ParsedArgs {
     return { kind: 'alias', model, alias };
   }
 }
-
-/** 支持的工具名称集合 */
-const VALID_TOOLS = new Set(['claude', 'codex']);
 
 /**
  * 解析工具子命令
@@ -218,7 +227,7 @@ const VALID_TOOLS = new Set(['claude', 'codex']);
  * @date 2026-05-09
  */
 function parseToolCommand(tool: string, rest: string[]): ParsedArgs {
-  const sub = rest[0]?.trim();
+  const sub = rest[FIRST_REST_INDEX]?.trim();
 
   // import 子命令:解析文件路径
   if (sub === 'import') {
@@ -240,10 +249,14 @@ function parseToolCommand(tool: string, rest: string[]): ParsedArgs {
  * @date 2026-05-09
  */
 function stripQuotes(s: string): string {
+  // 首尾均为双引号或单引号：去除首尾
   if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
     return s.slice(1, -1);
   }
-  return s;
+  // 无引号包裹：原样返回
+  else {
+    return s;
+  }
 }
 
 /**
@@ -258,7 +271,7 @@ function stripQuotes(s: string): string {
  * @date 2026-05-09
  */
 function parseImport(tool: string, rest: string[]): ParsedArgs {
-  const raw = rest[0]?.trim();
+  const raw = rest[FIRST_REST_INDEX]?.trim();
   const file = raw ? stripQuotes(raw) : '';
 
   // 缺失文件路径:作为未知命令处理

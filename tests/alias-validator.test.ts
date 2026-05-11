@@ -152,7 +152,7 @@ describe('findModelByAlias', () => {
     const b = buildModel({ name: 'haiku', model: 'claude-haiku' });
     const result = findModelByAlias([a, b], 'nonexistent');
 
-    expect(result).toBeNull();
+    expect(result).toBeUndefined();
   });
 
   // 空 aliases 字段:跳过

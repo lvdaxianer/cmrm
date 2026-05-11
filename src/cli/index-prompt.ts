@@ -11,6 +11,12 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { t } from '../i18n';
 
+/** 默认进制 */
+const DEFAULT_RADIX = 10;
+
+/** 最小有效索引 */
+const MIN_VALID_INDEX = 1;
+
 /**
  * 打印索引选择菜单
  * 统一的菜单标题与索引格式，减少重复代码
@@ -45,11 +51,11 @@ export function printIndexMenu<T>(
  *
  * @param prompt - 输入提示文本
  * @param maxIndex - 最大有效索引（1-based）
- * @return 用户输入的 1-based 索引，取消或无效返回 null
+ * @return 用户输入的 1-based 索引，取消或无效返回 undefined
  * @author lvdaxianerplus
  * @date 2026-05-04
  */
-export async function askIndex(prompt: string, maxIndex: number): Promise<number | null> {
+export async function askIndex(prompt: string, maxIndex: number): Promise<number | undefined> {
   // 构建 inquirer 问题对象
   const response = await inquirer.prompt([
     {
@@ -58,9 +64,9 @@ export async function askIndex(prompt: string, maxIndex: number): Promise<number
       message: prompt,
       // 校验输入：必须为 1~maxIndex 之间的整数
       validate: (value: string) => {
-        const num = parseInt(String(value).trim(), 10);
+        const num = parseInt(String(value).trim(), DEFAULT_RADIX);
         // 非数字或超出范围
-        if (isNaN(num) || num < 1 || num > maxIndex) {
+        if (isNaN(num) || num < MIN_VALID_INDEX || num > maxIndex) {
           return t('alias.invalidIndex', { max: maxIndex });
         }
         // 校验通过
@@ -72,10 +78,10 @@ export async function askIndex(prompt: string, maxIndex: number): Promise<number
   ] as any);
 
   // 解析并返回用户输入的索引
-  const idx = parseInt(String(response.index).trim(), 10);
+  const idx = parseInt(String(response.index).trim(), DEFAULT_RADIX);
   // 再次校验（防御性编程）
-  if (isNaN(idx) || idx < 1 || idx > maxIndex) {
-    return null;
+  if (isNaN(idx) || idx < MIN_VALID_INDEX || idx > maxIndex) {
+    return undefined;
   }
   // 校验通过：返回有效索引
   else {

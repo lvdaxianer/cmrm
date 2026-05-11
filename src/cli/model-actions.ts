@@ -18,6 +18,12 @@ import { t } from '../i18n';
 import { writeEnvVars, getRestartHint } from '../utils/shell-env-writer';
 import { getPrimaryModelName } from './model-identity';
 
+/** Codex 适配器名称 */
+const ADAPTER_NAME_CODEX = 'codex';
+
+/** JSON 缩进空格数 */
+const JSON_INDENT = 2;
+
 /**
  * 切换工具的当前模型配置
  * 写入工具配置文件（自动备份）并打印结果
@@ -45,7 +51,7 @@ export async function runSwitchAction(
       showSwitchResult(adapter, config, backupFileName, ui);
 
       // Codex 工具：额外写入 shell 环境变量
-      if (adapter.name === 'codex') {
+      if (adapter.name === ADAPTER_NAME_CODEX) {
         await updateShellEnvForCodex(config, ui);
       }
     }
@@ -87,7 +93,7 @@ async function updateShellEnvForCodex(
  *
  * @param adapter - 工具适配器
  * @param config - 切换后的配置
- * @param backupFileName - 备份文件名（无备份时为 null）
+ * @param backupFileName - 备份文件名（无备份时为 undefined）
  * @param ui - UI 渲染器
  * @author lvdaxianerplus
  * @date 2026-05-03
@@ -95,7 +101,7 @@ async function updateShellEnvForCodex(
 function showSwitchResult(
   adapter: ToolAdapter,
   config: UnifiedModelConfig,
-  backupFileName: string | null,
+  backupFileName: string | undefined,
   ui: UIRenderer
 ): void {
   ui.showSuccess('\n' + t('actions.modelSwitched'));
@@ -156,6 +162,6 @@ export async function runRemoveAction(
  */
 export function showModelInfo(model: UnifiedModelConfig): void {
   console.log(chalk.cyan('\n=== ' + t('actions.modelDetails') + ' ===\n'));
-  console.log(JSON.stringify(model, null, 2));
+  console.log(JSON.stringify(model, null, JSON_INDENT));
   console.log('');
 }

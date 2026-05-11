@@ -20,6 +20,9 @@ import { UIRenderer } from './ui';
 import { TestHandler, TestMenuChoice } from './test-handler';
 import { t } from '../i18n';
 
+/** 退出码:成功 */
+const EXIT_OK = 0;
+
 /**
  * 执行 /test 主菜单流程
  * 循环显示子菜单：每次执行 saved/custom 测试后回到本菜单，便于连续测试
@@ -129,7 +132,7 @@ async function dispatchTestChoice(handler: TestHandler, choice: TestMenuChoice):
   // 直接退出程序（不返回）
   else if (choice === 'exit') {
     console.log(chalk.yellow('\n' + t('commands.goodbye')));
-    process.exit(0);
+    process.exit(EXIT_OK);
   }
   // back：跳出循环，由外层返回命令菜单
   else {

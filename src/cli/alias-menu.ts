@@ -47,11 +47,11 @@ export async function runActionLoop(
   ui: UIRenderer
 ): Promise<void> {
   let current = model;
-  let stillRunning = true;
+  let shouldContinue = true;
 
   // 循环子菜单:直到用户选择返回
-  while (stillRunning) {
-    stillRunning = await runOneAction(adapter, current, ui, (next) => {
+  while (shouldContinue) {
+    shouldContinue = await runOneAction(adapter, current, ui, (next) => {
       current = next;
     });
   }

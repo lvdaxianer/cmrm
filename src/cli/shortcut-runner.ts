@@ -20,7 +20,7 @@ import { ToolAdapter, registry, ClaudeAdapter, CodexAdapter } from '../adapters'
 import { UnifiedModelConfig } from '../types';
 import { UIRenderer } from './ui';
 import { ParsedArgs } from './argv-parser';
-import { findModelByName, listAvailableNames } from './model-finder';
+import { findModelByName } from './model-finder';
 import { runSwitchAction } from './model-actions';
 import { testModelConfig } from '../utils/tester';
 import { printHelp } from './help-printer';
@@ -37,6 +37,9 @@ const EXIT_OK = 0;
 
 /** 退出码:失败 */
 const EXIT_FAIL = 1;
+
+/** 默认 API 类型 */
+const DEFAULT_API_TYPE = 'anthropic';
 
 /**
  * 跨所有工具查找模型结果
@@ -132,11 +135,11 @@ async function dispatchByKind(parsed: ParsedArgs, ui: UIRenderer): Promise<numbe
  * 按 name → aliases → model 三级匹配
  *
  * @param name - 用户输入的模型名
- * @return 查找结果，未命中返回 null
+ * @return 查找结果，未命中返回 undefined
  * @author lvdaxianerplus
  * @date 2026-05-09
  */
-function findModelAcrossAllAdapters(name: string): ModelSearchResult | null {
+function findModelAcrossAllAdapters(name: string): ModelSearchResult | undefined {
   // 遍历所有已注册适配器
   for (const adapter of registry.getAllAdapters()) {
     const model = findModelByName(adapter, name);
@@ -146,7 +149,7 @@ function findModelAcrossAllAdapters(name: string): ModelSearchResult | null {
     }
   }
   // 全部未命中
-  return null;
+  return undefined;
 }
 
 /**
@@ -163,9 +166,18 @@ function ensureAllAdaptersRegistered(): void {
   if (!toolNames.includes('claude')) {
     registry.register(new ClaudeAdapter());
   }
+  // 已注册 Claude 适配器:无需重复注册
+  else {
+    // 保持现有注册状态
+  }
+
   // 注册 Codex 适配器
   if (!toolNames.includes('codex')) {
     registry.register(new CodexAdapter());
+  }
+  // 已注册 Codex 适配器:无需重复注册
+  else {
+    // 保持现有注册状态
   }
 }
 
@@ -278,7 +290,7 @@ async function runAliasShortcutMultiTool(
  * @date 2026-05-03
  */
 async function runTestForModel(model: UnifiedModelConfig, ui: UIRenderer): Promise<number> {
-  const apiType = model.apiType ?? 'anthropic';
+  const apiType = model.apiType ?? DEFAULT_API_TYPE;
   const modelName = getPrimaryModelName(model);
   ui.showInfo(t('shortcut.testing', { apiType, name: modelName }));
 

@@ -21,6 +21,18 @@ const API_TYPE_OPTIONS: { value: ApiType; labelKey: string; descriptionKey: stri
 /** 默认索引(对应 anthropic) */
 const DEFAULT_INDEX = '1';
 
+/** 默认进制 */
+const DEFAULT_RADIX = 10;
+
+/** 选项总数 */
+const OPTION_COUNT = 2;
+
+/** 最小有效索引 */
+const MIN_VALID_INDEX = 1;
+
+/** 最大有效索引 */
+const MAX_VALID_INDEX = 2;
+
 /**
  * 提示用户选择 API 类型
  * 显示索引菜单,允许直接 Enter 使用默认值(anthropic)
@@ -42,7 +54,7 @@ export async function askApiType(): Promise<ApiType> {
     },
   ] as any);
 
-  const idx = parseInt(String(response.index).trim(), 10);
+  const idx = parseInt(String(response.index).trim(), DEFAULT_RADIX);
   return API_TYPE_OPTIONS[idx - 1].value;
 }
 
@@ -74,11 +86,11 @@ function printApiTypeMenu(): void {
  * @date 2026-05-03
  */
 export function validateApiTypeIndex(value: string): string | true {
-  const num = parseInt(String(value).trim(), 10);
+  const num = parseInt(String(value).trim(), DEFAULT_RADIX);
   const max = API_TYPE_OPTIONS.length;
 
   // 输入非法:返回提示语
-  if (isNaN(num) || num < 1 || num > max) {
+  if (isNaN(num) || num < MIN_VALID_INDEX || num > max) {
     return t('alias.invalidIndex', { max: max });
   }
   // 输入合法:放行

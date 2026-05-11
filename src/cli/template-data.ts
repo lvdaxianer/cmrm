@@ -47,6 +47,9 @@ export interface ModelTemplate {
   opusModel?: string;
 }
 
+/** Anthropic API 类型 */
+const API_TYPE_ANTHROPIC: ApiType = 'anthropic';
+
 /**
  * 内置默认模板列表
  * 用户可通过编辑 ~/.cmrm/templates.json 自定义
@@ -68,7 +71,7 @@ export const BUILT_IN_TEMPLATES: ModelTemplate[] = [
     description: 'DeepSeek V3.2 (Anthropic 格式)',
     model: 'DeepSeek-V3.2',
     baseUrl: 'https://api.deepseek.com/anthropic',
-    apiType: 'anthropic',
+    apiType: API_TYPE_ANTHROPIC,
     provider: 'deepseek',
   },
   // 智谱 AI bigmodel 接入点：GLM-4.7 系列
@@ -78,7 +81,7 @@ export const BUILT_IN_TEMPLATES: ModelTemplate[] = [
     description: '智谱 GLM-4.7 (bigmodel 接入点)',
     model: 'glm-4.7',
     baseUrl: 'https://open.bigmodel.cn/api/anthropic',
-    apiType: 'anthropic',
+    apiType: API_TYPE_ANTHROPIC,
     provider: 'zhipu',
   },
   // 智谱 AI Z.AI 接入点：GLM-4.7 系列（替代接入点）
@@ -88,7 +91,7 @@ export const BUILT_IN_TEMPLATES: ModelTemplate[] = [
     description: '智谱 GLM-4.7 (Z.AI 接入点)',
     model: 'glm-4.7',
     baseUrl: 'https://api.z.ai/api/anthropic',
-    apiType: 'anthropic',
+    apiType: API_TYPE_ANTHROPIC,
     provider: 'zai',
   },
   // 月之暗面 Kimi：K2.6 系列，Coding 端点
@@ -98,7 +101,7 @@ export const BUILT_IN_TEMPLATES: ModelTemplate[] = [
     description: '月之暗面 Kimi (Coding 端点)',
     model: 'kimi-k2.6',
     baseUrl: 'https://api.kimi.com/coding/',
-    apiType: 'anthropic',
+    apiType: API_TYPE_ANTHROPIC,
     provider: 'kimi',
   },
   // Minimax 国内版：海螺 AI M2.1
@@ -108,7 +111,7 @@ export const BUILT_IN_TEMPLATES: ModelTemplate[] = [
     description: '海螺 AI MiniMax-M2.1 (Anthropic 格式)',
     model: 'MiniMax-M2.1',
     baseUrl: 'https://api.minimaxi.com/anthropic',
-    apiType: 'anthropic',
+    apiType: API_TYPE_ANTHROPIC,
     provider: 'minimax',
   },
   // Minimax 国际版：MiniMax International M2.1
@@ -118,7 +121,7 @@ export const BUILT_IN_TEMPLATES: ModelTemplate[] = [
     description: 'MiniMax International M2.1 (Anthropic 格式)',
     model: 'MiniMax-M2.1',
     baseUrl: 'https://api.minimax.io/anthropic',
-    apiType: 'anthropic',
+    apiType: API_TYPE_ANTHROPIC,
     provider: 'minimax',
   },
   // OpenRouter：聚合 API 平台，支持多模型路由
@@ -128,7 +131,7 @@ export const BUILT_IN_TEMPLATES: ModelTemplate[] = [
     description: 'OpenRouter 聚合 API (Anthropic 格式)',
     model: 'anthropic/claude-sonnet-4.5',
     baseUrl: 'https://openrouter.ai/api',
-    apiType: 'anthropic',
+    apiType: API_TYPE_ANTHROPIC,
     provider: 'openrouter',
     haikuModel: 'anthropic/claude-haiku-4.5',
     sonnetModel: 'anthropic/claude-sonnet-4.5',
@@ -141,7 +144,7 @@ export const BUILT_IN_TEMPLATES: ModelTemplate[] = [
     description: '小米 MiMo-v2-flash (Anthropic 格式)',
     model: 'mimo-v2-flash',
     baseUrl: 'https://api.xiaomimimo.com/anthropic',
-    apiType: 'anthropic',
+    apiType: API_TYPE_ANTHROPIC,
     provider: 'xiaomi',
   },
   // 通义千问：阿里云 DashScope qwen3-max
@@ -151,7 +154,7 @@ export const BUILT_IN_TEMPLATES: ModelTemplate[] = [
     description: '阿里云 qwen3-max (Anthropic 格式)',
     model: 'qwen3-max',
     baseUrl: 'https://dashscope.aliyuncs.com/apps/anthropic',
-    apiType: 'anthropic',
+    apiType: API_TYPE_ANTHROPIC,
     provider: 'alibaba',
   },
 ];

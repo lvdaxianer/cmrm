@@ -3,19 +3,50 @@
  * 实现 Claude CLI 工具的配置管理
  *
  * @author lvdaxianerplus
- * @date 2026-04-27
+ * @date 2026-05-11
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { ToolAdapter, UnifiedModelConfig } from './types';
-import { backupConfig, mergeJsonConfig } from '../utils/backup';
-import { getPrimaryModelName, normalizeModelIdentity } from '../cli/model-identity';
+import { normalizeModelIdentity } from '../cli/model-identity';
+import {
+  parseClaudeConfig,
+  writeClaudeModelConfig,
+  parseCmrmSettings,
+  ensureCmrmDir,
+  ensureSettingsStructure,
+  loadOrCreateSettings,
+  persistSettings,
+  deleteModelFromSettings,
+  isFieldValid,
+  getRetryCountFromSettings,
+} from './claude-config-helpers';
+import {
+  buildModelConfig,
+  extractModelsFromSettings,
+  findExistingIndex,
+} from './claude-model-helpers';
+
+/** Claude 配置目录名 */
+const CLAUDE_CONFIG_DIR = '.claude';
+
+/** cmrm 配置目录名 */
+const CMRM_CONFIG_DIR = '.cmrm';
+
+/** Claude 配置文件名 */
+const CLAUDE_CONFIG_FILE = 'settings.json';
+
+/** cmrm 配置文件名 */
+const CMRM_CONFIG_FILE = 'settings.json';
 
 /**
  * Claude 工具适配器类
  * 管理 ~/.claude/settings.json 配置文件
+ *
+ * @author lvdaxianerplus
+ * @date 2026-05-11
  */
 export class ClaudeAdapter implements ToolAdapter {
   /** 工具名称 */
@@ -38,136 +69,33 @@ export class ClaudeAdapter implements ToolAdapter {
    * 初始化配置文件路径
    *
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-11
    */
   constructor() {
-    this.configPath = path.join(os.homedir(), '.claude', 'settings.json');
-    this.cmrmSettingsPath = path.join(os.homedir(), '.cmrm', 'settings.json');
-  }
-
-  /**
-   * 解析 Claude 配置文件内容
-   * 读取并解析 JSON 配置文件
-   *
-   * @return 解析后的配置对象，文件不存在或解析失败返回 null
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private parseClaudeConfig(): any | null {
-    // 配置文件不存在 - 返回 null
-    if (!fs.existsSync(this.configPath)) {
-      return null;
-    }
-    // 配置文件存在 - 读取解析
-    else {
-      try {
-        const content = fs.readFileSync(this.configPath, 'utf-8');
-        return JSON.parse(content);
-      }
-      // 解析失败 - 返回 null
-      catch (error) {
-        return null;
-      }
-    }
-  }
-
-  /**
-   * 从 env 对象构建模型配置对象
-   * 提取模型相关字段到统一配置格式
-   *
-   * @param env - Claude 配置的 env 对象
-   * @return 模型配置对象，无模型配置时返回 null
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private buildModelConfig(env: any): UnifiedModelConfig | null {
-    // 无模型配置 - 返回 null
-    if (!env.ANTHROPIC_MODEL) {
-      return null;
-    }
-    // 有模型配置 - 构建对象
-    else {
-      const modelConfig: UnifiedModelConfig = {
-        model: env.ANTHROPIC_MODEL,
-        apiKey: env.ANTHROPIC_AUTH_TOKEN || '',
-        baseUrl: env.ANTHROPIC_BASE_URL || '',
-        haikuModel: env.ANTHROPIC_DEFAULT_HAIKU_MODEL,
-        sonnetModel: env.ANTHROPIC_DEFAULT_SONNET_MODEL,
-        opusModel: env.ANTHROPIC_DEFAULT_OPUS_MODEL,
-      };
-
-      return modelConfig;
-    }
+    this.configPath = path.join(os.homedir(), CLAUDE_CONFIG_DIR, CLAUDE_CONFIG_FILE);
+    this.cmrmSettingsPath = path.join(os.homedir(), CMRM_CONFIG_DIR, CMRM_CONFIG_FILE);
   }
 
   /**
    * 读取当前生效的模型配置
    * 从 ~/.claude/settings.json 的 env 对象读取
    *
-   * @return 当前模型配置，未配置则返回 null
+   * @return 当前模型配置，未配置则返回 undefined
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-11
    */
-  readCurrentModel(): UnifiedModelConfig | null {
+  readCurrentModel(): UnifiedModelConfig | undefined {
     // 解析配置文件
-    const config = this.parseClaudeConfig();
+    const config = parseClaudeConfig(this.configPath);
 
-    // 配置文件不存在或解析失败 - 返回 null
+    // 条件：配置文件不存在或解析失败
     if (!config) {
-      return null;
+      return undefined;
     }
-    // 配置文件有效 - 提取 env
+    // 替代：提取 env 并构建模型配置
     else {
       const env = config.env || {};
-
-      // 从 env 构建模型配置
-      return this.buildModelConfig(env);
-    }
-  }
-
-  /**
-   * 读取原始配置文件内容
-   * 用于合并前保留原有配置
-   *
-   * @return 原配置对象，文件不存在时返回空对象
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private readOriginalConfig(): any {
-    // 配置文件存在 - 读取内容
-    if (fs.existsSync(this.configPath)) {
-      try {
-        const content = fs.readFileSync(this.configPath, 'utf-8');
-        return JSON.parse(content);
-      }
-      // 配置为空/格式错误：回退为空对象，允许修复写入
-      catch {
-        return {};
-      }
-    }
-    // 配置文件不存在 - 返回空对象
-    else {
-      return {};
-    }
-  }
-
-  /**
-   * 确保配置目录存在
-   * 不存在则创建目录
-   *
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private ensureConfigDir(): void {
-    const configDir = path.dirname(this.configPath);
-
-    // 目录不存在 - 创建目录
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true });
-    }
-    // 目录已存在 - 无需操作
-    else {
-      // 目录已存在，无需创建
+      return buildModelConfig(env);
     }
   }
 
@@ -178,97 +106,10 @@ export class ClaudeAdapter implements ToolAdapter {
    * @param config - 要写入的模型配置
    * @return 备份文件名
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-11
    */
-  writeModelConfig(config: UnifiedModelConfig): string | null {
-    // 备份当前配置
-    const backupFileName = backupConfig(this.configPath);
-
-    // 读取原始配置
-    const originalConfig = this.readOriginalConfig();
-
-    // 合并配置
-    const mergedConfig = mergeJsonConfig(originalConfig, config);
-
-    // 确保配置目录存在
-    this.ensureConfigDir();
-
-    // 写入合并后的配置
-    fs.writeFileSync(this.configPath, JSON.stringify(mergedConfig, null, 2), 'utf-8');
-
-    return backupFileName;
-  }
-
-  /**
-   * 解析 cmrm 配置文件
-   * 读取 ~/.cmrm/settings.json 内容
-   *
-   * @return 配置对象，文件不存在或解析失败返回 null
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private parseCmrmSettings(): any | null {
-    // 配置文件不存在 - 返回 null
-    if (!fs.existsSync(this.cmrmSettingsPath)) {
-      return null;
-    }
-    // 配置文件存在 - 读取解析
-    else {
-      try {
-        const content = fs.readFileSync(this.cmrmSettingsPath, 'utf-8');
-        return JSON.parse(content);
-      }
-      // 解析失败 - 返回 null
-      catch (error) {
-        return null;
-      }
-    }
-  }
-
-  /**
-   * 转换旧格式配置到新格式
-   * 将 ModelConfig 格式转换为 UnifiedModelConfig
-   *
-   * @param oldConfig - 旧格式配置（ModelConfig）
-   * @return 新格式配置（UnifiedModelConfig）
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private convertOldToNew(oldConfig: any): UnifiedModelConfig {
-    return normalizeModelIdentity({
-      name: oldConfig.name || oldConfig.ANTHROPIC_MODEL,
-      model: oldConfig.ANTHROPIC_MODEL,
-      apiKey: oldConfig.ANTHROPIC_AUTH_TOKEN,
-      baseUrl: oldConfig.ANTHROPIC_BASE_URL,
-      haikuModel: oldConfig.ANTHROPIC_DEFAULT_HAIKU_MODEL,
-      sonnetModel: oldConfig.ANTHROPIC_DEFAULT_SONNET_MODEL,
-      opusModel: oldConfig.ANTHROPIC_DEFAULT_OPUS_MODEL,
-      aliases: oldConfig.aliases,
-    });
-  }
-
-  /**
-   * 从配置对象中提取模型列表
-   * 支持新格式和旧格式的兼容读取
-   *
-   * @param settings - 配置对象
-   * @return 模型配置数组
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private extractModelsFromSettings(settings: any): UnifiedModelConfig[] {
-    // 新格式：tools.claude.modes 存在
-    if (settings.tools && settings.tools.claude && settings.tools.claude.modes) {
-      return settings.tools.claude.modes;
-    }
-    // 旧格式：modes 字段存在（需要转换）
-    else if (settings.modes) {
-      return settings.modes.map((mode: any) => this.convertOldToNew(mode));
-    }
-    // 无模型配置 - 返回空数组
-    else {
-      return [];
-    }
+  writeModelConfig(config: UnifiedModelConfig): string | undefined {
+    return writeClaudeModelConfig(this.configPath, config);
   }
 
   /**
@@ -277,120 +118,19 @@ export class ClaudeAdapter implements ToolAdapter {
    *
    * @return 保存的模型配置数组
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-11
    */
   getSavedModels(): UnifiedModelConfig[] {
     // 解析 cmrm 配置
-    const settings = this.parseCmrmSettings();
+    const settings = parseCmrmSettings(this.cmrmSettingsPath);
 
-    // 配置文件不存在或解析失败 - 返回空数组
+    // 条件：配置文件不存在或解析失败
     if (!settings) {
       return [];
     }
-    // 配置文件有效 - 提取模型列表
+    // 替代：提取模型列表
     else {
-      return this.extractModelsFromSettings(settings);
-    }
-  }
-
-  /**
-   * 确保 cmrm 配置目录存在
-   * 不存在则创建目录
-   *
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private ensureCmrmDir(): void {
-    const cmrmDir = path.dirname(this.cmrmSettingsPath);
-
-    // 目录不存在 - 创建目录
-    if (!fs.existsSync(cmrmDir)) {
-      fs.mkdirSync(cmrmDir, { recursive: true });
-    }
-    // 目录已存在 - 无需操作
-    else {
-      // 目录已存在，无需创建
-    }
-  }
-
-  /**
-   * 确保 settings 结构完整
-   * 创建缺失的 tools.claude.modes 结构
-   *
-   * @param settings - 配置对象（可能为空）
-   * @return 具有完整结构的配置对象
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private ensureSettingsStructure(settings: any): any {
-    // 确保 tools 对象存在
-    if (!settings.tools) {
-      settings.tools = {};
-    }
-    // tools 已存在 - 保持
-    else {
-      // tools 对象已存在
-    }
-
-    // 确保 claude 工具配置存在
-    if (!settings.tools.claude) {
-      settings.tools.claude = { modes: [] };
-    }
-    // claude 已存在 - 保持
-    else {
-      // claude 配置已存在
-    }
-
-    // 确保 modes 数组存在
-    if (!settings.tools.claude.modes) {
-      settings.tools.claude.modes = [];
-    }
-    // modes 已存在 - 保持
-    else {
-      // modes 数组已存在
-    }
-
-    return settings;
-  }
-
-  /**
-   * 查找已存在的配置索引
-   * 根据名称查找是否已有相同配置
-   *
-   * @param modes - 模型配置数组
-   * @param config - 新配置
-   * @return 已存在配置的索引，不存在返回 -1
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private findExistingIndex(modes: UnifiedModelConfig[], config: UnifiedModelConfig): number {
-    const targetKey = getPrimaryModelName(config);
-    return modes.findIndex((m: UnifiedModelConfig) => getPrimaryModelName(m) === targetKey);
-  }
-
-  /**
-   * 读取或创建 cmrm settings
-   * 文件存在则读取，不存在则创建空结构
-   *
-   * @return 配置对象
-   * @author lvdaxianerplus
-   * @date 2026-04-27
-   */
-  private loadOrCreateSettings(): any {
-    // 配置文件存在 - 读取内容
-    if (fs.existsSync(this.cmrmSettingsPath)) {
-      try {
-        const content = fs.readFileSync(this.cmrmSettingsPath, 'utf-8');
-        return JSON.parse(content);
-      }
-      // 配置为空/格式错误：回退为空对象，允许后续重建结构
-      catch {
-        return {};
-      }
-    }
-    // 配置文件不存在 - 返回空对象
-    else {
-      return {};
+      return extractModelsFromSettings(settings);
     }
   }
 
@@ -400,34 +140,47 @@ export class ClaudeAdapter implements ToolAdapter {
    *
    * @param config - 要保存的模型配置
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-11
    */
   saveModel(config: UnifiedModelConfig): void {
     const normalizedConfig = normalizeModelIdentity(config);
+    ensureCmrmDir(this.cmrmSettingsPath);
+    const settings = this.prepareSettings();
+    this.updateModes(settings, normalizedConfig);
+    persistSettings(this.cmrmSettingsPath, settings);
+  }
 
-    // 确保 cmrm 配置目录存在
-    this.ensureCmrmDir();
+  /**
+   * 准备 settings 对象（读取或创建并确保结构完整）
+   *
+   * @return 结构完整的配置对象
+   * @author lvdaxianerplus
+   * @date 2026-05-11
+   */
+  private prepareSettings(): any {
+    let settings = loadOrCreateSettings(this.cmrmSettingsPath);
+    return ensureSettingsStructure(settings);
+  }
 
-    // 读取或创建配置
-    let settings = this.loadOrCreateSettings();
+  /**
+   * 更新 modes 数组（新增或替换）
+   *
+   * @param settings - 配置对象
+   * @param config - 模型配置
+   * @author lvdaxianerplus
+   * @date 2026-05-11
+   */
+  private updateModes(settings: any, config: UnifiedModelConfig): void {
+    const existingIndex = findExistingIndex(settings.tools.claude.modes, config);
 
-    // 确保配置结构完整
-    settings = this.ensureSettingsStructure(settings);
-
-    // 查找已存在的配置索引
-    const existingIndex = this.findExistingIndex(settings.tools.claude.modes, normalizedConfig);
-
-    // 配置已存在 - 替换更新
+    // 条件：配置已存在，替换更新
     if (existingIndex >= 0) {
-      settings.tools.claude.modes[existingIndex] = normalizedConfig;
+      settings.tools.claude.modes[existingIndex] = config;
     }
-    // 配置不存在 - 添加新配置
+    // 替代：配置不存在，添加新配置
     else {
-      settings.tools.claude.modes.push(normalizedConfig);
+      settings.tools.claude.modes.push(config);
     }
-
-    // 写入配置文件
-    fs.writeFileSync(this.cmrmSettingsPath, JSON.stringify(settings, null, 2), 'utf-8');
   }
 
   /**
@@ -437,39 +190,20 @@ export class ClaudeAdapter implements ToolAdapter {
    * @param configName - 要删除的配置名称
    * @return 删除成功返回 true，配置不存在返回 false
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-11
    */
   removeModel(configName: string): boolean {
-    // 配置文件不存在 - 无法删除
+    // 条件：配置文件不存在
     if (!fs.existsSync(this.cmrmSettingsPath)) {
       return false;
     }
-
-    // 读取配置
-    const settings = this.loadOrCreateSettings();
-
-    // 确保结构完整
-    if (!settings.tools || !settings.tools.claude || !settings.tools.claude.modes) {
-      return false;
+    // 替代：继续处理删除逻辑
+    else {
+      // 继续处理删除逻辑
     }
 
-    // 查找要删除的配置索引
-    const index = settings.tools.claude.modes.findIndex(
-      (m: UnifiedModelConfig) => getPrimaryModelName(m) === configName
-    );
-
-    // 配置不存在 - 返回 false
-    if (index < 0) {
-      return false;
-    }
-
-    // 删除配置
-    settings.tools.claude.modes.splice(index, 1);
-
-    // 写入配置文件
-    fs.writeFileSync(this.cmrmSettingsPath, JSON.stringify(settings, null, 2), 'utf-8');
-
-    return true;
+    const settings = loadOrCreateSettings(this.cmrmSettingsPath);
+    return deleteModelFromSettings(this.cmrmSettingsPath, settings, configName);
   }
 
   /**
@@ -479,31 +213,13 @@ export class ClaudeAdapter implements ToolAdapter {
    * @param config - 要验证的配置
    * @return 验证通过返回 true，否则返回 false
    * @author lvdaxianerplus
-   * @date 2026-04-27
+   * @date 2026-05-11
    */
   validateConfig(config: UnifiedModelConfig): boolean {
-    // 验证 model 字段
-    if (!config.model || config.model.trim() === '') {
-      return false;
-    }
-    // model 有效 - 继续验证 apiKey
-    else {
-      // 验证 apiKey 字段
-      if (!config.apiKey || config.apiKey.trim() === '') {
-        return false;
-      }
-      // apiKey 有效 - 继续验证 baseUrl
-      else {
-        // 验证 baseUrl 字段
-        if (!config.baseUrl || config.baseUrl.trim() === '') {
-          return false;
-        }
-        // baseUrl 有效 - 验证通过
-        else {
-          return true;
-        }
-      }
-    }
+    const isModelValid = isFieldValid(config.model);
+    const isApiKeyValid = isFieldValid(config.apiKey);
+    const isBaseUrlValid = isFieldValid(config.baseUrl);
+    return isModelValid && isApiKeyValid && isBaseUrlValid;
   }
 
   /**
@@ -512,13 +228,9 @@ export class ClaudeAdapter implements ToolAdapter {
    *
    * @return 重试次数，默认 3
    * @author lvdaxianerplus
-   * @date 2026-05-05
+   * @date 2026-05-11
    */
   getRetryCount(): number {
-    const settings = this.parseCmrmSettings();
-    if (settings && typeof settings.retry === 'number' && settings.retry > 0) {
-      return settings.retry;
-    }
-    return 3;
+    return getRetryCountFromSettings(this.cmrmSettingsPath);
   }
 }

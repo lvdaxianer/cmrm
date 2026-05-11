@@ -39,6 +39,18 @@ export type TestMenuChoice = 'saved' | 'custom' | 'back' | 'exit';
 /** 子菜单选项个数（用于索引校验） */
 const MENU_OPTION_COUNT = 4;
 
+/** 空对象键数量 */
+const EMPTY_OBJECT_KEY_COUNT = 0;
+
+/** 默认 API 类型 */
+const DEFAULT_API_TYPE = 'anthropic';
+
+/** 默认测试超时（毫秒） */
+const DEFAULT_TEST_TIMEOUT_MS = 10000;
+
+/** Codex 适配器名称 */
+const ADAPTER_NAME_CODEX = 'codex';
+
 /**
  * 测试命令处理器类
  * 负责呈现 /test 子菜单并执行对应测试流程
@@ -176,7 +188,7 @@ export class TestHandler {
     }
     // 已选择模型：发起测试，apiType 兼容旧配置
     else {
-      const apiType = selected.apiType ?? 'anthropic';
+      const apiType = selected.apiType ?? DEFAULT_API_TYPE;
       await this.runAndShow(selected.model, selected.apiKey, selected.baseUrl, apiType);
       return true;
     }
@@ -186,12 +198,12 @@ export class TestHandler {
    * 列出已保存模型并让用户选择
    *
    * @param models - 已保存模型列表
-   * @return 选中的模型，取消时返回 null
+   * @return 选中的模型，取消时返回 undefined
    * @author lvdaxianerplus
    * @date 2026-05-03
    */
-  private async promptModelSelection(models: UnifiedModelConfig[]): Promise<UnifiedModelConfig | null> {
-    const label = this.adapter.name === 'codex' ? 'Profile' : 'Model';
+  private async promptModelSelection(models: UnifiedModelConfig[]): Promise<UnifiedModelConfig | undefined> {
+    const label = this.adapter.name === ADAPTER_NAME_CODEX ? 'Profile' : 'Model';
     console.log(chalk.cyan(`\n=== Select ${label} to Test ===`));
     console.log(chalk.gray(`(${t('tools.selectToolHint')})\n`));
 
@@ -199,7 +211,7 @@ export class TestHandler {
     const toolSuffix = chalk.gray(`(${this.adapter.displayName})`);
     models.forEach((model, index) => {
       const displayName = getPrimaryModelName(model);
-      const apiTypeInfo = chalk.gray(`[${model.apiType ?? 'anthropic'}]`);
+      const apiTypeInfo = chalk.gray(`[${model.apiType ?? DEFAULT_API_TYPE}]`);
       console.log(chalk.gray(`[${index}] `) + displayName + ` ${apiTypeInfo} ${toolSuffix}`);
     });
     // 取消选项放在末尾
@@ -212,11 +224,11 @@ export class TestHandler {
    * 收集索引输入并解析为模型对象
    *
    * @param models - 已保存模型列表
-   * @return 选中的模型，取消时返回 null
+   * @return 选中的模型，取消时返回 undefined
    * @author lvdaxianerplus
    * @date 2026-05-03
    */
-  private async promptIndexAndResolve(models: UnifiedModelConfig[]): Promise<UnifiedModelConfig | null> {
+  private async promptIndexAndResolve(models: UnifiedModelConfig[]): Promise<UnifiedModelConfig | undefined> {
     const cancelIndex = models.length;
 
     const response = await inquirer.prompt([
@@ -232,7 +244,7 @@ export class TestHandler {
 
     // 用户选择取消项
     if (idx === cancelIndex) {
-      return null;
+      return undefined;
     }
     // 用户选择具体模型
     else {
@@ -265,11 +277,11 @@ export class TestHandler {
   /**
    * 询问用户输入自定义测试参数
    *
-   * @return 输入的参数，取消时返回 null
+   * @return 输入的参数，取消时返回 undefined
    * @author lvdaxianerplus
    * @date 2026-05-03
    */
-  private async promptCustomParams(): Promise<{ model: string; apiKey: string; baseUrl: string } | null> {
+  private async promptCustomParams(): Promise<{ model: string; apiKey: string; baseUrl: string } | undefined> {
     const response = await inquirer.prompt([
       {
         type: 'input',
@@ -292,8 +304,8 @@ export class TestHandler {
     ] as any);
 
     // 用户中断输入（如 Ctrl+C），response 为空对象
-    if (Object.keys(response).length === 0) {
-      return null;
+    if (Object.keys(response).length === EMPTY_OBJECT_KEY_COUNT) {
+      return undefined;
     }
     // 输入完整：构造参数对象
     else {
@@ -325,26 +337,52 @@ export class TestHandler {
   ): Promise<TestResult> {
     this.ui.showInfo(`\n${t('add.testing')} [${apiType}] ...`);
 
-    // 获取重试次数配置（默认3次）
+    const result = await this.runTestWithRetry(model, apiKey, baseUrl, apiType);
+    this.ui.showTestResult(result);
+    return result;
+  }
+
+  /**
+   * 执行带重试的模型测试
+   *
+   * @param model - 模型名称
+   * @param apiKey - API 密钥
+   * @param baseUrl - 基础 URL
+   * @param apiType - API 协议类型
+   * @return 测试结果
+   * @author lvdaxianerplus
+   * @date 2026-05-11
+   */
+  private async runTestWithRetry(
+    model: string,
+    apiKey: string,
+    baseUrl: string,
+    apiType: ApiType
+  ): Promise<TestResult> {
     const retryCount = this.getRetryCount();
 
-    // 带重试的测试
-    const result = await testModelConfigWithRetry(
+    return testModelConfigWithRetry(
       model,
       apiKey,
       baseUrl,
       apiType,
-      10000, // timeout
+      DEFAULT_TEST_TIMEOUT_MS,
       retryCount,
-      (currentRetry, maxRetries) => {
-        // 重试时的回调，显示重试信息
-        const retryMsg = t('test.retrying', { current: currentRetry, max: maxRetries });
-        this.ui.showInfo(chalk.yellow(`\n${retryMsg}`));
-      }
+      (currentRetry, maxRetries) => this.onRetry(currentRetry, maxRetries)
     );
+  }
 
-    this.ui.showTestResult(result);
-    return result;
+  /**
+   * 重试回调处理
+   *
+   * @param currentRetry - 当前重试次数
+   * @param maxRetries - 最大重试次数
+   * @author lvdaxianerplus
+   * @date 2026-05-11
+   */
+  private onRetry(currentRetry: number, maxRetries: number): void {
+    const retryMsg = t('test.retrying', { current: currentRetry, max: maxRetries });
+    this.ui.showInfo(chalk.yellow(`\n${retryMsg}`));
   }
 
   /**

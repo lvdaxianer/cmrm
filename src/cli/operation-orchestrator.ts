@@ -30,8 +30,30 @@ export type NextOperation = 'switch' | 'add' | 'remove' | 'info' | 'test' | 'ali
 /** 子流程类型(switch/remove/info 共享同一选择菜单) */
 type ModelActionMode = 'switch' | 'remove' | 'info';
 
+/** Codex 适配器名称 */
+const ADAPTER_NAME_CODEX = 'codex';
+
+/** 单工具场景阈值 */
+const SINGLE_TOOL_THRESHOLD = 1;
+
+/**
+ * 获取选择标签
+ * Codex 使用 Profile，其他使用 Model
+ *
+ * @param adapter - 工具适配器
+ * @return 标签文本
+ * @author lvdaxianerplus
+ * @date 2026-05-11
+ */
 function getSelectionLabel(adapter: ToolAdapter): string {
-  return adapter.name === 'codex' ? 'Profile' : 'Model';
+  // Codex 工具：使用 Profile 标签
+  if (adapter.name === ADAPTER_NAME_CODEX) {
+    return 'Profile';
+  }
+  // 其他工具：使用 Model 标签
+  else {
+    return 'Model';
+  }
 }
 
 /**
@@ -67,7 +89,7 @@ export async function showToolSelection(ctx: OrchestratorContext, op: NextOperat
   try {
     // 单工具场景:跳过选择菜单,直接使用唯一适配器
     const adapters = registry.getAllAdapters();
-    if (adapters.length === 1) {
+    if (adapters.length === SINGLE_TOOL_THRESHOLD) {
       await runOperation(ctx, op, adapters[0]);
     }
     // 多工具场景:正常走选择流程

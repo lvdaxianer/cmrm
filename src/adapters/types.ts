@@ -3,7 +3,7 @@
  * 定义了工具适配器接口和统一配置模型
  *
  * @author lvdaxianerplus
- * @date 2026-04-27
+ * @date 2026-05-11
  */
 
 /**
@@ -16,6 +16,9 @@ export type ApiType = 'anthropic' | 'openai';
 /**
  * 统一配置模型接口
  * 用于标准化不同工具的模型配置
+ *
+ * @author lvdaxianerplus
+ * @date 2026-05-11
  */
 export interface UnifiedModelConfig {
   // === 必填字段 ===
@@ -57,6 +60,9 @@ export interface UnifiedModelConfig {
 /**
  * 工具适配器接口
  * 定义统一的配置管理接口，每个工具实现具体适配器
+ *
+ * @author lvdaxianerplus
+ * @date 2026-05-11
  */
 export interface ToolAdapter {
   // === 工具标识 ===
@@ -74,78 +80,114 @@ export interface ToolAdapter {
   // === 配置操作 ===
   /**
    * 读取当前生效的模型配置
-   * @return 当前模型配置，未配置则返回 null
+   *
+   * @return 当前模型配置，未配置则返回 undefined
+   * @author lvdaxianerplus
+   * @date 2026-05-11
    */
-  readCurrentModel(): UnifiedModelConfig | null;
+  readCurrentModel(): UnifiedModelConfig | undefined;
 
   /**
    * 写入模型配置（备份 → Merge → 写入）
+   *
    * @param config - 要写入的模型配置
-   * @return 备份文件名（用于显示），无变化返回 null
+   * @return 备份文件名（用于显示），无变化返回 undefined
+   * @author lvdaxianerplus
+   * @date 2026-05-11
    */
-  writeModelConfig(config: UnifiedModelConfig): string | null;
+  writeModelConfig(config: UnifiedModelConfig): string | undefined;
 
   /**
    * 获取用户保存的模型列表
+   *
    * @return 保存的模型配置数组
+   * @author lvdaxianerplus
+   * @date 2026-05-11
    */
   getSavedModels(): UnifiedModelConfig[];
 
   /**
    * 保存模型配置到 cmrm 存储
+   *
    * @param config - 要保存的模型配置
+   * @author lvdaxianerplus
+   * @date 2026-05-11
    */
   saveModel(config: UnifiedModelConfig): void;
 
   /**
    * 删除保存的模型配置
+   *
    * @param configName - 要删除的配置名称
    * @return 删除成功返回 true，配置不存在返回 false
+   * @author lvdaxianerplus
+   * @date 2026-05-11
    */
   removeModel(configName: string): boolean;
 
   /**
    * 验证配置是否有效
+   *
    * @param config - 要验证的配置
    * @return 验证通过返回 true，否则返回 false
+   * @author lvdaxianerplus
+   * @date 2026-05-11
    */
   validateConfig(config: UnifiedModelConfig): boolean;
 
   /**
    * 获取配置的重试次数
+   *
    * @return 重试次数，默认 3
+   * @author lvdaxianerplus
+   * @date 2026-05-11
    */
   getRetryCount(): number;
 }
 
 /**
- * 适配器注册表
+ * 适配器注册表接口
  * 管理所有可用的工具适配器
+ *
+ * @author lvdaxianerplus
+ * @date 2026-05-11
  */
 export interface AdapterRegistryInterface {
   /**
    * 注册适配器
+   *
    * @param adapter - 要注册的适配器实例
+   * @author lvdaxianerplus
+   * @date 2026-05-11
    */
   register(adapter: ToolAdapter): void;
 
   /**
    * 获取适配器
+   *
    * @param name - 工具名称
    * @return 适配器实例
    * @throws 工具不存在时抛出错误
+   * @author lvdaxianerplus
+   * @date 2026-05-11
    */
   getAdapter(name: string): ToolAdapter;
 
   /**
    * 获取所有适配器
+   *
    * @return 所有注册的适配器数组
+   * @author lvdaxianerplus
+   * @date 2026-05-11
    */
   getAllAdapters(): ToolAdapter[];
 
   /**
    * 获取所有工具名称
+   *
    * @return 所有注册的工具名称数组
+   * @author lvdaxianerplus
+   * @date 2026-05-11
    */
   getToolNames(): string[];
 }

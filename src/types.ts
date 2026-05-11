@@ -12,6 +12,9 @@ export { UnifiedModelConfig, ToolAdapter, AdapterRegistryInterface, ApiType } fr
 // 导入 UnifiedModelConfig 用于本地类型定义
 import { UnifiedModelConfig } from './adapters/types';
 
+/** 默认重试次数 */
+const DEFAULT_RETRY_COUNT = 3;
+
 /**
  * 模型配置项接口（旧格式，用于迁移兼容）
  * 用于描述一组模型的配置信息

@@ -21,6 +21,21 @@ import { buildAddModelQuestionsWithDefaults } from './add-questions';
 import { askIndex } from './index-prompt';
 import { t } from '../i18n';
 
+/** 空对象键数量 */
+const EMPTY_OBJECT_KEY_COUNT = 0;
+
+/** 名称列最小宽度 */
+const NAME_COLUMN_MIN_WIDTH = 20;
+
+/** 模型列最小宽度 */
+const MODEL_COLUMN_MIN_WIDTH = 15;
+
+/** 索引偏移量(从 1 开始显示) */
+const INDEX_DISPLAY_OFFSET = 1;
+
+/** 列间距 */
+const COLUMN_GAP = '  ';
+
 /**
  * 选择模板并收集配置
  * 显示模板菜单，用户选择后基于模板默认值收集输入
@@ -28,7 +43,7 @@ import { t } from '../i18n';
  * @param adapter - 工具适配器
  * @param ui - UI 渲染器
  * @param templates - 可用模板列表
- * @return 收集到的配置字段映射（含 apiType），取消返回 null
+ * @return 收集到的配置字段映射（含 apiType），取消返回 undefined
  * @author lvdaxianerplus
  * @date 2026-05-04
  */
@@ -36,13 +51,13 @@ export async function selectTemplateAndSave(
   adapter: ToolAdapter,
   ui: UIRenderer,
   templates: ModelTemplate[]
-): Promise<Record<string, any> | null> {
+): Promise<Record<string, any> | undefined> {
   // 显示模板选择菜单并获取用户选择
   const selectedTemplate = await askTemplateSelection(templates);
 
   // 用户取消选择
   if (!selectedTemplate) {
-    return null;
+    return undefined;
   }
   // 用户选择了模板：基于模板默认值收集配置
   else {
@@ -57,7 +72,7 @@ export async function selectTemplateAndSave(
  * @param adapter - 工具适配器
  * @param ui - UI 渲染器
  * @param template - 选中的模型模板
- * @return 收集到的配置字段映射（含 apiType），取消返回 null
+ * @return 收集到的配置字段映射（含 apiType），取消返回 undefined
  * @author lvdaxianerplus
  * @date 2026-05-04
  */
@@ -65,15 +80,15 @@ async function collectTemplateResponse(
   adapter: ToolAdapter,
   ui: UIRenderer,
   template: ModelTemplate
-): Promise<Record<string, any> | null> {
+): Promise<Record<string, any> | undefined> {
   // 使用模板默认值构建 inquirer 问题列表
   const response = await inquirer.prompt(
     buildAddModelQuestionsWithDefaults(adapter.name, templateToDefaults(template)) as any
   );
 
   // 用户取消（Ctrl+C 等）
-  if (Object.keys(response).length === 0) {
-    return null;
+  if (Object.keys(response).length === EMPTY_OBJECT_KEY_COUNT) {
+    return undefined;
   }
   // 收集完成：合并模板 apiType 后返回
   else {
@@ -85,11 +100,11 @@ async function collectTemplateResponse(
  * 显示模板索引菜单并获取用户选择
  *
  * @param templates - 模板列表
- * @return 选中的模板，取消返回 null
+ * @return 选中的模板，取消返回 undefined
  * @author lvdaxianerplus
  * @date 2026-05-04
  */
-async function askTemplateSelection(templates: ModelTemplate[]): Promise<ModelTemplate | null> {
+async function askTemplateSelection(templates: ModelTemplate[]): Promise<ModelTemplate | undefined> {
   // 打印模板选择菜单（含列对齐）
   printTemplateMenu(templates);
 
@@ -97,12 +112,12 @@ async function askTemplateSelection(templates: ModelTemplate[]): Promise<ModelTe
   const idx = await askIndex(t('template.enterIndex', { count: templates.length }), templates.length);
 
   // 用户取消或输入无效
-  if (idx === null) {
-    return null;
+  if (idx === undefined) {
+    return undefined;
   }
   // 返回对应模板
   else {
-    return templates[idx - 1] || null;
+    return templates[idx - INDEX_DISPLAY_OFFSET] || undefined;
   }
 }
 
@@ -121,16 +136,16 @@ function printTemplateMenu(templates: ModelTemplate[]): void {
   console.log(chalk.gray(`(${t('tools.selectToolHint')})\n`));
 
   // 计算列宽：名称列至少 20，模型列至少 15
-  const nameWidth = Math.max(20, ...templates.map((t) => t.name.length));
-  const modelWidth = Math.max(15, ...templates.map((t) => t.model.length));
+  const nameWidth = Math.max(NAME_COLUMN_MIN_WIDTH, ...templates.map((t) => t.name.length));
+  const modelWidth = Math.max(MODEL_COLUMN_MIN_WIDTH, ...templates.map((t) => t.model.length));
 
   // 逐条打印模板信息
   templates.forEach((template, index) => {
-    const idx = index + 1;
+    const idx = index + INDEX_DISPLAY_OFFSET;
     const nameCol = template.name.padEnd(nameWidth);
     const modelCol = chalk.yellow(template.model.padEnd(modelWidth));
     const desc = chalk.gray(`(${template.description})`);
-    console.log(chalk.gray(`[${idx}] `) + nameCol + '  ' + modelCol + '  ' + desc);
+    console.log(chalk.gray(`[${idx}] `) + nameCol + COLUMN_GAP + modelCol + COLUMN_GAP + desc);
   });
   console.log('');
 }

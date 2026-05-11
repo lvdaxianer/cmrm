@@ -81,8 +81,8 @@ describe('I18nManager - initialize', () => {
     vi.mocked(fs.existsSync).mockReturnValue(false);
 
     const i18n = new I18nManager(mockConfigManager);
-    // Mock detectLocaleByGeo 返回非 null
-    vi.spyOn(i18n, 'detectLocaleByGeo').mockReturnValue('ja');
+    // Mock localeDetector.detectLocaleByGeo 返回非 null
+    vi.spyOn((i18n as any).localeDetector, 'detectLocaleByGeo').mockReturnValue('ja');
 
     const locale = await i18n.initialize();
 
@@ -191,7 +191,7 @@ describe('I18nManager - detectLocaleByGeo', () => {
 
     const i18n = new I18nManager(mockConfigManager);
 
-    expect(i18n.detectLocaleByGeo()).toBeNull();
+    expect((i18n as any).localeDetector.detectLocaleByGeo()).toBeUndefined();
   });
 });
 

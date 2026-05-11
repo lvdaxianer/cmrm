@@ -16,6 +16,15 @@ import { registry, ToolAdapter } from '../adapters';
 import { prepareForInquirer, validateIndexInput } from './readline-helper';
 import { t } from '../i18n';
 
+/** 默认进制基数 */
+const DEFAULT_RADIX = 10;
+
+/** 返回选项偏移量 */
+const BACK_INDEX_OFFSET = 1;
+
+/** 退出选项偏移量 */
+const EXIT_INDEX_OFFSET = 2;
+
 /**
  * 工具选择结果
  * - select：用户选中具体工具
@@ -39,7 +48,7 @@ export async function selectTool(rl: readline.Interface): Promise<ToolPickResult
   prepareForInquirer(rl);
 
   const toolNames = registry.getToolNames();
-  const totalOptions = toolNames.length + 2;
+  const totalOptions = toolNames.length + EXIT_INDEX_OFFSET;
   const backIndex = toolNames.length;
   const exitIndex = toolNames.length + 1;
 
@@ -95,7 +104,7 @@ async function promptIndex(totalOptions: number): Promise<number> {
     },
   ] as any);
 
-  return parseInt(response.index, 10);
+  return parseInt(response.index, DEFAULT_RADIX);
 }
 
 /**

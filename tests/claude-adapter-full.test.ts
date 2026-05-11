@@ -55,11 +55,11 @@ function buildAdapter(): ClaudeAdapter {
  */
 describe('ClaudeAdapter - readCurrentModel', () => {
   // 配置文件不存在
-  it('配置文件不存在时应返回 null', () => {
+  it('配置文件不存在时应返回 undefined', () => {
     vi.mocked(fs.existsSync).mockReturnValue(false);
     const adapter = buildAdapter();
 
-    expect(adapter.readCurrentModel()).toBeNull();
+    expect(adapter.readCurrentModel()).toBeUndefined();
   });
 
   // 配置文件存在且有效
@@ -80,39 +80,39 @@ describe('ClaudeAdapter - readCurrentModel', () => {
 
     const result = adapter.readCurrentModel();
 
-    expect(result).not.toBeNull();
+    expect(result).not.toBeUndefined();
     expect(result!.model).toBe('claude-sonnet');
     expect(result!.apiKey).toBe('sk-test');
     expect(result!.haikuModel).toBe('haiku');
   });
 
   // 配置文件解析失败
-  it('配置文件解析失败时应返回 null', () => {
+  it('配置文件解析失败时应返回 undefined', () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(fs.readFileSync).mockReturnValue('invalid json');
     const adapter = buildAdapter();
 
-    expect(adapter.readCurrentModel()).toBeNull();
+    expect(adapter.readCurrentModel()).toBeUndefined();
   });
 
   // env 中无 ANTHROPIC_MODEL
-  it('env 中无模型配置时应返回 null', () => {
+  it('env 中无模型配置时应返回 undefined', () => {
     const config = { env: { ANTHROPIC_AUTH_TOKEN: 'sk-test' } };
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(config));
     const adapter = buildAdapter();
 
-    expect(adapter.readCurrentModel()).toBeNull();
+    expect(adapter.readCurrentModel()).toBeUndefined();
   });
 
   // env 对象不存在
-  it('env 对象不存在时应返回 null', () => {
+  it('env 对象不存在时应返回 undefined', () => {
     const config = {};
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(config));
     const adapter = buildAdapter();
 
-    expect(adapter.readCurrentModel()).toBeNull();
+    expect(adapter.readCurrentModel()).toBeUndefined();
   });
 });
 

@@ -19,15 +19,24 @@ const REMOTE_TEMPLATES_URL =
 /** HTTP 请求超时（毫秒） */
 const FETCH_TIMEOUT = 10000;
 
+/** HTTP 重定向状态码下限 */
+const REDIRECT_STATUS_MIN = 300;
+
+/** HTTP 重定向状态码上限 */
+const REDIRECT_STATUS_MAX = 400;
+
+/** HTTP 成功状态码 */
+const HTTP_STATUS_OK = 200;
+
 /**
  * 从远程拉取模板 JSON 字符串
  * 优先访问 GitHub Raw，支持 3xx 重定向跟随
  *
- * @return 拉取到的原始 JSON 字符串，失败返回 null
+ * @return 拉取到的原始 JSON 字符串，失败返回 undefined
  * @author lvdaxianerplus
  * @date 2026-05-04
  */
-export async function fetchRemoteTemplateJson(): Promise<string | null> {
+export async function fetchRemoteTemplateJson(): Promise<string | undefined> {
   return new Promise((resolve) => {
     // 创建并发送 HTTPS 请求
     sendTemplateRequest(resolve);
@@ -42,7 +51,7 @@ export async function fetchRemoteTemplateJson(): Promise<string | null> {
  * @author lvdaxianerplus
  * @date 2026-05-04
  */
-function sendTemplateRequest(resolve: (value: string | null) => void): void {
+function sendTemplateRequest(resolve: (value: string | undefined) => void): void {
   // 发起 HTTPS GET 请求获取远程模板
   const req = https.get(
     REMOTE_TEMPLATES_URL,
@@ -51,11 +60,11 @@ function sendTemplateRequest(resolve: (value: string | null) => void): void {
   );
 
   // 请求级错误：网络不通或 DNS 解析失败
-  req.on('error', () => resolve(null));
+  req.on('error', () => resolve(undefined));
   // 请求超时：销毁连接并返回失败
   req.on('timeout', () => {
     req.destroy();
-    resolve(null);
+    resolve(undefined);
   });
 }
 
@@ -70,10 +79,10 @@ function sendTemplateRequest(resolve: (value: string | null) => void): void {
  */
 function handleFetchResponse(
   res: import('http').IncomingMessage,
-  resolve: (value: string | null) => void
+  resolve: (value: string | undefined) => void
 ): void {
   // 状态码为 3xx 重定向：跟随 location 重新请求
-  if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+  if (res.statusCode && res.statusCode >= REDIRECT_STATUS_MIN && res.statusCode < REDIRECT_STATUS_MAX && res.headers.location) {
     followRedirect(res.headers.location, resolve);
   }
   // 非重定向响应：直接读取响应体
@@ -93,7 +102,7 @@ function handleFetchResponse(
  */
 function followRedirect(
   location: string,
-  resolve: (value: string | null) => void
+  resolve: (value: string | undefined) => void
 ): void {
   // 使用重定向地址重新发起 HTTPS 请求
   https
@@ -101,7 +110,7 @@ function followRedirect(
       readResponseBody(redirectRes, resolve);
     })
     // 重定向请求本身失败
-    .on('error', () => resolve(null));
+    .on('error', () => resolve(undefined));
 }
 
 /**
@@ -115,11 +124,11 @@ function followRedirect(
  */
 function readResponseBody(
   res: import('http').IncomingMessage,
-  resolve: (value: string | null) => void
+  resolve: (value: string | undefined) => void
 ): void {
   // 非 200 状态码：远程请求失败
-  if (res.statusCode !== 200) {
-    resolve(null);
+  if (res.statusCode !== HTTP_STATUS_OK) {
+    resolve(undefined);
   }
   // 200 成功：收集响应数据片段
   else {
@@ -138,7 +147,7 @@ function readResponseBody(
  */
 function collectBodyChunks(
   res: import('http').IncomingMessage,
-  resolve: (value: string | null) => void
+  resolve: (value: string | undefined) => void
 ): void {
   // 使用 Buffer 数组收集响应数据，避免循环内字符串拼接
   const chunks: Buffer[] = [];
@@ -150,6 +159,6 @@ function collectBodyChunks(
 
   // 响应结束：拼接所有片段并返回完整字符串
   res.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
-  // 响应过程出错：返回 null
-  res.on('error', () => resolve(null));
+  // 响应过程出错：返回 undefined
+  res.on('error', () => resolve(undefined));
 }

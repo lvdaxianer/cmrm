@@ -11,15 +11,47 @@
  * @author lvdaxianerplus
  * @date 2026-05-03
  * @date 2026-05-09 修改: 支持 Codex 适配器差异化问题
+ * @date 2026-05-11 修改: 问题构建器抽离到 question-builders.ts
  */
 
 import { Question } from 'inquirer';
 import { UnifiedModelConfig } from '../types';
 import { ApiType } from '../adapters/types';
 import { normalizeModelIdentity } from './model-identity';
+import {
+  buildConfigNameQuestion,
+  buildModelQuestion,
+  buildApiKeyQuestion,
+  buildBaseUrlQuestion,
+  buildBaseUrlQuestionForCodex,
+  buildProviderQuestion,
+  buildModelReasoningEffortQuestion,
+  buildDisableResponseStorageQuestion,
+  buildHaikuQuestion,
+  buildSonnetQuestion,
+  buildOpusQuestion,
+} from './question-builders';
 
-// 导入 t 函数用于翻译（需要在运行时获取翻译）
-import { t } from '../i18n';
+/** Codex 默认模型 */
+const DEFAULT_CODEX_MODEL = 'gpt-5.4';
+
+/** Codex 默认推理强度 */
+const DEFAULT_CODEX_REASONING_EFFORT = 'high';
+
+/** 默认禁用响应存储 */
+const DEFAULT_DISABLE_RESPONSE_STORAGE = true;
+
+/** Claude 适配器名称 */
+const ADAPTER_NAME_CLAUDE = 'claude';
+
+/** Codex 适配器名称 */
+const ADAPTER_NAME_CODEX = 'codex';
+
+/** 默认 Anthropic API 类型 */
+const DEFAULT_API_TYPE_ANTHROPIC = 'anthropic';
+
+/** 默认 OpenAI API 类型 */
+const DEFAULT_API_TYPE_OPENAI = 'openai';
 
 /**
  * 构建添加模型的 inquirer 问题列表
@@ -30,7 +62,7 @@ import { t } from '../i18n';
  * @author lvdaxianerplus
  * @date 2026-05-09
  */
-export function buildAddModelQuestions(adapterName: string = 'claude'): Question[] {
+export function buildAddModelQuestions(adapterName: string = ADAPTER_NAME_CLAUDE): Question[] {
   // 无默认值：调用带默认值版本，传入空对象
   return buildAddModelQuestionsWithDefaults(adapterName, {});
 }
@@ -50,11 +82,11 @@ export function buildAddModelQuestionsWithDefaults(
   defaults: Partial<UnifiedModelConfig>
 ): Question[] {
   // Claude 适配器:使用 Claude 特有字段
-  if (adapterName === 'claude') {
+  if (adapterName === ADAPTER_NAME_CLAUDE) {
     return buildClaudeQuestions(defaults);
   }
   // Codex 适配器:使用 Codex 特有字段
-  else if (adapterName === 'codex') {
+  else if (adapterName === ADAPTER_NAME_CODEX) {
     return buildCodexQuestions(defaults);
   }
   // 未知适配器:默认使用 Claude 问题列表
@@ -96,10 +128,10 @@ function buildCodexQuestions(defaults: Partial<UnifiedModelConfig>): Question[] 
   // Codex 固定默认值
   const codexDefaults: Partial<UnifiedModelConfig> = {
     ...defaults,
-    model: defaults.model || 'gpt-5.4',
+    model: defaults.model || DEFAULT_CODEX_MODEL,
     provider: 'codex',
-    modelReasoningEffort: defaults.modelReasoningEffort || 'high',
-    disableResponseStorage: defaults.disableResponseStorage ?? true,
+    modelReasoningEffort: defaults.modelReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT,
+    disableResponseStorage: defaults.disableResponseStorage ?? DEFAULT_DISABLE_RESPONSE_STORAGE,
   };
 
   // Codex 问题列表:基础字段 + provider + 可选高级字段
@@ -115,232 +147,6 @@ function buildCodexQuestions(defaults: Partial<UnifiedModelConfig>): Question[] 
 }
 
 /**
- * 构建配置名称问题
- * 可选字段，不填则使用模型名称作为默认值
- *
- * @param defaults - 模板默认值
- * @return configName 问题对象
- * @author lvdaxianerplus
- * @date 2026-05-04
- */
-function buildConfigNameQuestion(defaults: Partial<UnifiedModelConfig>): Question {
-  return {
-    type: 'input',
-    name: 'configName',
-    message: buildMessage(t('add.configName'), defaults.name),
-    default: defaults.name || undefined,
-  };
-}
-
-/**
- * 构建模型名称问题
- * 必填字段，trim 后非空校验
- *
- * @param defaults - 模板默认值
- * @return model 问题对象
- * @author lvdaxianerplus
- * @date 2026-05-04
- */
-function buildModelQuestion(defaults: Partial<UnifiedModelConfig>): Question {
-  return {
-    type: 'input',
-    name: 'model',
-    message: buildMessage(t('add.modelName'), defaults.model),
-    default: defaults.model || undefined,
-    validate: (value: string) => value.trim() !== '' || t('add.modelName') + ' is required',
-  };
-}
-
-/**
- * 构建 API Key 问题
- * 必填字段，用户必须输入，不提供默认值
- *
- * @return apiKey 问题对象
- * @author lvdaxianerplus
- * @date 2026-05-04
- */
-function buildApiKeyQuestion(): Question {
-  return {
-    type: 'input',
-    name: 'apiKey',
-    message: t('add.apiKey'),
-    validate: (value: string) => value.trim() !== '' || t('add.apiKey') + ' is required',
-  };
-}
-
-/**
- * 构建 Base URL 问题（Claude 默认）
- * 必填字段，提供兜底默认值 https://api.anthropic.com
- *
- * @param defaults - 模板默认值
- * @return baseUrl 问题对象
- * @author lvdaxianerplus
- * @date 2026-05-04
- */
-function buildBaseUrlQuestion(defaults: Partial<UnifiedModelConfig>): Question {
-  return {
-    type: 'input',
-    name: 'baseUrl',
-    message: buildMessage(t('add.baseUrl'), defaults.baseUrl, 'https://api.anthropic.com'),
-    default: defaults.baseUrl || 'https://api.anthropic.com',
-    validate: (value: string) => value.trim() !== '' || t('add.baseUrl') + ' is required',
-  };
-}
-
-/**
- * 构建 Base URL 问题（Codex）
- * 必填字段，提供兜底默认值 https://api.openai.com
- *
- * @param defaults - 模板默认值
- * @return baseUrl 问题对象
- * @author lvdaxianerplus
- * @date 2026-05-09
- */
-function buildBaseUrlQuestionForCodex(defaults: Partial<UnifiedModelConfig>): Question {
-  return {
-    type: 'input',
-    name: 'baseUrl',
-    message: buildMessage(t('add.baseUrl'), defaults.baseUrl, 'https://api.openai.com'),
-    default: defaults.baseUrl || 'https://api.openai.com',
-    validate: (value: string) => value.trim() !== '' || t('add.baseUrl') + ' is required',
-  };
-}
-
-/**
- * 构建 Provider 问题（Codex）
- * 必填字段，用于指定模型提供商
- *
- * @param defaults - 模板默认值
- * @return provider 问题对象
- * @author lvdaxianerplus
- * @date 2026-05-09
- */
-function buildProviderQuestion(defaults: Partial<UnifiedModelConfig>): Question {
-  return {
-    type: 'input',
-    name: 'provider',
-    message: buildMessage(t('add.provider'), defaults.provider, 'custom'),
-    default: defaults.provider || 'custom',
-    validate: (value: string) => value.trim() !== '' || t('add.provider') + ' is required',
-  };
-}
-
-/**
- * 构建 Model Reasoning Effort 问题（Codex 必填）
- * 必填字段，指定推理强度
- *
- * @param defaults - 模板默认值
- * @return modelReasoningEffort 问题对象
- * @author lvdaxianerplus
- * @date 2026-05-09
- */
-function buildModelReasoningEffortQuestion(defaults: Partial<UnifiedModelConfig>): Question {
-  return {
-    type: 'input',
-    name: 'modelReasoningEffort',
-    message: buildMessage(t('add.modelReasoningEffort'), defaults.modelReasoningEffort),
-    default: defaults.modelReasoningEffort || 'high',
-    validate: (value: string) => value.trim() !== '' || t('add.modelReasoningEffort') + ' is required',
-  };
-}
-
-/**
- * 构建 Disable Response Storage 问题（Codex 可选）
- * 可选字段，布尔值
- *
- * @param defaults - 模板默认值
- * @return disableResponseStorage 问题对象
- * @author lvdaxianerplus
- * @date 2026-05-09
- */
-function buildDisableResponseStorageQuestion(defaults: Partial<UnifiedModelConfig>): Question {
-  return {
-    type: 'confirm',
-    name: 'disableResponseStorage',
-    message: t('add.disableResponseStorage'),
-    default: defaults.disableResponseStorage || false,
-  };
-}
-
-/**
- * 构建 Haiku 模型问题
- * 可选字段，用于指定轻量级模型
- *
- * @param defaults - 模板默认值
- * @return haikuModel 问题对象
- * @author lvdaxianerplus
- * @date 2026-05-04
- */
-function buildHaikuQuestion(defaults: Partial<UnifiedModelConfig>): Question {
-  return {
-    type: 'input',
-    name: 'haikuModel',
-    message: buildMessage(t('add.haikuModel'), defaults.haikuModel),
-    default: defaults.haikuModel || undefined,
-  };
-}
-
-/**
- * 构建 Sonnet 模型问题
- * 可选字段，用于指定平衡型模型
- *
- * @param defaults - 模板默认值
- * @return sonnetModel 问题对象
- * @author lvdaxianerplus
- * @date 2026-05-04
- */
-function buildSonnetQuestion(defaults: Partial<UnifiedModelConfig>): Question {
-  return {
-    type: 'input',
-    name: 'sonnetModel',
-    message: buildMessage(t('add.sonnetModel'), defaults.sonnetModel),
-    default: defaults.sonnetModel || undefined,
-  };
-}
-
-/**
- * 构建 Opus 模型问题
- * 可选字段，用于指定高性能模型
- *
- * @param defaults - 模板默认值
- * @return opusModel 问题对象
- * @author lvdaxianerplus
- * @date 2026-05-04
- */
-function buildOpusQuestion(defaults: Partial<UnifiedModelConfig>): Question {
-  return {
-    type: 'input',
-    name: 'opusModel',
-    message: buildMessage(t('add.opusModel'), defaults.opusModel),
-    default: defaults.opusModel || undefined,
-  };
-}
-
-/**
- * 构建带默认值提示的问题文本
- * 有默认值时在括号中显示，方便用户直接回车使用
- *
- * @param label - 问题标签
- * @param defaultValue - 默认值
- * @param fallbackDefault - 兜底默认值（当 defaultValue 为空时使用）
- * @return 带默认值提示的问题文本
- * @author lvdaxianerplus
- * @date 2026-05-04
- */
-function buildMessage(label: string, defaultValue?: string, fallbackDefault?: string): string {
-  const value = defaultValue || fallbackDefault;
-
-  // 有默认值：在括号中显示，提示用户可直接回车
-  if (value) {
-    return `${label} [${value}]:`;
-  }
-  // 无默认值：保持原样，不显示括号
-  else {
-    return label;
-  }
-}
-
-/**
  * 根据适配器类型和 inquirer 响应构建模型配置对象
  * 必填字段 trim 后填入，可选字段为空时不写入对象
  *
@@ -352,11 +158,11 @@ function buildMessage(label: string, defaultValue?: string, fallbackDefault?: st
  */
 export function buildModelConfig(adapterName: string, response: Record<string, any>): UnifiedModelConfig {
   // Claude 适配器:使用 Claude 配置组装逻辑
-  if (adapterName === 'claude') {
+  if (adapterName === ADAPTER_NAME_CLAUDE) {
     return buildClaudeModelConfig(response);
   }
   // Codex 适配器:使用 Codex 配置组装逻辑
-  else if (adapterName === 'codex') {
+  else if (adapterName === ADAPTER_NAME_CODEX) {
     return buildCodexModelConfig(response);
   }
   // 未知适配器:默认使用 Claude 逻辑
@@ -380,7 +186,7 @@ function buildClaudeModelConfig(response: Record<string, any>): UnifiedModelConf
     model: response.model.trim(),
     apiKey: response.apiKey.trim(),
     baseUrl: response.baseUrl.trim(),
-    apiType: (response.apiType as ApiType) ?? 'anthropic',
+    apiType: (response.apiType as ApiType) ?? DEFAULT_API_TYPE_ANTHROPIC,
   };
 
   // 可选字段：Haiku 模型
@@ -412,7 +218,7 @@ function buildCodexModelConfig(response: Record<string, any>): UnifiedModelConfi
     apiKey: response.apiKey.trim(),
     baseUrl: response.baseUrl.trim(),
     provider: provider,
-    apiType: (response.apiType as ApiType) ?? 'openai',
+    apiType: (response.apiType as ApiType) ?? DEFAULT_API_TYPE_OPENAI,
   };
 
   // 可选字段：Model Reasoning Effort

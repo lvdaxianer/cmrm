@@ -40,7 +40,9 @@ function getTodayStr(): string {
 function createTestConfigManager(): ConfigManager {
   // 通过 monkey-patch 让 ConfigManager 使用临时目录
   const cm = new ConfigManager();
-  (cm as any).settingsPath = path.join(tempDir, 'settings.json');
+  const testPath = path.join(tempDir, 'settings.json');
+  (cm as any).settingsPath = testPath;
+  (cm as any).backup.settingsPath = testPath;
   return cm;
 }
 

@@ -9,6 +9,16 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import {
+  writeWindowsPowerShellProfile,
+  writeWindowsEnvVars,
+} from './shell-env-helpers';
+
+/** 换行符 */
+const NEWLINE = '\n';
+
+/** 空字符串 */
+const EMPTY_STRING = '';
 
 /**
  * 支持的 shell 类型及其配置文件
@@ -23,19 +33,20 @@ const SHELL_CONFIG_MAP: Record<string, string> = {
  *
  * @return shell 名称（如 'zsh', 'bash'）
  * @author lvdaxianerplus
- * @date 2026-05-10
+ * @date 2026-05-11
  */
 export function detectShell(): string {
-  const shellPath = process.env.SHELL || '';
+  const shellPath = process.env.SHELL || EMPTY_STRING;
   const shellName = path.basename(shellPath);
 
-  // 已知 shell 类型
+  // 条件：已知 shell 类型
   if (shellName === 'zsh' || shellName === 'bash') {
     return shellName;
   }
-
-  // 默认回退到 zsh（macOS 默认）
-  return 'zsh';
+  // 替代：默认回退到 zsh（macOS 默认）
+  else {
+    return 'zsh';
+  }
 }
 
 /**
@@ -43,7 +54,7 @@ export function detectShell(): string {
  *
  * @return 配置文件绝对路径
  * @author lvdaxianerplus
- * @date 2026-05-10
+ * @date 2026-05-11
  */
 export function getShellConfigPath(): string {
   const homeDir = os.homedir();
@@ -65,7 +76,7 @@ const ENV_BLOCK_END = '# <<< cmrm managed env vars <<<';
  * @param envVars - 环境变量键值对
  * @return 配置块字符串
  * @author lvdaxianerplus
- * @date 2026-05-10
+ * @date 2026-05-11
  */
 function buildEnvBlock(envVars: Record<string, string>): string {
   const lines = [ENV_BLOCK_START];
@@ -75,9 +86,9 @@ function buildEnvBlock(envVars: Record<string, string>): string {
   }
 
   lines.push(ENV_BLOCK_END);
-  lines.push('');
+  lines.push(EMPTY_STRING);
 
-  return lines.join('\n');
+  return lines.join(NEWLINE);
 }
 
 /**
@@ -86,26 +97,48 @@ function buildEnvBlock(envVars: Record<string, string>): string {
  * @param content - 文件内容
  * @return 清理后的内容
  * @author lvdaxianerplus
- * @date 2026-05-10
+ * @date 2026-05-11
  */
 function removeOldEnvBlock(content: string): string {
   const startIdx = content.indexOf(ENV_BLOCK_START);
 
+  // 条件：未找到起始标记
   if (startIdx === -1) {
     return content;
   }
+  // 替代：找到起始标记，继续查找结束标记
+  else {
+    const endIdx = content.indexOf(ENV_BLOCK_END, startIdx);
 
-  const endIdx = content.indexOf(ENV_BLOCK_END, startIdx);
+    // 条件：未找到结束标记
+    if (endIdx === -1) {
+      return content;
+    }
+    // 替代：找到结束标记，移除整个块
+    else {
+      // 移除整个块（包括结尾换行）
+      const before = content.slice(0, startIdx);
+      const after = content.slice(endIdx + ENV_BLOCK_END.length);
 
-  if (endIdx === -1) {
-    return content;
+      return before + after.replace(/^\n/, EMPTY_STRING);
+    }
   }
+}
 
-  // 移除整个块（包括结尾换行）
-  const before = content.slice(0, startIdx);
-  const after = content.slice(endIdx + ENV_BLOCK_END.length);
-
-  return before + after.replace(/^\n/, '');
+/**
+ * 构建追加内容
+ *
+ * @param cleanedContent - 清理后的内容
+ * @param envBlock - 环境变量块
+ * @return 新内容
+ * @author lvdaxianerplus
+ * @date 2026-05-11
+ */
+function buildNewContent(cleanedContent: string, envBlock: string): string {
+  const separator = cleanedContent.endsWith(NEWLINE) || cleanedContent === EMPTY_STRING
+    ? EMPTY_STRING
+    : NEWLINE;
+  return cleanedContent + separator + envBlock;
 }
 
 /**
@@ -115,117 +148,24 @@ function removeOldEnvBlock(content: string): string {
  * @param envVars - 环境变量键值对
  * @return 写入的配置文件路径
  * @author lvdaxianerplus
- * @date 2026-05-10
+ * @date 2026-05-11
  */
 export function writeShellEnvVars(envVars: Record<string, string>): string {
   const configPath = getShellConfigPath();
   const originalContent = fs.existsSync(configPath)
     ? fs.readFileSync(configPath, 'utf-8')
-    : '';
+    : EMPTY_STRING;
 
   // 移除旧的 cmrm 配置块
   const cleanedContent = removeOldEnvBlock(originalContent);
 
   // 构建新的配置块并追加
   const envBlock = buildEnvBlock(envVars);
-  const newContent = cleanedContent + (cleanedContent.endsWith('\n') || cleanedContent === '' ? '' : '\n') + envBlock;
+  const newContent = buildNewContent(cleanedContent, envBlock);
 
   fs.writeFileSync(configPath, newContent, 'utf-8');
 
   return configPath;
-}
-
-/**
- * 写入环境变量到 Windows PowerShell 配置文件
- * 同时支持写入 PowerShell profile 和注册表（持久化）
- *
- * @param envVars - 环境变量键值对
- * @return PowerShell profile 路径
- * @author lvdaxianerplus
- * @date 2026-05-10
- */
-export function writeWindowsPowerShellProfile(envVars: Record<string, string>): string {
-  const { execSync } = require('child_process');
-
-  // 获取 PowerShell profile 路径
-  let profilePath: string;
-  try {
-    profilePath = execSync(
-      'powershell -Command "Write-Output $PROFILE"',
-      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }
-    ).trim();
-  } catch {
-    profilePath = path.join(os.homedir(), 'Documents', 'PowerShell', 'Microsoft.PowerShell_profile.ps1');
-  }
-
-  // 确保 profile 目录存在
-  const profileDir = path.dirname(profilePath);
-  if (!fs.existsSync(profileDir)) {
-    fs.mkdirSync(profileDir, { recursive: true });
-  }
-
-  // 读取现有内容
-  const originalContent = fs.existsSync(profilePath) ? fs.readFileSync(profilePath, 'utf-8') : '';
-
-  // PowerShell 标记块
-  const psStart = '# >>> cmrm managed env vars >>>';
-  const psEnd = '# <<< cmrm managed env vars <<<';
-
-  // 移除旧块
-  const startIdx = originalContent.indexOf(psStart);
-  let cleanedContent = originalContent;
-  if (startIdx !== -1) {
-    const endIdx = originalContent.indexOf(psEnd, startIdx);
-    if (endIdx !== -1) {
-      cleanedContent = originalContent.slice(0, startIdx) + originalContent.slice(endIdx + psEnd.length);
-    }
-  }
-
-  // 构建新的 PowerShell 环境变量块
-  const lines = [psStart];
-  for (const [key, value] of Object.entries(envVars)) {
-    lines.push(`$env:${key} = "${value}"`);
-  }
-  lines.push(psEnd);
-  lines.push('');
-
-  const newBlock = lines.join('\r\n');
-  const newContent = cleanedContent + (cleanedContent.endsWith('\n') || cleanedContent === '' ? '' : '\r\n') + newBlock;
-
-  fs.writeFileSync(profilePath, newContent, 'utf-8');
-
-  return profilePath;
-}
-
-/**
- * 写入环境变量到 Windows 注册表（永久用户环境变量）
- * 使用 PowerShell [Environment]::SetEnvironmentVariable 避免 setx 截断问题
- *
- * @param envVars - 环境变量键值对
- * @author lvdaxianerplus
- * @date 2026-05-10
- */
-export function writeWindowsEnvVars(envVars: Record<string, string>): void {
-  const { execSync } = require('child_process');
-
-  for (const [key, value] of Object.entries(envVars)) {
-    const escapedValue = value.replace(/"/g, '\`"');
-    const psCommand = `[Environment]::SetEnvironmentVariable('${key}', '${escapedValue}', 'User')`;
-
-    try {
-      execSync(
-        `powershell -Command "${psCommand}"`,
-        { stdio: 'ignore' }
-      );
-    } catch {
-      // PowerShell 方式失败则回退到 setx
-      try {
-        execSync(`setx ${key} "${value}"`, { stdio: 'ignore' });
-      } catch {
-        // 静默处理，由调用方提示用户手动设置
-      }
-    }
-  }
 }
 
 /**
@@ -236,21 +176,22 @@ export function writeWindowsEnvVars(envVars: Record<string, string>): void {
  * @param envVars - 环境变量键值对
  * @return 结果信息（配置文件路径或提示文本）
  * @author lvdaxianerplus
- * @date 2026-05-10
+ * @date 2026-05-11
  */
-export function writeEnvVars(envVars: Record<string, string>): { path: string; needsRestart: boolean } {
+export function writeEnvVars(envVars: Record<string, string>): { path: string; isRestartNeeded: boolean } {
   const platform = os.platform();
 
-  // Windows 平台：同时写入 PowerShell profile 和注册表
+  // 条件：Windows 平台
   if (platform === 'win32') {
     const profilePath = writeWindowsPowerShellProfile(envVars);
     writeWindowsEnvVars(envVars);
-    return { path: profilePath, needsRestart: true };
+    return { path: profilePath, isRestartNeeded: true };
   }
-
-  // macOS / Linux：写入 shell 配置文件
-  const configPath = writeShellEnvVars(envVars);
-  return { path: configPath, needsRestart: true };
+  // 替代：macOS / Linux
+  else {
+    const configPath = writeShellEnvVars(envVars);
+    return { path: configPath, isRestartNeeded: true };
+  }
 }
 
 /**
@@ -259,16 +200,17 @@ export function writeEnvVars(envVars: Record<string, string>): { path: string; n
  * @param configPath - 配置文件路径
  * @return 提示文本
  * @author lvdaxianerplus
- * @date 2026-05-10
+ * @date 2026-05-11
  */
 export function getRestartHint(configPath: string): string {
   const platform = os.platform();
 
-  // Windows：提示重新打开 PowerShell
+  // 条件：Windows 平台
   if (platform === 'win32') {
     return '请重新打开 PowerShell 终端，或执行 ". $PROFILE" 使环境变量生效';
   }
-
-  // macOS / Linux：提示 source 配置文件
-  return `请运行 "source ${path.basename(configPath)}" 或重新打开终端`;
+  // 替代：macOS / Linux
+  else {
+    return `请运行 "source ${path.basename(configPath)}" 或重新打开终端`;
+  }
 }

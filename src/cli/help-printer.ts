@@ -13,6 +13,7 @@
 import chalk from 'chalk';
 import { t } from '../i18n';
 
+
 /**
  * 打印 CLI 使用说明
  * 包含 USAGE / EXAMPLES / NOTES 三段

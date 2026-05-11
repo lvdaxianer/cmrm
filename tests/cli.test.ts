@@ -184,7 +184,7 @@ describe('CLI - handleInput', () => {
     const inquirer = await import('inquirer');
     vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
 
-    await (cli as any).handleInput('/list');
+    await (cli as any).inputHandler.handleInput('/list');
 
     consoleSpy.mockRestore();
   });
@@ -195,7 +195,7 @@ describe('CLI - handleInput', () => {
     const inquirer = await import('inquirer');
     vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
 
-    await (cli as any).handleInput('/current');
+    await (cli as any).inputHandler.handleInput('/current');
 
     consoleSpy.mockRestore();
   });
@@ -206,7 +206,7 @@ describe('CLI - handleInput', () => {
     const inquirer = await import('inquirer');
     vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
 
-    await (cli as any).handleInput('/set-lang');
+    await (cli as any).inputHandler.handleInput('/set-lang');
 
     consoleSpy.mockRestore();
   });
@@ -216,7 +216,7 @@ describe('CLI - handleInput', () => {
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
     const cli = new CLI();
 
-    await (cli as any).handleInput('/exit');
+    await (cli as any).inputHandler.handleInput('/exit');
 
     expect(exitSpy).toHaveBeenCalledWith(0);
     exitSpy.mockRestore();
@@ -229,7 +229,7 @@ describe('CLI - handleInput', () => {
     const inquirer = await import('inquirer');
     vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
 
-    await (cli as any).handleInput('');
+    await (cli as any).inputHandler.handleInput('');
 
     consoleSpy.mockRestore();
   });
@@ -240,7 +240,7 @@ describe('CLI - handleInput', () => {
     const inquirer = await import('inquirer');
     vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
 
-    await (cli as any).handleInput('/unknown');
+    await (cli as any).inputHandler.handleInput('/unknown');
 
     consoleSpy.mockRestore();
   });
@@ -251,7 +251,7 @@ describe('CLI - handleInput', () => {
     const inquirer = await import('inquirer');
     vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
 
-    await (cli as any).handleInput('random text');
+    await (cli as any).inputHandler.handleInput('random text');
 
     consoleSpy.mockRestore();
   });
@@ -277,13 +277,13 @@ describe('CLI - isToolSelectionCommand', () => {
   it('应识别工具选择命令', () => {
     const cli = new CLI();
 
-    expect((cli as any).isToolSelectionCommand('/switch')).toBe(true);
-    expect((cli as any).isToolSelectionCommand('/add')).toBe(true);
-    expect((cli as any).isToolSelectionCommand('/remove')).toBe(true);
-    expect((cli as any).isToolSelectionCommand('/info')).toBe(true);
-    expect((cli as any).isToolSelectionCommand('/test')).toBe(true);
-    expect((cli as any).isToolSelectionCommand('/alias')).toBe(true);
-    expect((cli as any).isToolSelectionCommand('/list')).toBe(false);
+    expect((cli as any).inputHandler.isToolSelectionCommand('/switch')).toBe(true);
+    expect((cli as any).inputHandler.isToolSelectionCommand('/add')).toBe(true);
+    expect((cli as any).inputHandler.isToolSelectionCommand('/remove')).toBe(true);
+    expect((cli as any).inputHandler.isToolSelectionCommand('/info')).toBe(true);
+    expect((cli as any).inputHandler.isToolSelectionCommand('/test')).toBe(true);
+    expect((cli as any).inputHandler.isToolSelectionCommand('/alias')).toBe(true);
+    expect((cli as any).inputHandler.isToolSelectionCommand('/list')).toBe(false);
   });
 });
 
@@ -291,8 +291,8 @@ describe('CLI - isKnownCommand', () => {
   it('应识别已知命令', () => {
     const cli = new CLI();
 
-    expect((cli as any).isKnownCommand('/switch')).toBe(true);
-    expect((cli as any).isKnownCommand('/unknown')).toBe(false);
+    expect((cli as any).inputHandler.isKnownCommand('/switch')).toBe(true);
+    expect((cli as any).inputHandler.isKnownCommand('/unknown')).toBe(false);
   });
 });
 
@@ -357,7 +357,7 @@ describe('CLI - handleInput tool selection', () => {
     const { showToolSelection } = await import('../src/cli/operation-orchestrator');
     const showToolSpy = vi.mocked(showToolSelection);
 
-    await (cli as any).handleInput('/switch');
+    await (cli as any).inputHandler.handleInput('/switch');
 
     expect(showToolSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();

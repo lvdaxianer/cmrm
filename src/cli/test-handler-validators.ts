@@ -6,6 +6,12 @@
  * @date 2026-05-03
  */
 
+/** 默认进制基数 */
+const DEFAULT_RADIX = 10;
+
+/** 最小有效索引 */
+const MIN_VALID_INDEX = 0;
+
 /**
  * 校验菜单索引输入
  * 必须为 [0, optionCount) 之间的整数
@@ -17,11 +23,11 @@
  * @date 2026-05-03
  */
 export function validateMenuIndex(value: string, optionCount: number): string | true {
-  const num = parseInt(value, 10);
+  const num = parseInt(value, DEFAULT_RADIX);
 
   // 输入非法：返回提示语
-  if (isNaN(num) || num < 0 || num >= optionCount) {
-    return `请输入 0-${optionCount - 1} 之间的数字`;
+  if (isNaN(num) || num < MIN_VALID_INDEX || num >= optionCount) {
+    return `请输入 ${MIN_VALID_INDEX}-${optionCount - 1} 之间的数字`;
   }
   // 输入合法：放行
   else {
@@ -40,11 +46,11 @@ export function validateMenuIndex(value: string, optionCount: number): string | 
  * @date 2026-05-03
  */
 export function validateModelIndex(value: string, cancelIndex: number): string | true {
-  const num = parseInt(value, 10);
+  const num = parseInt(value, DEFAULT_RADIX);
 
   // 输入非法
-  if (isNaN(num) || num < 0 || num > cancelIndex) {
-    return `请输入 0-${cancelIndex} 之间的数字`;
+  if (isNaN(num) || num < MIN_VALID_INDEX || num > cancelIndex) {
+    return `请输入 ${MIN_VALID_INDEX}-${cancelIndex} 之间的数字`;
   }
   // 输入合法
   else {
