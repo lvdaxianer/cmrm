@@ -26,7 +26,7 @@ const DEFAULT_CODEX_REASONING_EFFORT = 'high';
 const DEFAULT_DISABLE_RESPONSE_STORAGE = true;
 
 /** 默认 Provider */
-const DEFAULT_PROVIDER = 'custom';
+const DEFAULT_PROVIDER = 'custom-openai';
 
 /**
  * 构建配置名称问题

@@ -29,6 +29,7 @@ import { runAliasShortcut } from './alias-shortcut';
 import { runImportShortcut } from './import-handler';
 import { runSetLangShortcut } from './set-lang-shortcut';
 import { reportUnknown, printModelNotFoundAllTools } from './shortcut-helpers';
+import { runEditForModel } from './edit-handler';
 import { t } from '../i18n';
 import { getPrimaryModelName } from './model-identity';
 
@@ -115,6 +116,10 @@ async function dispatchByKind(parsed: ParsedArgs, ui: UIRenderer): Promise<numbe
   // switch <model>:切换模型
   if (parsed.kind === 'switch') {
     return runSwitchShortcut(parsed.model, ui);
+  }
+  // edit <model>:编辑指定模型
+  else if (parsed.kind === 'edit') {
+    return runEditShortcut(parsed.model, ui);
   }
   // test <model>:测试连通性
   else if (parsed.kind === 'test') {
@@ -276,6 +281,37 @@ async function runAliasShortcutMultiTool(
   // 找到:使用对应适配器添加别名
   else {
     return runAliasShortcut(found.adapter, modelName, alias, ui);
+  }
+}
+
+/**
+ * 执行 edit 快捷方式(多工具版)
+ * 找到模型后复用交互式编辑流程的核心保存逻辑
+ *
+ * @param modelName - 用户输入的模型名
+ * @param ui - UI 渲染器
+ * @return 进程退出码
+ * @author lvdaxianerplus
+ * @date 2026-05-21
+ */
+async function runEditShortcut(modelName: string, ui: UIRenderer): Promise<number> {
+  const found = findModelAcrossAllAdapters(modelName);
+
+  // 未找到:友好提示
+  if (!found) {
+    printModelNotFoundAllTools(modelName, ui);
+    return EXIT_FAIL;
+  }
+  // 找到:进入编辑流程
+  else {
+    const result = await runEditForModel(found.adapter, found.model, ui);
+
+    if (result === 'saved') {
+      return EXIT_OK;
+    }
+    else {
+      return EXIT_FAIL;
+    }
   }
 }
 

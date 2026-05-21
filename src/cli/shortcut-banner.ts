@@ -24,6 +24,7 @@ interface ShortcutItem {
 /** 快捷方式条目集合,集中维护避免散落多处 */
 const SHORTCUTS: ShortcutItem[] = [
   { cmd: 'cmrm switch <name>',          desc: '快速切换模型' },
+  { cmd: 'cmrm edit <name>',            desc: '编辑已保存配置' },
   { cmd: 'cmrm test <name>',            desc: '快速测试连通性' },
   { cmd: 'cmrm alias <name> <alias>',   desc: '为模型添加别名' },
   { cmd: 'cmrm --help',                 desc: '查看详细帮助' },

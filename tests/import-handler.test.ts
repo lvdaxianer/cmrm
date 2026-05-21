@@ -331,7 +331,7 @@ describe('runImportShortcut - 验证与测试', () => {
     // 验证保存被调用
     expect(adapter.saveModel).toHaveBeenCalledTimes(1);
     expect(adapter.saveModel).toHaveBeenCalledWith(expect.objectContaining({
-      name: 'codex/gpt-5',
+      name: 'custom-openai/gpt-5',
       aliases: ['custom-gpt'],
     }));
   });

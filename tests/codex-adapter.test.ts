@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../src/adapters/codex-config', () => ({
   parseCodexConfig: mocks.parseCodexConfig,
   writeCodexConfig: mocks.writeCodexConfig,
-  CODEX_RUNTIME_PROVIDER: 'openai',
+  CODEX_RUNTIME_PROVIDER: 'custom-openai',
 }));
 
 vi.mock('../src/adapters/codex-auth', () => ({
@@ -34,12 +34,12 @@ describe('CodexAdapter', () => {
   it('readCurrentModel 应正确回读 snake_case 字段', () => {
     mocks.parseCodexConfig.mockReturnValue({
       model: 'gpt-5.4',
-      model_provider: 'openai',
+      model_provider: 'custom-openai',
       openai_base_url: 'https://openrouter.ai/api',
       model_reasoning_effort: 'high',
       disable_response_storage: true,
       model_providers: {
-        openai: {
+        'custom-openai': {
           base_url: 'https://openrouter.ai/api',
           env_key: 'OPENAI_API_KEY',
         },
@@ -53,7 +53,7 @@ describe('CodexAdapter', () => {
     const result = adapter.readCurrentModel();
 
     expect(result).not.toBeNull();
-    expect(result!.provider).toBe('openai');
+    expect(result!.provider).toBe('custom-openai');
     expect(result!.baseUrl).toBe('https://openrouter.ai/api');
     expect(result!.modelReasoningEffort).toBe('high');
     expect(result!.disableResponseStorage).toBe(true);

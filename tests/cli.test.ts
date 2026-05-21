@@ -9,6 +9,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CLI } from '../src/cli';
 
+/** 当前命令菜单中 /exit 的索引 */
+const EXIT_COMMAND_INDEX = '10';
+
 vi.mock('readline', () => ({
   createInterface: vi.fn(() => ({
     close: vi.fn(),
@@ -31,7 +34,7 @@ vi.mock('../src/cli/readline-helper', () => ({
 
 vi.mock('inquirer', () => ({
   default: {
-    prompt: vi.fn().mockResolvedValue({ index: '9' }),
+    prompt: vi.fn().mockResolvedValue({ index: '10' }),
   },
 }));
 
@@ -153,7 +156,7 @@ describe('CLI - start', () => {
     const cli = new CLI();
 
     const inquirer = await import('inquirer');
-    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
+    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '10' });
 
     await cli.start();
 
@@ -166,7 +169,7 @@ describe('CLI - start', () => {
     mockEnsureSettingsCreated = true;
 
     const inquirer = await import('inquirer');
-    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
+    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '10' });
 
     const cli = new CLI();
     await cli.start();
@@ -182,7 +185,7 @@ describe('CLI - handleInput', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const cli = new CLI();
     const inquirer = await import('inquirer');
-    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
+    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '10' });
 
     await (cli as any).inputHandler.handleInput('/list');
 
@@ -193,7 +196,7 @@ describe('CLI - handleInput', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const cli = new CLI();
     const inquirer = await import('inquirer');
-    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
+    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '10' });
 
     await (cli as any).inputHandler.handleInput('/current');
 
@@ -204,7 +207,7 @@ describe('CLI - handleInput', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const cli = new CLI();
     const inquirer = await import('inquirer');
-    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
+    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '10' });
 
     await (cli as any).inputHandler.handleInput('/set-lang');
 
@@ -227,7 +230,7 @@ describe('CLI - handleInput', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const cli = new CLI();
     const inquirer = await import('inquirer');
-    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
+    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '10' });
 
     await (cli as any).inputHandler.handleInput('');
 
@@ -238,7 +241,7 @@ describe('CLI - handleInput', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const cli = new CLI();
     const inquirer = await import('inquirer');
-    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
+    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '10' });
 
     await (cli as any).inputHandler.handleInput('/unknown');
 
@@ -249,7 +252,7 @@ describe('CLI - handleInput', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const cli = new CLI();
     const inquirer = await import('inquirer');
-    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
+    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '10' });
 
     await (cli as any).inputHandler.handleInput('random text');
 
@@ -279,6 +282,7 @@ describe('CLI - isToolSelectionCommand', () => {
 
     expect((cli as any).inputHandler.isToolSelectionCommand('/switch')).toBe(true);
     expect((cli as any).inputHandler.isToolSelectionCommand('/add')).toBe(true);
+    expect((cli as any).inputHandler.isToolSelectionCommand('/edit')).toBe(true);
     expect((cli as any).inputHandler.isToolSelectionCommand('/remove')).toBe(true);
     expect((cli as any).inputHandler.isToolSelectionCommand('/info')).toBe(true);
     expect((cli as any).inputHandler.isToolSelectionCommand('/test')).toBe(true);
@@ -292,6 +296,7 @@ describe('CLI - isKnownCommand', () => {
     const cli = new CLI();
 
     expect((cli as any).inputHandler.isKnownCommand('/switch')).toBe(true);
+    expect((cli as any).inputHandler.isKnownCommand('/edit')).toBe(true);
     expect((cli as any).inputHandler.isKnownCommand('/unknown')).toBe(false);
   });
 });
@@ -339,7 +344,7 @@ describe('CLI - start with builtin template', () => {
 
     const cli = new CLI();
     const inquirer = await import('inquirer');
-    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '9' });
+    vi.mocked(inquirer.default.prompt).mockResolvedValue({ index: '10' });
 
     await cli.start();
 
@@ -362,6 +367,19 @@ describe('CLI - handleInput tool selection', () => {
     expect(showToolSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
+
+  it('应处理 /edit 命令', async () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const cli = new CLI();
+
+    const { showToolSelection } = await import('../src/cli/operation-orchestrator');
+    const showToolSpy = vi.mocked(showToolSelection);
+
+    await (cli as any).inputHandler.handleInput('/edit');
+
+    expect(showToolSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
 });
 
 describe('CLI - showCommandSelection error handling', () => {
@@ -376,7 +394,7 @@ describe('CLI - showCommandSelection error handling', () => {
       if (callCount === 1) {
         return Promise.reject(new Error('prompt error'));
       }
-      return Promise.resolve({ index: '9' });
+      return Promise.resolve({ index: '10' });
     });
 
     await (cli as any).showCommandSelection();
@@ -396,7 +414,7 @@ describe('CLI - promptCommandIndex validation', () => {
       if (questions && questions[0] && questions[0].validate) {
         validateResult = questions[0].validate('99');
       }
-      return Promise.resolve({ index: '9' });
+      return Promise.resolve({ index: '10' });
     });
 
     await (cli as any).promptCommandIndex();

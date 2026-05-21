@@ -53,6 +53,9 @@ const DEFAULT_API_TYPE_ANTHROPIC = 'anthropic';
 /** 默认 OpenAI API 类型 */
 const DEFAULT_API_TYPE_OPENAI = 'openai';
 
+/** 默认 Codex Provider */
+const DEFAULT_CODEX_PROVIDER = 'custom-openai';
+
 /**
  * 构建添加模型的 inquirer 问题列表
  * 根据适配器类型返回对应的问题列表
@@ -129,7 +132,7 @@ function buildCodexQuestions(defaults: Partial<UnifiedModelConfig>): Question[] 
   const codexDefaults: Partial<UnifiedModelConfig> = {
     ...defaults,
     model: defaults.model || DEFAULT_CODEX_MODEL,
-    provider: 'codex',
+    provider: defaults.provider || DEFAULT_CODEX_PROVIDER,
     modelReasoningEffort: defaults.modelReasoningEffort || DEFAULT_CODEX_REASONING_EFFORT,
     disableResponseStorage: defaults.disableResponseStorage ?? DEFAULT_DISABLE_RESPONSE_STORAGE,
   };
@@ -208,7 +211,7 @@ function buildClaudeModelConfig(response: Record<string, any>): UnifiedModelConf
  * @date 2026-05-09
  */
 function buildCodexModelConfig(response: Record<string, any>): UnifiedModelConfig {
-  const provider = response.provider?.trim() || 'custom';
+  const provider = response.provider?.trim() || DEFAULT_CODEX_PROVIDER;
   const model = response.model.trim();
   const explicitName = response.configName?.trim();
   // 基础字段（必填）：trim 后组装

@@ -7,10 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-05-21
+
+### Added
+- 新增 `/edit` 交互命令，用于仅编辑已保存配置的模型名称与 API Key
+- 新增 `cmrm edit <name>` 快捷命令，可直接按名称编辑已保存配置或 profile
+- 新增 Codex 导入映射测试，覆盖缺省 provider 回退到 `custom-openai` 的场景
+
 ### Changed
-- 更新 README、CHANGELOG、i18n 并发布 0.2.3 (c8c7ede)
-- 添加 import 命令、model-identity 与 CLI 增强 (7a3e9c4)
-- 添加 Codex 工具适配器核心实现与运行时支持 (5724a53)
+- Codex 新增、导入与运行时缺省 provider 统一改为 `custom-openai`
+- 帮助文案、快捷横幅、README 与中英日 i18n 文案统一收敛到“配置 / profile / saved identity”语义
+- `/add` 与 `/edit` 成功提示统一显示“已保存身份”，避免把配置名误标为工具名
+
+### Fixed
+- 修复 `cmrm edit <name>` 在取消保存时仍返回成功退出码的问题
+- 修复 `/edit` 流程直接退出时绕过统一 CLI 退出路径的问题
+- 修复编辑流程中明文回显已保存 API Key 的安全问题
+- 修复 Codex 导入测试仍断言旧默认 provider 导致全量测试失败的问题
 
 ## [0.2.3] - 2026-05-11
 
@@ -24,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `switch/test/alias <name>` 的全局名称解析统一收敛到规范名优先
 - `/add` 中用户填写的可选配置名改为保存为 alias，不再覆盖主 `name`
-- Codex `config.toml` 写入逻辑改为沿用现有 provider，缺失时才补 `openai`
+- Codex `config.toml` 写入逻辑改为沿用现有 provider，缺失时才补 `custom-openai`
 - README / README.zh-CN` 同步更新为 Claude + Codex 双工具语义
 
 ### Fixed

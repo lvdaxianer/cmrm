@@ -19,13 +19,14 @@ import { UIRenderer } from './ui';
 import { selectTool, ToolPickResult } from './tool-selector';
 import { pickModel, ModelPickResult } from './model-picker';
 import { runAddFlow } from './add-handler';
+import { runEditFlow } from './edit-handler';
 import { runSwitchAction, runRemoveAction, showModelInfo } from './model-actions';
 import { runTestMenu } from './test-menu-runner';
 import { runAliasFlow } from './alias-handler';
 import { t } from '../i18n';
 
 /** 顶级命令对应的下游操作类型 */
-export type NextOperation = 'switch' | 'add' | 'remove' | 'info' | 'test' | 'alias' | null;
+export type NextOperation = 'switch' | 'add' | 'edit' | 'remove' | 'info' | 'test' | 'alias' | null;
 
 /** 子流程类型(switch/remove/info 共享同一选择菜单) */
 type ModelActionMode = 'switch' | 'remove' | 'info';
@@ -158,6 +159,13 @@ async function runOperation(
   // /add
   else if (op === 'add') {
     await runAddFlow(adapter, ctx.ui, ctx.rl);
+    await finalizeAndReturn(ctx);
+  }
+  // /edit
+  else if (op === 'edit') {
+    await runEditFlow(adapter, ctx.ui, ctx.rl, {
+      onExit: () => ctx.exitProgram(),
+    });
     await finalizeAndReturn(ctx);
   }
   // /remove

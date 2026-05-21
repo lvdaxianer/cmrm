@@ -20,6 +20,19 @@ describe('buildModelConfig - codex', () => {
     expect(config.provider).toBe('uino');
   });
 
+  it('未填写 provider 时应默认使用 custom-openai', () => {
+    const config = buildModelConfig('codex', {
+      model: 'gpt-5.4',
+      apiKey: 'sk-test',
+      baseUrl: 'https://api.example.com',
+      modelReasoningEffort: 'high',
+      disableResponseStorage: true,
+    });
+
+    expect(config.name).toBe('custom-openai/gpt-5.4');
+    expect(config.provider).toBe('custom-openai');
+  });
+
   it('填写 configName 时应转成 alias 而不是覆盖规范 name', () => {
     const config = buildModelConfig('codex', {
       configName: 'prod',

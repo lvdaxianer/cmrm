@@ -163,7 +163,7 @@ async function confirmStillSave(): Promise<boolean> {
  */
 export function showAddModelResult(config: UnifiedModelConfig, ui: UIRenderer): void {
   ui.showSuccess('\n' + t('add.modelAdded'));
-  ui.showInfo(`  ${t('actions.tool')}:     ${config.name}`);
+  ui.showInfo(`  ${t('ui.savedLabel')}: ${config.name}`);
   ui.showInfo(`  ${t('actions.model')}:     ${config.model}`);
 
   // API Key 脱敏（仅显示前 N 位，避免泄露完整密钥）

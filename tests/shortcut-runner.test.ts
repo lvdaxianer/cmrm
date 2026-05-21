@@ -40,8 +40,13 @@ vi.mock('../src/utils/tester', () => ({
   testModelConfig: vi.fn(),
 }));
 
+vi.mock('../src/cli/edit-handler', () => ({
+  runEditForModel: vi.fn().mockResolvedValue('saved'),
+}));
+
 import { runSwitchAction } from '../src/cli/model-actions';
 import { testModelConfig } from '../src/utils/tester';
+import { runEditForModel } from '../src/cli/edit-handler';
 import * as fs from 'fs';
 
 /**
@@ -154,6 +159,59 @@ describe('runShortcut - switch', () => {
 
     expect(code).toBe(1);
     expect(runSwitchAction).not.toHaveBeenCalled();
+    expect(ui.showError).toHaveBeenCalled();
+  });
+});
+
+/**
+ * edit 分支
+ */
+describe('runShortcut - edit', () => {
+  // 命中 → 调用 runEditForModel 且退出码为 0
+  it('edit 命中模型时应调用 runEditForModel 并返回 0', async () => {
+    const target = buildModel({
+      name: 'openrouter/gpt-5.4',
+      model: 'gpt-5.4',
+      provider: 'openrouter',
+    });
+    registry.register(buildMockClaudeAdapter([target]));
+    const ui = buildSilentUi();
+
+    const code = await runShortcut({ kind: 'edit', model: 'openrouter/gpt-5.4' }, ui);
+
+    expect(code).toBe(0);
+    expect(runEditForModel).toHaveBeenCalledTimes(1);
+    expect(runEditForModel).toHaveBeenCalledWith(expect.anything(), target, ui);
+  });
+
+  // 用户取消或未保存 → 返回 1，便于脚本判断
+  it('edit 命中但未保存时应返回 1', async () => {
+    const target = buildModel({
+      name: 'custom-openai/gpt-5.4',
+      model: 'gpt-5.4',
+      provider: 'custom-openai',
+    });
+    registry.register(buildMockClaudeAdapter([target]));
+    vi.mocked(runEditForModel).mockResolvedValueOnce('cancelled');
+    const ui = buildSilentUi();
+
+    const code = await runShortcut({ kind: 'edit', model: 'custom-openai/gpt-5.4' }, ui);
+
+    expect(code).toBe(1);
+    expect(runEditForModel).toHaveBeenCalledTimes(1);
+  });
+
+  // 未命中 → 不调 runEditForModel,提示并退出码 1
+  it('edit 未命中模型时应返回 1 并展示错误提示', async () => {
+    registry.register(buildMockClaudeAdapter([
+      buildModel({ name: 'haiku', model: 'claude-haiku-4-5' }),
+    ]));
+    const ui = buildSilentUi();
+
+    const code = await runShortcut({ kind: 'edit', model: 'nonexistent' }, ui);
+
+    expect(code).toBe(1);
+    expect(runEditForModel).not.toHaveBeenCalled();
     expect(ui.showError).toHaveBeenCalled();
   });
 });

@@ -32,6 +32,7 @@ export interface CommandDefinition {
 export const AVAILABLE_COMMANDS: CommandDefinition[] = [
   { name: '/switch', description: 'Switch Model Config', descriptionKey: 'commands.desc.switch' },
   { name: '/add', description: 'Add Model Config', descriptionKey: 'commands.desc.add' },
+  { name: '/edit', description: 'Edit Model Config', descriptionKey: 'commands.desc.edit' },
   { name: '/remove', description: 'Remove Model Config', descriptionKey: 'commands.desc.remove' },
   { name: '/info', description: 'View Model Details', descriptionKey: 'commands.desc.info' },
   { name: '/test', description: 'Test Model Config', descriptionKey: 'commands.desc.test' },

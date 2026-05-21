@@ -11,6 +11,7 @@
  *   cmrm                                      → interactive(进入原交互模式)
  *   cmrm --help / -h / help                   → help
  *   cmrm switch <model-name>                  → { kind: 'switch', model }
+ *   cmrm edit <model-name>                    → { kind: 'edit', model }
  *   cmrm test <model-name>                    → { kind: 'test', model }
  *   cmrm alias <model-name> <new-alias>       → { kind: 'alias', model, alias }
  *   cmrm <tool> import <file>                 → { kind: 'import', tool, file }
@@ -49,6 +50,7 @@ export type ParsedArgs =
   | { kind: 'help' }
   | { kind: 'version' }
   | { kind: 'switch'; model: string }
+  | { kind: 'edit'; model: string }
   | { kind: 'test'; model: string }
   | { kind: 'alias'; model: string; alias: string }
   | { kind: 'setLang'; locale: string }
@@ -100,6 +102,10 @@ function parseFirstToken(args: string[]): ParsedArgs {
   else if (first === 'switch') {
     return parseSwitch(rest);
   }
+  // edit 子命令
+  else if (first === 'edit') {
+    return parseEdit(rest);
+  }
   // test 子命令
   else if (first === 'test') {
     return parseTest(rest);
@@ -141,6 +147,28 @@ function parseSwitch(rest: string[]): ParsedArgs {
   // 输入完整:返回 switch 分支
   else {
     return { kind: 'switch', model };
+  }
+}
+
+/**
+ * 解析 edit <model-name>
+ * 缺失模型名时降级为 unknown,提示用户查看 help
+ *
+ * @param rest - 'edit' 之后的剩余参数
+ * @return 解析结果
+ * @author lvdaxianerplus
+ * @date 2026-05-21
+ */
+function parseEdit(rest: string[]): ParsedArgs {
+  const model = rest[FIRST_REST_INDEX]?.trim();
+
+  // 缺失模型名:作为未知命令处理
+  if (!model) {
+    return { kind: 'unknown', input: 'edit (missing model name)' };
+  }
+  // 输入完整:返回 edit 分支
+  else {
+    return { kind: 'edit', model };
   }
 }
 

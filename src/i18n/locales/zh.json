@@ -19,6 +19,7 @@
     "desc": {
       "switch": "切换模型配置",
       "add": "添加新模型配置(支持模板/自定义)",
+      "edit": "编辑模型配置(仅模型名称和 Key)",
       "remove": "删除模型配置",
       "info": "查看模型详细信息",
       "test": "测试模型配置是否可用",
@@ -145,13 +146,16 @@
     "apiTypeOpenAIDesc": "Chat Completions 格式",
     "apiTypeSelect": "选择 API 类型"
   },
+  "edit": {
+    "updated": "模型配置已更新"
+  },
   "fuzzy": {
     "noCommandStartsWith": "没有以 {input} 开头的命令",
     "availableCommands": "可用命令",
     "unknownCommand": "未知命令: {input}",
     "pressEnterHint": "按 Enter 确认，或继续输入",
     "didYouMean": "您是想输入:",
-    "commandListFallback": "可用命令: /switch, /add, /remove, /info, /test, /list, /current, /exit"
+    "commandListFallback": "可用命令: /switch, /add, /edit, /remove, /info, /test, /list, /current, /exit"
   },
   "ui": {
     "selectCommandFull": "选择命令 (↑/↓ 选择，Enter 确认，Ctrl+C 退出):",
@@ -171,19 +175,21 @@
     "detail": "详情"
   },
   "help": {
-    "subtitle": "Claude CLI 模型快速切换/测试工具",
+    "subtitle": "多工具 AI CLI 配置切换与测试工具",
     "usageInteractive": "进入交互式菜单(默认)",
-    "usageSwitch": "快速切换 claude 工具的模型",
-    "usageTest": "快速测试已保存模型的连通性",
-    "usageAlias": "为模型添加全局唯一别名",
+    "usageSwitch": "快速切换已保存配置或 profile",
+    "usageEdit": "直接编辑已保存配置的模型名称和 API Key",
+    "usageTest": "快速测试已保存配置或 profile 的连通性",
+    "usageAlias": "为已保存配置或 profile 添加全局唯一别名",
     "usageImport": "从文件导入模型配置",
     "usageHelp": "显示本帮助",
     "usageVersion": "显示版本号",
-    "exampleSwitchComment": "切换到名为 sonnet-4 的模型(默认工具=claude)",
-    "exampleTestComment": "测试 gpt-4o-mini 模型的连通性",
-    "exampleAliasComment": "为 sonnet-4 模型添加 fast 别名,之后可 cmrm switch fast",
+    "exampleSwitchComment": "切换到名为 sonnet-4 的已保存配置或 profile",
+    "exampleEditComment": "直接编辑指定的已保存配置",
+    "exampleTestComment": "测试名为 gpt-4o-mini 的已保存配置或 profile 连通性",
+    "exampleAliasComment": "为名为 sonnet-4 的已保存配置或 profile 添加 fast 别名,之后可 cmrm switch fast",
     "exampleImportComment": "从 config.json 文件导入 Claude 模型配置",
-    "noteMatchRule": "模型名按 name → aliases → model 三级匹配,首项命中即返回",
+    "noteMatchRule": "输入名称按 name → aliases → model 三级匹配,首项命中即返回",
     "noteAliasUnique": "别名全局唯一,跨模型/跨工具不可重复",
     "noteNotFound": "找不到模型时会列出所有可用名称,退出码为 1",
     "noteInteractive": "不传任何参数时进入完整交互菜单",
@@ -192,8 +198,8 @@
   "shortcut": {
     "testing": "正在测试 [{apiType}] {name} ...",
     "modelNotFound": "未找到模型: {name}",
-    "availableModels": "可用模型:",
-    "noModelsHint": "当前没有保存的模型,使用 `cmrm` 进入交互菜单后选 /add 添加"
+    "availableModels": "可用名称:",
+    "noModelsHint": "当前没有保存的配置或 profile,使用 `cmrm` 进入交互菜单后选 /add 添加"
   },
   "import": {
     "fileNotFound": "文件不存在: {file}",

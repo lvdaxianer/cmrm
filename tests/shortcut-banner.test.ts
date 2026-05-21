@@ -3,8 +3,8 @@
  * 验证 printShortcutBanner 输出的行数与关键文本
  *
  * 测试目标:
- *  - 至少打印 4 行(3 条快捷方式 + 1 行空行)
- *  - 输出文本应包含 cmrm switch / cmrm test / cmrm --help 三个关键字
+ *  - 至少打印 5 行(4 条快捷方式 + 1 行空行)
+ *  - 输出文本应包含 cmrm switch / cmrm edit / cmrm test / cmrm --help 关键字
  *  - 调用过程不抛异常
  *
  * @author lvdaxianerplus
@@ -31,12 +31,12 @@ afterEach(() => {
  * 行数与是否抛异常的基础校验
  */
 describe('printShortcutBanner - 行数与异常', () => {
-  // 至少打印 4 行(3 条快捷命令 + 1 行结尾空行)
-  it('应至少调用 console.log 4 次', () => {
+  // 至少打印 5 行(4 条快捷命令 + 1 行结尾空行)
+  it('应至少调用 console.log 5 次', () => {
     printShortcutBanner();
 
     expect(logSpy).toHaveBeenCalled();
-    expect(logSpy.mock.calls.length).toBeGreaterThanOrEqual(4);
+    expect(logSpy.mock.calls.length).toBeGreaterThanOrEqual(5);
   });
 
   // 调用过程不抛异常
@@ -67,6 +67,12 @@ describe('printShortcutBanner - 文本内容', () => {
     printShortcutBanner();
 
     expect(joinAllOutput()).toContain('cmrm switch <name>');
+  });
+
+  it('输出应包含 "cmrm edit <name>"', () => {
+    printShortcutBanner();
+
+    expect(joinAllOutput()).toContain('cmrm edit <name>');
   });
 
   // 关键字:cmrm test

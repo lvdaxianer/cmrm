@@ -80,6 +80,37 @@ describe('parseArgv - switch', () => {
 });
 
 /**
+ * edit 分支
+ */
+describe('parseArgv - edit', () => {
+  // 完整 edit 命令
+  it('edit <model> 应返回 edit 分支并携带模型名', () => {
+    expect(parseArgv(['edit', 'openrouter/gpt-5.4'])).toEqual({
+      kind: 'edit',
+      model: 'openrouter/gpt-5.4',
+    });
+  });
+
+  // 缺失模型名:降级 unknown
+  it('edit 缺少模型名时应降级为 unknown', () => {
+    const result = parseArgv(['edit']);
+
+    expect(result.kind).toBe('unknown');
+    if (result.kind === 'unknown') {
+      expect(result.input).toContain('edit');
+    }
+  });
+
+  // 模型名前后有空白:trim 处理
+  it('edit <  model  > 应自动 trim', () => {
+    expect(parseArgv(['edit', '  gpt-5.5  '])).toEqual({
+      kind: 'edit',
+      model: 'gpt-5.5',
+    });
+  });
+});
+
+/**
  * test 分支
  */
 describe('parseArgv - test', () => {

@@ -49,6 +49,7 @@ function printUsage(): void {
   console.log(chalk.cyan('USAGE:'));
   console.log('  ' + chalk.green('cmrm') + chalk.gray(`                                 ${t('help.usageInteractive')}`));
   console.log('  ' + chalk.green('cmrm switch <model-name>') + chalk.gray(`             ${t('help.usageSwitch')}`));
+  console.log('  ' + chalk.green('cmrm edit <model-name>') + chalk.gray(`               ${t('help.usageEdit')}`));
   console.log('  ' + chalk.green('cmrm test <model-name>') + chalk.gray(`               ${t('help.usageTest')}`));
   console.log('  ' + chalk.green('cmrm alias <model-name> <new-alias>') + chalk.gray(`  ${t('help.usageAlias')}`));
   console.log('  ' + chalk.green('cmrm <tool> import <file>') + chalk.gray(`            ${t('help.usageImport')}`));
@@ -67,6 +68,8 @@ function printExamples(): void {
   console.log(chalk.cyan('EXAMPLES:'));
   console.log('  ' + chalk.gray(`# ${t('help.exampleSwitchComment')}`));
   console.log('  ' + chalk.green('cmrm switch sonnet-4'));
+  console.log('  ' + chalk.gray(`# ${t('help.exampleEditComment')}`));
+  console.log('  ' + chalk.green('cmrm edit openrouter/gpt-5.4'));
   console.log('  ' + chalk.gray(`# ${t('help.exampleTestComment')}`));
   console.log('  ' + chalk.green('cmrm test gpt-4o-mini'));
   console.log('  ' + chalk.gray(`# ${t('help.exampleAliasComment')}`));

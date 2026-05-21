@@ -16,7 +16,7 @@ const ADAPTER_NAME_CLAUDE = 'claude';
 const ADAPTER_NAME_CODEX = 'codex';
 
 /** 默认 Codex Provider */
-const DEFAULT_CODEX_PROVIDER = 'codex';
+const DEFAULT_CODEX_PROVIDER = 'custom-openai';
 
 /** 默认 Anthropic API 类型 */
 const DEFAULT_API_TYPE_ANTHROPIC = 'anthropic';

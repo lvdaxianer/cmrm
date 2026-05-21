@@ -115,7 +115,7 @@ describe('codex-config - mergeTomlConfig', () => {
     expect(result.config.model_providers.openrouter.base_url).toBe('https://new.example.com');
   });
 
-  it('若当前没有 provider，应补一个 openai provider', () => {
+  it('若当前没有 provider，应补一个 custom-openai provider', () => {
     const original = {
       model: 'gpt-4.1',
       model_reasoning_effort: 'medium',
@@ -126,15 +126,15 @@ describe('codex-config - mergeTomlConfig', () => {
       model: 'gpt-5.4',
       apiKey: 'sk-test',
       baseUrl: 'https://proxy.example.com/v1',
-      provider: 'openai',
+      provider: 'custom-openai',
       modelReasoningEffort: 'high',
       disableResponseStorage: true,
     });
 
     expect(result.changed).toBe(true);
-    expect(result.config.model_provider).toBe('openai');
+    expect(result.config.model_provider).toBe('custom-openai');
     expect(result.config.openai_base_url).toBe('https://proxy.example.com/v1');
-    expect(result.config.model_providers.openai.base_url).toBe('https://proxy.example.com/v1');
+    expect(result.config.model_providers['custom-openai'].base_url).toBe('https://proxy.example.com/v1');
   });
 });
 
@@ -217,14 +217,14 @@ disable_response_storage = true
     expect(fs.writeFileSync).toHaveBeenCalled();
   });
 
-  it('缺少 provider 时应创建 openai provider 并写 openai_base_url', () => {
+  it('缺少 provider 时应创建 custom-openai provider 并写 openai_base_url', () => {
     vi.mocked(fs.existsSync).mockReturnValue(false);
 
     const result = writeCodexConfig('/tmp/config.toml', {
       model: 'gpt-5.4',
       apiKey: 'sk-test',
       baseUrl: 'https://proxy.example.com/v1',
-      provider: 'openai',
+      provider: 'custom-openai',
       modelReasoningEffort: 'high',
       disableResponseStorage: true,
     });
@@ -232,10 +232,10 @@ disable_response_storage = true
     expect(result).toBe('backup_2026051000');
     expect(TOML.stringify).toHaveBeenCalledWith(expect.objectContaining({
       model: 'gpt-5.4',
-      model_provider: 'openai',
+      model_provider: 'custom-openai',
       openai_base_url: 'https://proxy.example.com/v1',
       model_providers: {
-        openai: expect.objectContaining({
+        'custom-openai': expect.objectContaining({
           base_url: 'https://proxy.example.com/v1',
         }),
       },

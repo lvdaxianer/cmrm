@@ -19,6 +19,7 @@
     "desc": {
       "switch": "モデル構成を切り替え",
       "add": "モデル構成を追加(テンプレート/カスタム)",
+      "edit": "モデル構成を編集(モデル名とKeyのみ)",
       "remove": "モデル構成を削除",
       "info": "モデル詳細を表示",
       "test": "モデル構成をテスト",
@@ -145,13 +146,16 @@
     "apiTypeOpenAIDesc": "Chat Completions 形式",
     "apiTypeSelect": "API タイプを選択"
   },
+  "edit": {
+    "updated": "モデル構成が更新されました"
+  },
   "fuzzy": {
     "noCommandStartsWith": "一致するコマンドがありません: {input}",
     "availableCommands": "利用可能なコマンド",
     "unknownCommand": "不明なコマンド: {input}",
     "pressEnterHint": "Enter で確定、または入力を続行",
     "didYouMean": "おそらく:",
-    "commandListFallback": "利用可能なコマンド: /switch, /add, /remove, /info, /test, /list, /current, /exit"
+    "commandListFallback": "利用可能なコマンド: /switch, /add, /edit, /remove, /info, /test, /list, /current, /exit"
   },
   "ui": {
     "selectCommandFull": "コマンドを選択 (↑/↓ 選択、Enter 確定、Ctrl+C 終了):",
@@ -171,19 +175,21 @@
     "detail": "詳細"
   },
   "help": {
-    "subtitle": "Claude CLI モデル高速切り替え/テストツール",
+    "subtitle": "マルチツール AI CLI 設定の切り替え・テストツール",
     "usageInteractive": "インタラクティブメニューに入る(デフォルト)",
-    "usageSwitch": "claude ツールのモデルを高速切り替え",
-    "usageTest": "保存済みモデルの接続性を高速テスト",
-    "usageAlias": "モデルにグローバルな別名を追加",
+    "usageSwitch": "保存済み構成または profile を高速切り替え",
+    "usageEdit": "保存済み構成のモデル名と API Key を直接編集",
+    "usageTest": "保存済み構成または profile の接続性を高速テスト",
+    "usageAlias": "保存済み構成または profile にグローバルな別名を追加",
     "usageImport": "ファイルからモデル設定をインポート",
     "usageHelp": "このヘルプを表示",
     "usageVersion": "バージョン番号を表示",
-    "exampleSwitchComment": "sonnet-4 というモデルに切り替え(デフォルトツール=claude)",
-    "exampleTestComment": "gpt-4o-mini モデルの接続性をテスト",
-    "exampleAliasComment": "sonnet-4 モデルに fast という別名を追加、cmrm switch fast 可能に",
+    "exampleSwitchComment": "sonnet-4 という保存済み構成または profile に切り替え",
+    "exampleEditComment": "保存済み構成を名前指定で直接編集",
+    "exampleTestComment": "gpt-4o-mini という保存済み構成または profile の接続性をテスト",
+    "exampleAliasComment": "sonnet-4 という保存済み構成または profile に fast という別名を追加、cmrm switch fast 可能に",
     "exampleImportComment": "config.json から Claude モデル設定をインポート",
-    "noteMatchRule": "モデル名は name → aliases → model の優先順位でマッチング",
+    "noteMatchRule": "入力名は name → aliases → model の優先順位でマッチング",
     "noteAliasUnique": "別名はグローバルに一意、モデル間/ツール間で重複不可",
     "noteNotFound": "モデルが見つからない場合、利用可能な名前をすべて列出、終了コード 1",
     "noteInteractive": "引数なしで完全なインタラクティブメニューに入る",
@@ -192,8 +198,8 @@
   "shortcut": {
     "testing": "[{apiType}] {name} をテスト中 ...",
     "modelNotFound": "モデルが見つかりません: {name}",
-    "availableModels": "利用可能なモデル:",
-    "noModelsHint": "保存されたモデルがありません。`cmrm` でインタラクティブメニューに入り、/add を選択して追加してください"
+    "availableModels": "利用可能な名前:",
+    "noModelsHint": "保存済み構成または profile がありません。`cmrm` でインタラクティブメニューに入り、/add を選択して追加してください"
   },
   "import": {
     "fileNotFound": "ファイルが見つかりません: {file}",

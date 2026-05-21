@@ -54,6 +54,7 @@ cmrm
 |------|------|
 | `/switch` | 切换到已保存的 Claude 配置或 Codex profile |
 | `/add` | 交互式添加新配置（保存前自动测试） |
+| `/edit` | 编辑已保存配置的模型名称和 API Key |
 | `/remove` | 删除已保存的配置 |
 | `/info` | 以 JSON 格式查看配置详情 |
 | `/test` | 测试配置是否可用（已保存或自定义，支持重试） |
@@ -70,6 +71,7 @@ cmrm
 | 快捷方式 | 功能 |
 |---------|------|
 | `cmrm switch <name>` | 快速切换到已保存配置/profile |
+| `cmrm edit <name>` | 直接编辑已保存配置/profile 的模型名称和 API Key |
 | `cmrm test <name>` | 快速测试已保存配置/profile 的连通性 |
 | `cmrm alias <name> <new-alias>` | 为配置/profile 添加全局唯一别名 |
 | `cmrm <tool> import <file>` | 从文件导入 Claude 或 Codex 配置 |
@@ -77,6 +79,8 @@ cmrm
 | `cmrm --help` / `-h` | 查看帮助 |
 
 `<name>` 在所有工具里都是整体唯一的。其规范形式为：Claude 使用 `model`，Codex 使用 `provider/model`。快捷命令的匹配顺序为：规范 `name` → 历史自定义名称（仅旧数据兼容）→ `aliases` → `model`。别名同样跨配置 / 跨工具全局唯一。
+
+`cmrm edit <name>` 命中后，会以当前值作为默认值，只允许编辑模型名称和 API Key；其他字段如 Codex 的 `provider`、`baseUrl`、`modelReasoningEffort`、`disableResponseStorage` 会保持不变。
 
 ### 交互式选择
 
@@ -95,12 +99,13 @@ cmrm
 
 [0] /switch        切换配置/profile
 [1] /add           添加新配置
-[2] /remove        删除配置
-[3] /info          查看配置详情
-[4] /test          测试配置是否可用
-[5] /list          显示所有配置
-[6] /current       显示当前配置
-[7] /exit           退出程序
+[2] /edit          编辑已保存配置
+[3] /remove        删除配置
+[4] /info          查看配置详情
+[5] /test          测试配置是否可用
+[6] /list          显示所有配置
+[7] /current       显示当前配置
+[8] /exit          退出程序
 请输入命令索引: 0
 ```
 
@@ -233,7 +238,7 @@ Codex 补充说明：
 - `/add` 只会把 profile 保存到 `~/.cmrm/settings.json`
 - `/switch` 在 Codex 已存在 provider 时，不会主动修改这个运行时 provider
 - 切换时会更新 `model`、`model_reasoning_effort`、顶级 `openai_base_url`、该 provider 对应的 `base_url`，以及 `auth.json`
-- 只有当 Codex 还没有任何 provider 时，cmrm 才会补一个 `openai` provider，并写入 `openai_base_url`
+- 只有当 Codex 还没有任何 provider 时，cmrm 才会补一个 `custom-openai` provider，并写入 `openai_base_url`
 
 ## 备份文件
 
@@ -263,6 +268,13 @@ npm start
 ```
 
 ## 更新日志
+
+### 0.2.4
+- 🆕 新增 `/edit` 交互命令和 `cmrm edit <name>` 快捷方式，可编辑已保存配置/profile
+- 🔧 Codex 在新增、导入和运行时缺省 provider 场景统一回退为 `custom-openai`
+- 🐛 修复 `cmrm edit <name>` 取消保存时仍返回成功退出码的问题
+- 🔐 修复编辑流程明文显示已保存 API Key，并让 `/edit` 的退出走统一 CLI 退出路径
+- 📝 同步帮助文案、快捷横幅、README 和 i18n，统一配置/profile 语义
 
 ### 0.2.3
 - 🆕 完整支持 Codex：可保存 / 切换 / 测试 / 导入 Codex profile

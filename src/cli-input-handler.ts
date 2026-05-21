@@ -179,7 +179,7 @@ export class CliInputHandler {
    * @date 2026-05-11
    */
   private isToolSelectionCommand(input: string): boolean {
-    return ['/switch', '/add', '/remove', '/info', '/test', '/alias'].includes(input);
+    return ['/switch', '/add', '/edit', '/remove', '/info', '/test', '/alias'].includes(input);
   }
 
   /**

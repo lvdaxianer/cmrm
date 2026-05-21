@@ -25,7 +25,7 @@ const CODEX_CONFIG_DIR = '.codex';
 const CODEX_CONFIG_FILE = 'config.toml';
 
 /** 默认 provider 名称 */
-const DEFAULT_PROVIDER_NAME = 'openai';
+const DEFAULT_PROVIDER_NAME = 'custom-openai';
 
 /** 默认 wire api */
 const DEFAULT_WIRE_API = 'responses';

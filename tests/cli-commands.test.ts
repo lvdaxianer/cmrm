@@ -30,6 +30,13 @@ describe('命令定义', () => {
     expect(cmd?.descriptionKey).toBe('commands.desc.add');
   });
 
+  it('/edit 命令定义正确', () => {
+    const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/edit');
+
+    expect(cmd).toBeDefined();
+    expect(cmd?.descriptionKey).toBe('commands.desc.edit');
+  });
+
   // /remove 命令存在
   it('/remove 命令定义正确', () => {
     const cmd = AVAILABLE_COMMANDS.find(c => c.name === '/remove');
@@ -95,8 +102,8 @@ describe('命令定义', () => {
   });
 
   // 命令数量验证
-  it('可用命令数量为10个', () => {
-    expect(AVAILABLE_COMMANDS.length).toBe(10);
+  it('可用命令数量为11个', () => {
+    expect(AVAILABLE_COMMANDS.length).toBe(11);
   });
 
   // 所有命令以/开头

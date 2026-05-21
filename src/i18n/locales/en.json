@@ -19,6 +19,7 @@
     "desc": {
       "switch": "Switch Model Config",
       "add": "Add Model Config (Template/Custom)",
+      "edit": "Edit Model Config (Model Name and Key Only)",
       "remove": "Remove Model Config",
       "info": "View Model Details",
       "test": "Test Model Config",
@@ -145,13 +146,16 @@
     "apiTypeOpenAIDesc": "Chat Completions format",
     "apiTypeSelect": "Select API Type"
   },
+  "edit": {
+    "updated": "Model config updated"
+  },
   "fuzzy": {
     "noCommandStartsWith": "No command starts with: {input}",
     "availableCommands": "Available commands",
     "unknownCommand": "Unknown command: {input}",
     "pressEnterHint": "Press Enter to confirm, or continue typing",
     "didYouMean": "Did you mean:",
-    "commandListFallback": "Available commands: /switch, /add, /remove, /info, /test, /list, /current, /exit"
+    "commandListFallback": "Available commands: /switch, /add, /edit, /remove, /info, /test, /list, /current, /exit"
   },
   "ui": {
     "selectCommandFull": "Select command (↑/↓ navigate, Enter confirm, Ctrl+C exit):",
@@ -171,19 +175,21 @@
     "detail": "Detail"
   },
   "help": {
-    "subtitle": "Claude CLI model quick switch/test tool",
+    "subtitle": "Multi-tool AI CLI config switch and test utility",
     "usageInteractive": "Enter interactive menu (default)",
-    "usageSwitch": "Quick switch claude tool model",
-    "usageTest": "Quick test saved model connectivity",
-    "usageAlias": "Add global unique alias for model",
+    "usageSwitch": "Quickly switch a saved config or profile",
+    "usageEdit": "Edit a saved config's model name and API key directly",
+    "usageTest": "Quickly test a saved config or profile",
+    "usageAlias": "Add a globally unique alias to a saved config or profile",
     "usageImport": "Import model config from file",
     "usageHelp": "Show this help",
     "usageVersion": "Show version number",
-    "exampleSwitchComment": "Switch to sonnet-4 model (default tool=claude)",
-    "exampleTestComment": "Test gpt-4o-mini model connectivity",
-    "exampleAliasComment": "Add fast alias for sonnet-4, then cmrm switch fast",
+    "exampleSwitchComment": "Switch to the saved config or profile named sonnet-4",
+    "exampleEditComment": "Edit a saved config directly by name",
+    "exampleTestComment": "Test connectivity for the saved config or profile named gpt-4o-mini",
+    "exampleAliasComment": "Add the alias fast to the saved config or profile named sonnet-4, then run cmrm switch fast",
     "exampleImportComment": "Import Claude model config from config.json",
-    "noteMatchRule": "Model name matches by name → aliases → model, first match returns",
+    "noteMatchRule": "Input names match by name → aliases → model, first match returns",
     "noteAliasUnique": "Aliases are globally unique, cannot repeat across models/tools",
     "noteNotFound": "When model not found, lists all available names, exit code 1",
     "noteInteractive": "No args enters full interactive menu",
@@ -192,8 +198,8 @@
   "shortcut": {
     "testing": "Testing [{apiType}] {name} ...",
     "modelNotFound": "Model not found: {name}",
-    "availableModels": "Available models:",
-    "noModelsHint": "No saved models. Run `cmrm` to enter interactive menu and select /add to add one"
+    "availableModels": "Available names:",
+    "noModelsHint": "No saved configs or profiles. Run `cmrm` to enter the interactive menu and select /add to add one"
   },
   "import": {
     "fileNotFound": "File not found: {file}",

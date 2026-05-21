@@ -1,6 +1,6 @@
 {
   "name": "cmrm",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "CLI tool to manage and switch Claude and Codex CLI configurations",
   "main": "dist/cli.js",
   "bin": {

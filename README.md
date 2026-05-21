@@ -54,6 +54,7 @@ cmrm
 |---------|-------------|
 | `/switch` | Switch to a saved Claude model config or Codex profile |
 | `/add` | Add a new configuration interactively (auto-tests before saving) |
+| `/edit` | Edit a saved configuration's model name and API key |
 | `/remove` | Remove a saved configuration |
 | `/info` | View detailed configuration in JSON format |
 | `/test` | Test if a configuration works (saved or custom, with retry) |
@@ -70,6 +71,7 @@ For one-line workflows, the following arguments are accepted directly without en
 | Shortcut | Description |
 |----------|-------------|
 | `cmrm switch <name>` | Quickly switch to a saved config/profile |
+| `cmrm edit <name>` | Directly edit a saved config/profile's model name and API key |
 | `cmrm test <name>` | Quickly test a saved config/profile |
 | `cmrm alias <name> <new-alias>` | Add a globally-unique alias to a config/profile |
 | `cmrm <tool> import <file>` | Import a config from a file into Claude or Codex storage |
@@ -77,6 +79,8 @@ For one-line workflows, the following arguments are accepted directly without en
 | `cmrm --help` / `-h` | Show help |
 
 `<name>` is globally unique across all tools. Its canonical form is `model` for Claude and `provider/model` for Codex. Shortcut matching follows: canonical `name` → legacy custom name (old data only) → `aliases` → `model`. Aliases are also globally unique across all configs and tools.
+
+When `cmrm edit <name>` matches a saved entry, the current values are used as defaults and only the model name and API key can be changed. Other fields such as Codex `provider`, `baseUrl`, `modelReasoningEffort`, and `disableResponseStorage` are preserved.
 
 ### Interactive Selection
 
@@ -95,12 +99,13 @@ Example:
 
 [0] /switch        Switch saved config/profile
 [1] /add           Add new config
-[2] /remove        Remove saved config
-[3] /info          View config details
-[4] /test          Test configuration
-[5] /list          Show all configs
-[6] /current       Show current config
-[7] /exit          Exit
+[2] /edit          Edit saved config
+[3] /remove        Remove saved config
+[4] /info          View config details
+[5] /test          Test configuration
+[6] /list          Show all configs
+[7] /current       Show current config
+[8] /exit          Exit
 Enter command index: 0
 ```
 
@@ -233,7 +238,7 @@ Example output:
 - `/add` only stores profiles in `~/.cmrm/settings.json`
 - `/switch` does not change the existing runtime provider in Codex when one already exists
 - Switching updates `model`, `model_reasoning_effort`, top-level `openai_base_url`, that provider's `base_url`, and `auth.json`
-- Only when Codex has no provider configured yet will cmrm create an `openai` provider and set `openai_base_url`
+- Only when Codex has no provider configured yet will cmrm create a `custom-openai` provider and set `openai_base_url`
 
 ## Backup Files
 
@@ -263,6 +268,13 @@ npm start
 ```
 
 ## Changelog
+
+### 0.2.4
+- 🆕 Add `/edit` interactive command and `cmrm edit <name>` shortcut for updating a saved config/profile
+- 🔧 Default missing Codex providers to `custom-openai` across add/import/runtime fallback paths
+- 🐛 Fix `cmrm edit <name>` exit code semantics so cancelled edits return non-zero
+- 🔐 Stop showing saved API keys in the edit prompt and route `/edit` exit through the unified CLI exit path
+- 📝 Sync help, shortcut banner, README, and i18n wording around saved configs/profiles
 
 ### 0.2.3
 - 🆕 Add full Codex support: save/switch/test/import Codex profiles
